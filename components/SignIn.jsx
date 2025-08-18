@@ -9,12 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import PhoneInput from 'react-native-phone-number-input';
+import { authService } from '../lib/api-service';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignIn({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Format phone number for display
   const formatPhoneNumber = (number) => {
@@ -42,25 +43,44 @@ export default function SignIn({ navigation }) {
     }
   };
 
-  const handleSignIn = () => {
-    if (!phoneNumber || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const handleSignIn = async () => {
+    if (!phoneNumber) {
+      Alert.alert('Error', 'Please enter your phone number');
+      return;
+    }
+
+    if (phoneNumber.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
       return;
     }
     
-    // Here you would typically make an API call to sign in
-    console.log('Signing in with:', { phoneNumber: `+1${phoneNumber}`, password });
-    Alert.alert('Success', 'Sign in functionality would be implemented here');
-  };
-
-  const handleGoogleSignIn = () => {
-    console.log('Google sign in pressed');
-    Alert.alert('Google Sign In', 'Google sign in functionality would be implemented here');
-  };
-
-  const handleFacebookSignIn = () => {
-    console.log('Facebook sign in pressed');
-    Alert.alert('Facebook Sign In', 'Facebook sign in functionality would be implemented here');
+    setIsLoading(true);
+    try {
+      // Call the sign in API with only phone number
+      const result = await authService.signIn(`+1${phoneNumber}`);
+      
+      if (result.success) {
+        Alert.alert(
+          'Success!', 
+          'Signed in successfully!',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                // Navigate to main app or dashboard
+                navigation.navigate('LandingPage');
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', result.message || 'Sign in failed');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'An error occurred during sign in');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -82,65 +102,37 @@ export default function SignIn({ navigation }) {
         <Text style={styles.titleText}>Welcome Back!</Text>
         <Text style={styles.subtitleText}>Sign in to your account</Text>
 
-                {/* Phone Number Input */}
+        {/* Phone Number Input */}
         <View style={styles.inputContainer}>
           <View style={styles.phoneInputContainer}>
             <View style={styles.countryCodeContainer}>
               <Text style={styles.flagText}>🇺🇸</Text>
               <Text style={styles.countryCodeText}>+1</Text>
             </View>
-                            <TextInput
-                  style={styles.phoneInputText}
-                  placeholder="Enter phone number"
-                  placeholderTextColor="#666"
-                  value={formatPhoneNumber(phoneNumber)}
-                  onChangeText={handlePhoneNumberChange}
-                  keyboardType="phone-pad"
-                  autoFocus
-                  maxLength={14}
-                  returnKeyType="done"
-                  selectTextOnFocus={true}
-                />
+            <TextInput
+              style={styles.phoneInputText}
+              placeholder="Enter phone number"
+              placeholderTextColor="#666"
+              value={formatPhoneNumber(phoneNumber)}
+              onChangeText={handlePhoneNumberChange}
+              keyboardType="phone-pad"
+              autoFocus
+              maxLength={14}
+              returnKeyType="done"
+              selectTextOnFocus={true}
+            />
           </View>
-        </View>
-
-        {/* Password Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#666"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
         </View>
 
         {/* Sign In Button */}
-        <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
-          <Text style={styles.signInButtonText}>Sign In</Text>
-        </TouchableOpacity>
-
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Social Sign In Buttons */}
-        <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
-          <View style={styles.googleLogo}>
-            <Text style={styles.googleLogoText}>G</Text>
-          </View>
-          <Text style={styles.socialButtonText}>Sign in with Google Account</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
-          <View style={styles.facebookLogo}>
-            <Text style={styles.facebookLogoText}>F</Text>
-          </View>
-          <Text style={styles.socialButtonText}>Sign in with Facebook Account</Text>
+        <TouchableOpacity 
+          style={[styles.signInButton, isLoading && styles.signInButtonDisabled]} 
+          onPress={handleSignIn}
+          disabled={isLoading}
+        >
+          <Text style={styles.signInButtonText}>
+            {isLoading ? 'Signing In...' : 'Sign In'}
+          </Text>
         </TouchableOpacity>
 
         {/* Sign Up Link */}
@@ -241,23 +233,6 @@ const styles = StyleSheet.create({
     color: '#2D1E2F',
     flex: 1,
   },
-  input: {
-    width: '100%',
-    height: 60,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    color: '#2D1E2F',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   signInButton: {
     backgroundColor: '#2D1E2F',
     paddingVertical: 18,
@@ -273,75 +248,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4.65,
     elevation: 8,
   },
+  signInButtonDisabled: {
+    backgroundColor: '#999',
+  },
   signInButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 30,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  dividerText: {
-    marginHorizontal: 15,
-    color: '#666',
-    fontSize: 16,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  googleLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 15,
-  },
-  googleLogoText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  facebookLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1877F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 15,
-  },
-  facebookLogoText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  socialButtonText: {
-    fontSize: 16,
-    color: '#2D1E2F',
-    fontWeight: '500',
   },
   signUpContainer: {
     flexDirection: 'row',

@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import LandingPage from './components/LandingPage';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
+import MarkdownViewer from './components/MarkdownViewer';
 
 const Stack = createStackNavigator();
 
@@ -35,6 +36,13 @@ export default function App() {
           component={SignUp}
           options={{
             title: 'Sign Up'
+          }}
+        />
+        <Stack.Screen
+          name="MarkdownViewer"
+          component={MarkdownViewer}
+          options={{
+            title: 'Document Viewer'
           }}
         />
       </Stack.Navigator>

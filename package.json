@@ -7,7 +7,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "ios-sim": "xcrun simctl boot 'iPhone 13 Test' && sleep 2 && open -a Simulator && sleep 3 && expo start --ios --clear",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:web": "expo build:web",
+    "serve:web": "npx serve web-build"
   },
   "dependencies": {
     "@apollo/client": "^3.13.9",
@@ -22,7 +24,8 @@
     "react-native-phone-number-input": "^2.1.0",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "^4.11.1",
-    "react-native-svg": "^15.11.2"
+    "react-native-svg": "^15.11.2",
+    "react-native-markdown-display": "^7.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

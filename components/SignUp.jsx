@@ -8,13 +8,14 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
+import { authService } from '../lib/api-service';
+import { getMarkdownContent } from '../lib/markdown-loader';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignUp({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Format phone number for display
   const formatPhoneNumber = (number) => {
@@ -42,30 +43,62 @@ export default function SignUp({ navigation }) {
     }
   };
 
-  const handleSignUp = () => {
-    if (!phoneNumber || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const handleSignUp = async () => {
+    if (!phoneNumber) {
+      Alert.alert('Error', 'Please enter your phone number');
+      return;
+    }
+
+    if (phoneNumber.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
       return;
     }
     
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
+    setIsLoading(true);
+    try {
+      // Request OTP from the API
+      const result = await authService.requestOtp(`+1${phoneNumber}`);
+      
+      if (result.success) {
+        Alert.alert(
+          'OTP Sent!', 
+          result.message,
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                // Navigate to VerifyOTP component after successful OTP request
+                navigation.navigate('VerifyOTP', {
+                  phoneNumber: `+1${phoneNumber}`
+                });
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', result.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'An error occurred while requesting OTP');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Here you would typically make an API call to sign up
-    console.log('Signing up with:', { phoneNumber: `+1${phoneNumber}`, password });
-    Alert.alert('Success', 'Sign up functionality would be implemented here');
   };
 
-  const handleGoogleSignUp = () => {
-    console.log('Google sign up pressed');
-    Alert.alert('Google Sign Up', 'Google sign up functionality would be implemented here');
+  const handleViewTerms = () => {
+    navigation.navigate('MarkdownViewer', {
+      title: 'Terms of Service',
+      markdownContent: getMarkdownContent('terms'),
+      type: 'Terms of Service'
+    });
   };
 
-  const handleFacebookSignUp = () => {
-    console.log('Facebook sign up pressed');
-    Alert.alert('Facebook Sign Up', 'Facebook sign up functionality would be implemented here');
+  const handleViewPrivacy = () => {
+    navigation.navigate('MarkdownViewer', {
+      title: 'Privacy Policy',
+      markdownContent: getMarkdownContent('privacy'),
+      type: 'Privacy Policy'
+    });
   };
 
   return (
@@ -94,71 +127,45 @@ export default function SignUp({ navigation }) {
               <Text style={styles.flagText}>🇺🇸</Text>
               <Text style={styles.countryCodeText}>+1</Text>
             </View>
-                            <TextInput
-                  style={styles.phoneInputText}
-                  placeholder="Enter phone number"
-                  placeholderTextColor="#666"
-                  value={formatPhoneNumber(phoneNumber)}
-                  onChangeText={handlePhoneNumberChange}
-                  keyboardType="phone-pad"
-                  autoFocus
-                  maxLength={14}
-                  returnKeyType="done"
-                  selectTextOnFocus={true}
-                />
+            <TextInput
+              style={styles.phoneInputText}
+              placeholder="Enter phone number"
+              placeholderTextColor="#666"
+              value={formatPhoneNumber(phoneNumber)}
+              onChangeText={handlePhoneNumberChange}
+              keyboardType="phone-pad"
+              autoFocus
+              maxLength={14}
+              returnKeyType="done"
+              selectTextOnFocus={true}
+            />
           </View>
-        </View>
-
-        {/* Password Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#666"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
-
-        {/* Confirm Password Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor="#666"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
         </View>
 
         {/* Sign Up Button */}
-        <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
-          <Text style={styles.signUpButtonText}>Sign Up</Text>
+        <TouchableOpacity 
+          style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]} 
+          onPress={handleSignUp}
+          disabled={isLoading}
+        >
+          <Text style={styles.signUpButtonText}>
+            {isLoading ? 'Sending OTP...' : 'Send OTP Code'}
+          </Text>
         </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
+        {/* Terms and Privacy Links */}
+        <View style={styles.legalContainer}>
+          <Text style={styles.legalText}>
+            By signing up, you agree to our{' '}
+            <Text style={styles.legalLink} onPress={handleViewTerms}>
+              Terms of Service
+            </Text>
+            {' '}and{' '}
+            <Text style={styles.legalLink} onPress={handleViewPrivacy}>
+              Privacy Policy
+            </Text>
+          </Text>
         </View>
-
-        {/* Social Sign Up Buttons */}
-        <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignUp}>
-          <View style={styles.googleLogo}>
-            <Text style={styles.googleLogoText}>G</Text>
-          </View>
-          <Text style={styles.socialButtonText}>Sign up with Google Account</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignUp}>
-          <View style={styles.facebookLogo}>
-            <Text style={styles.facebookLogoText}>F</Text>
-          </View>
-          <Text style={styles.socialButtonText}>Sign up with Facebook Account</Text>
-        </TouchableOpacity>
 
         {/* Sign In Link */}
         <View style={styles.signInContainer}>
@@ -258,29 +265,13 @@ const styles = StyleSheet.create({
     color: '#2D1E2F',
     flex: 1,
   },
-  input: {
-    width: '100%',
-    height: 60,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    fontSize: 16,
-    color: '#2D1E2F',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   signUpButton: {
     backgroundColor: '#2D1E2F',
     paddingVertical: 18,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -290,81 +281,34 @@ const styles = StyleSheet.create({
     shadowRadius: 4.65,
     elevation: 8,
   },
+  signUpButtonDisabled: {
+    backgroundColor: '#999',
+  },
   signUpButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 30,
+  legalContainer: {
+    marginBottom: 30,
+    paddingHorizontal: 10,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  dividerText: {
-    marginHorizontal: 15,
+  legalText: {
+    fontSize: 14,
     color: '#666',
-    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  googleLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 15,
-  },
-  googleLogoText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  facebookLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1877F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 15,
-  },
-  facebookLogoText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  socialButtonText: {
-    fontSize: 16,
+  legalLink: {
     color: '#2D1E2F',
-    fontWeight: '500',
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
   },
   signInContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 20,
   },
   signInText: {
     fontSize: 16,
