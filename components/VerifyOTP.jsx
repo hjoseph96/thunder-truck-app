@@ -61,8 +61,8 @@ export default function VerifyOTP({ navigation, route }) {
             {
               text: 'Continue',
               onPress: () => {
-                // Navigate to main app or dashboard
-                navigation.navigate('LandingPage');
+                // Navigate to ExplorerHome after successful verification
+                navigation.navigate('ExplorerHome');
               }
             }
           ]
@@ -194,9 +194,10 @@ export default function VerifyOTP({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'whitesmoke',
+    backgroundColor: '#fecd15',
   },
   header: {
+    backgroundColor: '#28282B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -209,13 +210,13 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 18,
-    color: '#2D1E2F',
+    color: 'whitesmoke',
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2D1E2F',
+    color: 'whitesmoke',
   },
   placeholder: {
     width: 60,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 30,
-    paddingTop: 20,
+    paddingTop: 60,
   },
   titleText: {
     fontSize: 32,
@@ -248,6 +249,7 @@ const styles = StyleSheet.create({
   otpInput: {
     width: 50,
     height: 60,
+    marginHorizontal: 1,
     backgroundColor: 'white',
     borderRadius: 12,
     textAlign: 'center',

@@ -103,6 +103,7 @@ export default function SignUp({ navigation }) {
 
   return (
     <View style={styles.container}>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -149,7 +150,7 @@ export default function SignUp({ navigation }) {
           disabled={isLoading}
         >
           <Text style={styles.signUpButtonText}>
-            {isLoading ? 'Sending OTP...' : 'Send OTP Code'}
+            {isLoading ? 'Sending OTP...' : 'Sign Up'}
           </Text>
         </TouchableOpacity>
 
@@ -185,6 +186,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fecd15',
   },
   header: {
+    backgroundColor: '#28282B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -197,13 +199,13 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 18,
-    color: '#2D1E2F',
-    fontWeight: '600',
+    color: 'whitesmoke',
+    fontWeight: '600'
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2D1E2F',
+    color: 'whitesmoke'
   },
   placeholder: {
     width: 60,
@@ -211,7 +213,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 30,
-    paddingTop: 20,
+    paddingTop: 60,
   },
   titleText: {
     fontSize: 32,
