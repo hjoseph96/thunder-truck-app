@@ -7,6 +7,7 @@ import SignUp from './components/SignUp';
 import MarkdownViewer from './components/MarkdownViewer';
 import VerifyOTP from './components/VerifyOTP';
 import ExplorerHome from './components/ExplorerHome';
+import MapPage from './components/MapPage';
 
 const Stack = createStackNavigator();
 
@@ -59,6 +60,13 @@ export default function App() {
           component={ExplorerHome}
           options={{
             title: 'Explorer Home'
+          }}
+        />
+        <Stack.Screen
+          name="MapPage"
+          component={MapPage}
+          options={{
+            title: 'Map'
           }}
         />
       </Stack.Navigator>

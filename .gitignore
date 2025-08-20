@@ -33,5 +33,8 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Mapbox configuration (contains sensitive tokens)
+config/mapbox-config.js
+
 # typescript
 *.tsbuildinfo
