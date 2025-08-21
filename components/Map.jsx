@@ -85,6 +85,18 @@ const Map = forwardRef(({
           top: 20px;
           right: 20px;
         }
+        .mapboxgl-ctrl-top-left {
+          top: 20px;
+          left: 20px;
+        }
+        /* Ensure zoom controls maintain uniform size */
+        .mapboxgl-ctrl-group {
+          transform: scale(1) !important;
+          transform-origin: top left !important;
+        }
+        .mapboxgl-ctrl-group button {
+          transform: scale(1) !important;
+        }
         .gps-button {
           background: #fecd15;
           border: none;
@@ -145,6 +157,9 @@ const Map = forwardRef(({
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
           z-index: 1000;
           pointer-events: none;
+          transform-origin: center;
+          /* Ensure marker maintains uniform size regardless of zoom */
+          transform: scale(1) !important;
         }
         .user-location-marker::after {
           content: '';
@@ -156,6 +171,14 @@ const Map = forwardRef(({
           background: white;
           border-radius: 50%;
           transform: translate(-50%, -50%);
+        }
+        /* Prevent any scaling effects on map controls and markers */
+        .mapboxgl-ctrl-group,
+        .mapboxgl-ctrl-group *,
+        .user-location-marker,
+        .user-location-marker * {
+          transform: scale(1) !important;
+          transform-origin: top left !important;
         }
         @keyframes pulse {
           0% { transform: scale(1); opacity: 1; }
@@ -170,10 +193,7 @@ const Map = forwardRef(({
     <body>
       <div id="map"></div>
       
-      <button class="gps-button" onclick="centerOnUserLocation()" title="Center on my location">📍</button>
-      <button class="test-button" onclick="testMoveBlueDot()" title="Test marker movement">🧪</button>
-      <button class="debug-button" onclick="showDebugInfo()" title="Show debug info">🐛</button>
-      
+ 
       <script>
         let map;
         let currentUserLocation;
@@ -220,38 +240,42 @@ const Map = forwardRef(({
               zoom: 14
             });
             
-            // Wait for map to load
-            map.on('load', function() {
-              console.log('WebView: Map loaded successfully');
-              
-              // Add initial user location marker
-              if (currentUserLocation) {
-                addUserLocationMarker(currentUserLocation);
-              } else {
-                addUserLocationMarker(defaultLocation);
-              }
-              
-              // Send ready message to React Native
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'webViewReady'
-                }));
-              }
-            });
+                         // Wait for map to load
+             map.on('load', function() {
+               console.log('WebView: Map loaded successfully');
+               
+               // Only add user location marker if user location is actually set
+               if (currentUserLocation) {
+                 addUserLocationMarker(currentUserLocation);
+                 console.log('WebView: Added user location marker at:', currentUserLocation);
+               } else {
+                 console.log('WebView: No user location set, skipping marker creation');
+               }
+               
+               // Send ready message to React Native
+               if (window.ReactNativeWebView) {
+                 window.ReactNativeWebView.postMessage(JSON.stringify({
+                   type: 'webViewReady'
+                 }));
+               }
+               
+               // Also check if we have location permission and should show marker
+               if (hasLocationPermission && currentUserLocation) {
+                 console.log('WebView: Map loaded with permission, ensuring marker is visible');
+                 addUserLocationMarker(currentUserLocation);
+               }
+             });
             
-            // Add map controls
-            map.addControl(new mapboxgl.GeolocateControl({
-              positionOptions: {
-                enableHighAccuracy: true
-              },
-              trackUserLocation: true,
-              showUserLocation: true
-            }), 'top-right');
+      
             
             // Add navigation control
             map.addControl(new mapboxgl.NavigationControl(), 'top-left');
-            
-            console.log('WebView: Map initialization complete');
+             
+             // Add event listeners to update marker position when map moves
+             map.on('move', updateMarkerPositionOnMapMove);
+             map.on('zoom', updateMarkerPositionOnMapMove);
+             
+             console.log('WebView: Map initialization complete');
             
           } catch (error) {
             console.error('WebView: Error initializing map:', error);
@@ -266,53 +290,68 @@ const Map = forwardRef(({
           }
         }
         
-        // Function to add user location marker
-        function addUserLocationMarker(coordinates) {
-          try {
-            // Remove existing marker if any
-            const existingMarker = document.querySelector('.user-location-marker');
-            if (existingMarker) {
-              existingMarker.remove();
-            }
-            
-            // Create new marker
-            const marker = document.createElement('div');
-            marker.className = 'user-location-marker';
-            marker.setAttribute('aria-label', 'Map marker');
-            marker.setAttribute('role', 'img');
-            
-            // Position marker
-            if (map) {
-              const point = map.project(coordinates);
-              marker.style.transform = \`translate(\${point.x}px, \${point.y}px) translate(-50%, -50%)\`;
-            }
-            
-            // Add to map
-            document.body.appendChild(marker);
-            
-            console.log('WebView: User location marker added at:', coordinates);
-            
-          } catch (error) {
-            console.error('WebView: Error adding user location marker:', error);
-          }
-        }
+                 // Function to add user location marker
+         function addUserLocationMarker(coordinates) {
+           try {
+             // Only create marker if valid coordinates are provided
+             if (!coordinates || !Array.isArray(coordinates) || coordinates.length !== 2) {
+               console.log('WebView: Invalid coordinates provided, skipping marker creation');
+               return;
+             }
+             
+             // Remove existing marker if any
+             const existingMarker = document.querySelector('.user-location-marker');
+             if (existingMarker) {
+               existingMarker.remove();
+             }
+             
+             // Create new marker
+             const marker = document.createElement('div');
+             marker.className = 'user-location-marker';
+             marker.setAttribute('aria-label', 'Map marker');
+             marker.setAttribute('role', 'img');
+             
+             // Position marker
+             if (map) {
+               const point = map.project(coordinates);
+               marker.style.left = point.x + 'px';
+               marker.style.top = point.y + 'px';
+               marker.style.transform = 'translate(-50%, -50%) scale(1)';
+               console.log('WebView: Marker positioned at pixel coordinates:', point);
+             }
+             
+             // Add to map
+             document.body.appendChild(marker);
+             
+             console.log('WebView: User location marker added at:', coordinates);
+             
+           } catch (error) {
+             console.error('WebView: Error adding user location marker:', error);
+           }
+         }
         
         // Function to center map on user location
-        function centerOnUserLocation() {
-          if (currentUserLocation && map) {
-            console.log('WebView: Centering map on user location');
-            map.flyTo({
-              center: currentUserLocation,
-              zoom: 16,
-              duration: 1500
-            });
-            
-            // Update marker position
-            addUserLocationMarker(currentUserLocation);
-          } else {
-            console.log('WebView: No user location available');
-          }
-        }
+         function centerOnUserLocation() {
+           if (currentUserLocation && map) {
+             console.log('WebView: Centering map on user location');
+             map.flyTo({
+               center: currentUserLocation,
+               zoom: 16,
+               duration: 1500
+             });
+             
+             // Update marker position
+             addUserLocationMarker(currentUserLocation);
+           } else {
+             console.log('WebView: No user location available');
+             // Remove any existing marker if no location
+             const existingMarker = document.querySelector('.user-location-marker');
+             if (existingMarker) {
+               existingMarker.remove();
+               console.log('WebView: Removed existing marker due to no user location');
+             }
+           }
+         }
         
         // Function to test marker movement
         function testMoveBlueDot() {
@@ -333,15 +372,57 @@ const Map = forwardRef(({
           }
         }
         
-        // Function to show debug info
-        function showDebugInfo() {
-          console.log('WebView: Debug Info:', {
-            mapLoaded: !!map,
-            currentUserLocation,
-            defaultLocation,
-            hasLocationPermission
-          });
-        }
+                 // Function to show debug info
+         function showDebugInfo() {
+           console.log('WebView: Debug Info:', {
+             mapLoaded: !!map,
+             currentUserLocation,
+             defaultLocation,
+             hasLocationPermission
+           });
+           
+           // Also check marker visibility
+           const userMarker = document.querySelector('.user-location-marker');
+           console.log('WebView: User marker element:', userMarker);
+           if (userMarker) {
+             console.log('WebView: Marker styles:', {
+               left: userMarker.style.left,
+               top: userMarker.style.top,
+               transform: userMarker.style.transform,
+               display: userMarker.style.display,
+               visibility: userMarker.style.visibility,
+               opacity: userMarker.style.opacity
+             });
+           }
+         }
+         
+         // Function to update marker position when map moves
+         function updateMarkerPositionOnMapMove() {
+           if (currentUserLocation && map) {
+             const userMarker = document.querySelector('.user-location-marker');
+             if (userMarker) {
+               const point = map.project(currentUserLocation);
+               userMarker.style.left = point.x + 'px';
+               userMarker.style.top = point.y + 'px';
+               
+               // Ensure marker maintains uniform size
+               userMarker.style.transform = 'translate(-50%, -50%) scale(1)';
+               
+               console.log('WebView: Marker position updated on map move to:', point);
+             } else {
+               // If marker doesn't exist but should, recreate it
+               console.log('WebView: Marker missing, recreating at current location');
+               addUserLocationMarker(currentUserLocation);
+             }
+           } else {
+             // If no user location, remove any existing marker
+             const userMarker = document.querySelector('.user-location-marker');
+             if (userMarker) {
+               userMarker.remove();
+               console.log('WebView: Removed marker due to no user location during map move');
+             }
+           }
+         }
         
         // Handle messages from React Native
         window.addEventListener('message', function(event) {
@@ -364,6 +445,12 @@ const Map = forwardRef(({
                   zoom: 16,
                   duration: 2000
                 });
+                
+                // Add user location marker at the new location
+                addUserLocationMarker(currentUserLocation);
+              } else {
+                // If map isn't ready yet, store the location for when it loads
+                console.log('WebView: Map not ready yet, storing user location for later');
               }
               
               // Send confirmation back to React Native
@@ -443,17 +530,19 @@ const Map = forwardRef(({
                   const coords = [data.coordinates.longitude, data.coordinates.latitude];
                   currentUserLocation = coords;
                   
-                  // Update the static marker position in the HTML
-                  const userMarker = document.querySelector('.user-location-marker');
-                  if (userMarker && map) {
-                    // Convert coordinates to pixel position
-                    const point = map.project(coords);
-                    userMarker.style.transform = \`translate(\${point.x}px, \${point.y}px) translate(-50%, -50%)\`;
-                    userMarker.style.position = 'fixed'; // Make it static relative to viewport
-                    userMarker.style.zIndex = '1000';
-                    
-                    console.log('WebView: Static marker set at pixel position:', point);
-                  }
+                                     // Update the static marker position in the HTML
+                   const userMarker = document.querySelector('.user-location-marker');
+                   if (userMarker && map) {
+                     // Convert coordinates to pixel position
+                     const point = map.project(coords);
+                     userMarker.style.left = point.x + 'px';
+                     userMarker.style.top = point.y + 'px';
+                     userMarker.style.transform = 'translate(-50%, -50%) scale(1)';
+                     userMarker.style.position = 'absolute'; // Keep it absolute for proper positioning
+                     userMarker.style.zIndex = '1000';
+                     
+                     console.log('WebView: Static marker set at pixel position:', point);
+                   }
                   
                   // Send confirmation back to React Native
                   if (window.ReactNativeWebView) {
@@ -498,6 +587,24 @@ const Map = forwardRef(({
               } catch (error) {
                 console.error('WebView: Error setting marker visibility:', error);
               }
+                        } else if (data.type === 'locationPermission') {
+              // Handle location permission status update
+              console.log('WebView: Location permission status:', data.granted);
+              hasLocationPermission = data.granted;
+              
+              // If permission is granted and we have user location, add marker
+              if (data.granted && currentUserLocation) {
+                console.log('WebView: Permission granted, adding user location marker');
+                addUserLocationMarker(currentUserLocation);
+              } else if (!data.granted) {
+                // If permission denied, remove any existing marker
+                const existingMarker = document.querySelector('.user-location-marker');
+                if (existingMarker) {
+                  existingMarker.remove();
+                  console.log('WebView: Permission denied, removed user location marker');
+                }
+              }
+              
             } else if (data.type === 'updateMarkerPositionOnly') {
               // Update marker position without moving the map
               if (data.coordinates && data.coordinates.latitude && data.coordinates.longitude) {
@@ -511,7 +618,9 @@ const Map = forwardRef(({
                   const userMarker = document.querySelector('.user-location-marker');
                   if (userMarker && map) {
                     const point = map.project(coords);
-                    userMarker.style.transform = \`translate(\${point.x}px, \${point.y}px) translate(-50%, -50%)\`;
+                    userMarker.style.left = point.x + 'px';
+                    userMarker.style.top = point.y + 'px';
+                    userMarker.style.transform = 'translate(-50%, -50%) scale(1)';
                     
                     console.log('WebView: Marker position updated to pixel position:', point);
                   }
