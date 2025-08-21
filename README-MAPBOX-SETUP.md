@@ -30,7 +30,7 @@ PUBLIC_ACCESS_TOKEN: 'YOUR_MAPBOX_PUBLIC_TOKEN_HERE'
 ```
 with your actual token:
 ```javascript
-PUBLIC_ACCESS_TOKEN: 'pk.eyJ1IjoidGh1bmRlcnRydWNrIiwiYSI6ImNtZWpjdzdscDBiengya29va3duNHBzbDQifQ.2q8IcDq0Yuk-guEpdyro5g'
+PUBLIC_ACCESS_TOKEN: 'pk.eyJ1IjoidGh1bmRlcnRydWNrIiwiYSI6ImNtZWtoem84MzA2NW4ya3B0a3E5cmNmaHUifQ.Ph-PO0Gk_S_BNBhx1EfIPQ'
 ```
 
 ## 🗺️ Map Configuration

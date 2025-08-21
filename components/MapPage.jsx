@@ -6,37 +6,142 @@ import {
   SafeAreaView,
   TextInput,
   TouchableOpacity,
-  Dimensions,
-  Image,
   Alert,
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Path, Circle, G, ClipPath, Rect, Defs, ForeignObject } from 'react-native-svg';
-import { WebView } from 'react-native-webview';
+import Svg, { Path } from 'react-native-svg';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDefaultCenter } from '../config/mapbox-config';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+import Map from './Map';
 
 export default function MapPage({ navigation }) {
   const [searchText, setSearchText] = useState('');
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [locationPermission, setLocationPermission] = useState(null);
-  const [showDebugModal, setShowDebugModal] = useState(false);
-  const [userAddress, setUserAddress] = useState(null);
   const [webViewReady, setWebViewReady] = useState(false);
-  const webViewRef = useRef(null);
+  const [userLocation, setUserLocation] = useState(null); // Add user location state
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false); // Track location permission
+  const [markerMovedToUserLocation, setMarkerMovedToUserLocation] = useState(false); // Track if marker has been moved to user location
+  const mapRef = useRef(null); // Ref for the Map component
 
-  // Check location permission on component mount
+  // Check location permission and get user location on component mount
   useEffect(() => {
-    checkLocationPermission();
+    const initializeLocation = async () => {
+      try {
+        console.log('MapPage: Initializing location...');
+        
+        // Check if we have location permission
+        const { status } = await Location.getForegroundPermissionsAsync();
+        
+        if (status === 'granted') {
+          console.log('MapPage: Location permission granted, getting current location...');
+          setLocationPermissionGranted(true);
+          
+          // Get the user's current location
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 10,
+          });
+          
+          if (location) {
+            console.log('MapPage: User location obtained:', location.coords);
+            
+            // Set the user location state
+            const newUserLocation = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              accuracy: location.coords.accuracy
+            };
+            setUserLocation(newUserLocation);
+            
+            // Move the user marker to the actual user location
+            console.log('MapPage: Moving user marker to actual user location:', newUserLocation);
+            if (webViewReady && !markerMovedToUserLocation) {
+              moveUserMarkerToCoordinates(location.coords.latitude, location.coords.longitude, false);
+              setMarkerMovedToUserLocation(true);
+            } else if (!webViewReady) {
+              console.log('MapPage: WebView not ready yet, will move marker when ready');
+            } else {
+              console.log('MapPage: Marker already moved to user location');
+            }
+          } else {
+            console.log('MapPage: Could not get user location, defaulting to Williamsburg');
+            // Default to Williamsburg coordinates
+            setUserLocation({
+              latitude: 40.7081, // Williamsburg, Brooklyn coordinates
+              longitude: -73.9571,
+              accuracy: null
+            });
+          }
+        } else {
+          console.log('MapPage: Location permission not granted, requesting permission...');
+          
+          // Request location permission
+          const permissionGranted = await requestLocationPermission();
+          
+          if (permissionGranted) {
+            console.log('MapPage: Location permission granted after request, getting current location...');
+            setLocationPermissionGranted(true);
+            
+            // Get the user's current location
+            const location = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 5000,
+              distanceInterval: 10,
+            });
+            
+            if (location) {
+              console.log('MapPage: User location obtained after permission request:', location.coords);
+              
+              // Set the user location state
+              const newUserLocation = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                accuracy: location.coords.accuracy
+              };
+              setUserLocation(newUserLocation);
+              
+              // Move the user marker to the actual user location
+              console.log('MapPage: Moving user marker to actual user location after permission request:', newUserLocation);
+              if (webViewReady && !markerMovedToUserLocation) {
+                moveUserMarkerToCoordinates(location.coords.latitude, location.coords.longitude, false);
+                setMarkerMovedToUserLocation(true);
+              } else if (!webViewReady) {
+                console.log('MapPage: WebView not ready yet, will move marker when ready');
+              } else {
+                console.log('MapPage: Marker already moved to user location');
+              }
+            } else {
+              console.log('MapPage: Could not get user location after permission request, defaulting to Williamsburg');
+              // Default to Williamsburg coordinates
+              setUserLocation({
+                latitude: 40.7081, // Williamsburg, Brooklyn coordinates
+                longitude: -73.9571,
+                accuracy: null
+              });
+            }
+          } else {
+            console.log('MapPage: Location permission denied after request, defaulting to Williamsburg');
+            setLocationPermissionGranted(false);
+            // Default to Williamsburg coordinates
+            setUserLocation({
+              latitude: 40.7081, // Williamsburg, Brooklyn coordinates
+              longitude: -73.9571,
+              accuracy: null
+            });
+          }
+        }
+      } catch (error) {
+        console.error('MapPage: Error initializing location:', error);
+        // Default to Williamsburg coordinates on error
+        setUserLocation({
+          latitude: 40.7081, // Williamsburg, Brooklyn coordinates
+          longitude: -73.9571,
+          accuracy: null
+        });
+      }
+    };
     
-    // Send default location to WebView after a short delay to ensure it's loaded
-    const timer = setTimeout(() => {
-      sendDefaultLocationToWebView();
-    }, 1000);
+    initializeLocation();
     
     // Fallback: Set webViewReady to true after 15 seconds regardless
     const fallbackTimer = setTimeout(() => {
@@ -47,222 +152,218 @@ export default function MapPage({ navigation }) {
     }, 15000);
     
     return () => {
-      clearTimeout(timer);
       clearTimeout(fallbackTimer);
     };
   }, [webViewReady]);
 
-  const checkLocationPermission = async () => {
-    try {
-      // Check if we've already asked for permission
-      const hasAskedBefore = await AsyncStorage.getItem('locationPermissionAsked');
+  // Move user marker to actual location once WebView is ready
+  useEffect(() => {
+    if (webViewReady && userLocation && locationPermissionGranted && !markerMovedToUserLocation) {
+      console.log('MapPage: WebView ready, moving user marker to actual location:', userLocation);
       
-      if (hasAskedBefore) {
-        // User has been asked before, check current status
-        const { status } = await Location.getForegroundPermissionsAsync();
-        setLocationPermission(status);
-        
-        if (status === 'granted') {
-          // Permission granted, send to WebView
-          sendLocationPermissionToWebView(true);
-        }
+      // Check if this is the user's actual location (not Williamsburg default)
+      const isWilliamsburg = userLocation.latitude === 40.7081 && userLocation.longitude === -73.9571;
+      
+      if (!isWilliamsburg) {
+        console.log('MapPage: Moving marker to user\'s actual location');
+        moveUserMarkerToCoordinates(userLocation.latitude, userLocation.longitude, false);
+        setMarkerMovedToUserLocation(true);
       } else {
-        // First time, show the modal
-        setShowLocationModal(true);
+        console.log('MapPage: User location is Williamsburg default, not moving marker');
       }
-    } catch (error) {
-      console.error('Error checking location permission:', error);
     }
-  };
+  }, [webViewReady, userLocation, locationPermissionGranted, markerMovedToUserLocation]);
 
+  // Helper function to request location permission
   const requestLocationPermission = async () => {
     try {
-      setShowLocationModal(false);
-      
-      // Request permission
       const { status } = await Location.requestForegroundPermissionsAsync();
-      setLocationPermission(status);
-      
-      // Remember that we've asked
-      await AsyncStorage.setItem('locationPermissionAsked', 'true');
-      
-      if (status === 'granted') {
-        // Permission granted, send to WebView
-        sendLocationPermissionToWebView(true);
-        Alert.alert(
-          'Location Access Granted',
-          'Thank you! We can now show your location on the map.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        // Permission denied
-        sendLocationPermissionToWebView(false);
-        Alert.alert(
-          'Location Access Denied',
-          'You can still use the map, but we won\'t be able to show your current location.',
-          [{ text: 'OK' }]
-        );
-      }
+      return status === 'granted';
     } catch (error) {
       console.error('Error requesting location permission:', error);
-      setShowLocationModal(false);
+      return false;
     }
   };
 
-  const skipLocationPermission = async () => {
+  const handleGPSButtonPress = async () => {
     try {
-      setShowLocationModal(false);
+      console.log('GPS button pressed - getting current location...');
       
-      // Remember that we've asked
-      await AsyncStorage.setItem('locationPermissionAsked', 'true');
-      
-      // Send denied status to WebView
-      sendLocationPermissionToWebView(false);
-      
-      Alert.alert(
-        'Location Access Skipped',
-        'You can still use the map, but we won\'t be able to show your current location.',
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Error skipping location permission:', error);
-      setShowLocationModal(false);
-    }
-  };
-
-  const sendLocationPermissionToWebView = (granted) => {
-    const message = {
-      type: 'locationPermission',
-      granted: granted
-    };
-    sendMessageToWebView(message);
-    
-    // If permission granted, get user's current location and send to map
-    if (granted) {
-      getUserCurrentLocation();
-    }
-  };
-
-  const getUserCurrentLocation = async () => {
-    try {
+      // Get the user's current location (permission already checked during initialization)
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 5000,
         distanceInterval: 10,
       });
       
-      if (location && webViewRef.current) {
+      if (location) {
         console.log('GPS button pressed - location obtained:', location.coords);
         
-        // Get the user's address from coordinates
-        const address = await getUserAddress(location.coords.latitude, location.coords.longitude);
-        if (address) {
-          setUserAddress(address);
-          setShowDebugModal(true);
-        }
+        // Set the user location state - this will trigger the Map component to update
+        const newUserLocation = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy
+        };
+        setUserLocation(newUserLocation);
         
-        // Send the user's current location to the WebView
-        const message = JSON.stringify({
-          type: 'userLocationUpdate',
-          coordinates: {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            accuracy: location.coords.accuracy
-          }
-        });
-        sendMessageToWebView(message);
-        
-        // Also send a message to center the map on this location
-        setTimeout(() => {
-          sendMessageToWebView({
-            type: 'centerMapOnUserLocation'
-          });
-        }, 500);
-        
-        console.log('GPS button pressed - location sent to map:', location.coords);
+        console.log('GPS button pressed - user location state updated:', newUserLocation);
       } else {
         console.log('GPS button pressed - could not get location');
-        // Fallback: just send the center message
-        sendMessageToWebView({
-          type: 'centerMapOnUserLocation'
-        });
+        Alert.alert(
+          'Location Error',
+          'Unable to get your current location. Please check your GPS settings and try again.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
       console.error('Error getting user location for GPS button:', error);
       Alert.alert(
         'Location Error',
         'Unable to get your current location. Please check your GPS settings and try again.',
+      [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Function to move user marker to specific coordinates
+  const moveUserMarkerToCoordinates = (latitude, longitude, updateState = true) => {
+    if (!locationPermissionGranted) {
+      console.log('Cannot move marker: location permission not granted');
+      Alert.alert(
+        'Permission Required',
+        'Location permission is required to move the marker. Please grant location access.',
         [{ text: 'OK' }]
       );
-      // Fallback: just send the center message
-      sendMessageToWebView({
-        type: 'centerMapOnUserLocation'
-      });
+      return;
     }
-  };
 
-  const sendDefaultLocationToWebView = () => {
-    // Williamsburg, Brooklyn coordinates
-    const defaultLocation = {
-      latitude: 40.7081,
-      longitude: -73.9571
-    };
+    console.log('Moving user marker to coordinates:', { latitude, longitude });
     
-    const message = {
-      type: 'defaultLocation',
-      coordinates: defaultLocation
-    };
-    sendMessageToWebView(message);
-  };
-
-  const getUserAddress = async (latitude, longitude) => {
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=pk.eyJ1IjoidGh1bmRlcnRydWNrIiwiYSI6ImNtZWpjdzdscDBiengya29va3duNHBzbDQifQ.2q8IcDq0Yuk-guEpdyro5g&types=address,poi&limit=1`
-      );
+    // Only update state if explicitly requested (prevents infinite loops during initialization)
+    if (updateState) {
+      const newLocation = {
+        latitude,
+        longitude,
+        accuracy: userLocation?.accuracy || null
+      };
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.features && data.features.length > 0) {
-          const feature = data.features[0];
-          return {
-            fullAddress: feature.place_name,
-            street: feature.text,
-            city: feature.context?.find(ctx => ctx.id.startsWith('place'))?.text || 'Unknown',
-            state: feature.context?.find(ctx => ctx.id.startsWith('region'))?.text || 'Unknown',
-            country: feature.context?.find(ctx => ctx.id.startsWith('country'))?.text || 'Unknown',
-            coordinates: { latitude, longitude }
-          };
-        }
+      setUserLocation(newLocation);
+    }
+    
+    // Send message to WebView to move the marker
+    if (webViewReady) {
+      const message = {
+        type: 'moveUserMarker',
+        coordinates: { latitude, longitude }
+      };
+      
+      // Use the Map component's ref to send message
+      if (mapRef.current) {
+        mapRef.current.postMessage(JSON.stringify(message));
       }
-      return null;
-    } catch (error) {
-      console.error('Error getting address:', error);
-      return null;
     }
   };
 
-  const sendMessageToWebView = (message, retryCount = 0) => {
-    if (!webViewRef.current) {
-      console.log('WebView not ready, retrying...', retryCount);
-      if (retryCount < 3) {
-        setTimeout(() => sendMessageToWebView(message, retryCount + 1), 500);
-      }
-      return false;
+  // Function to move user marker to current GPS location
+  const moveUserMarkerToCurrentLocation = async () => {
+    if (!locationPermissionGranted) {
+      console.log('Cannot move marker: location permission not granted');
+      Alert.alert(
+        'Permission Required',
+        'Location permission is required to move the marker. Please grant location access.',
+        [{ text: 'OK' }]
+      );
+      return;
     }
 
     try {
-      const messageString = typeof message === 'string' ? message : JSON.stringify(message);
-      webViewRef.current.postMessage(messageString);
-      console.log('Message sent to WebView:', message);
-      return true;
-    } catch (error) {
-      console.error('Error sending message to WebView:', error);
-      if (retryCount < 3) {
-        setTimeout(() => sendMessageToWebView(message, retryCount + 1), 500);
+      console.log('Moving user marker to current GPS location...');
+      
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 5000,
+        distanceInterval: 10,
+      });
+      
+      if (location) {
+        const newLocation = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy
+        };
+        
+        setUserLocation(newLocation);
+        console.log('User marker moved to current GPS location:', newLocation);
       }
-      return false;
+    } catch (error) {
+      console.error('Error moving marker to current location:', error);
+      Alert.alert(
+        'Location Error',
+        'Unable to get your current location. Please check your GPS settings and try again.',
+        [{ text: 'OK' }]
+      );
     }
+  };
+
+  // Function to move user marker to a specific address (geocoding)
+  const moveUserMarkerToAddress = async (address) => {
+    if (!locationPermissionGranted) {
+      console.log('Cannot move marker: location permission not granted');
+      Alert.alert(
+        'Permission Required',
+        'Location permission is required to move the marker. Please grant location access.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      console.log('Moving user marker to address:', address);
+      
+      // Use reverse geocoding to get coordinates from address
+      const geocodeResult = await Location.geocodeAsync(address);
+      
+      if (geocodeResult && geocodeResult.length > 0) {
+        const { latitude, longitude } = geocodeResult[0];
+        
+        const newLocation = {
+          latitude,
+          longitude,
+          accuracy: null // Geocoded addresses don't have accuracy
+        };
+        
+        setUserLocation(newLocation);
+        console.log('User marker moved to address coordinates:', newLocation);
+      } else {
+        Alert.alert(
+          'Address Not Found',
+          'Could not find the specified address. Please check the address and try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error moving marker to address:', error);
+      Alert.alert(
+        'Geocoding Error',
+        'Unable to find the specified address. Please check the address and try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Function to update marker position when map moves
+  const updateMarkerPosition = (newCoordinates) => {
+    if (!locationPermissionGranted) {
+      return; // Don't update if no permission
+    }
+
+    console.log('Updating marker position to:', newCoordinates);
+    setUserLocation(prevLocation => ({
+      ...prevLocation,
+      latitude: newCoordinates.latitude,
+      longitude: newCoordinates.longitude
+    }));
   };
 
   const SearchBar = () => (
@@ -305,96 +406,11 @@ export default function MapPage({ navigation }) {
     </View>
   );
 
-  const FloatingActionButton = ({ style, children, onPress }) => (
-    <TouchableOpacity style={[styles.floatingButton, style]} onPress={onPress}>
-      {children}
-    </TouchableOpacity>
-  );
-
-  const handleGPSButtonPress = async () => {
-    try {
-      // First, check if we have location permission
-      const { status } = await Location.getForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        console.log('GPS button pressed - no location permission, requesting...');
-        const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
-        
-        if (newStatus !== 'granted') {
-          console.log('GPS button pressed - location permission denied');
-          Alert.alert(
-            'Location Permission Required',
-            'Please enable location access in your device settings to use the GPS feature.',
-            [{ text: 'OK' }]
-          );
-          return;
-        }
-      }
-      
-      console.log('GPS button pressed - getting current location...');
-      
-      // Get the user's current location
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 5000,
-        distanceInterval: 10,
-      });
-      
-      if (location && webViewRef.current) {
-        console.log('GPS button pressed - location obtained:', location.coords);
-        
-        // Get the user's address from coordinates
-        const address = await getUserAddress(location.coords.latitude, location.coords.longitude);
-        if (address) {
-          setUserAddress(address);
-          setShowDebugModal(true);
-        }
-        
-        // Send the user's current location to the WebView
-        const message = JSON.stringify({
-          type: 'userLocationUpdate',
-          coordinates: {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            accuracy: location.coords.accuracy
-          }
-        });
-        sendMessageToWebView(message);
-        
-        // Also send a message to center the map on this location
-        setTimeout(() => {
-          sendMessageToWebView({
-            type: 'centerMapOnUserLocation'
-          });
-        }, 500);
-        
-        console.log('GPS button pressed - location sent to map:', location.coords);
-      } else {
-        console.log('GPS button pressed - could not get location');
-        // Fallback: just send the center message
-        sendMessageToWebView({
-          type: 'centerMapOnUserLocation'
-        });
-      }
-    } catch (error) {
-      console.error('Error getting user location for GPS button:', error);
-      Alert.alert(
-        'Location Error',
-        'Unable to get your current location. Please check your GPS settings and try again.',
-        [{ text: 'OK' }]
-      );
-      // Fallback: just send the center message
-      sendMessageToWebView({
-        type: 'centerMapOnUserLocation'
-      });
-    }
-  };
-
   const BottomNavigation = () => (
     <View style={styles.bottomNav}>
       <TouchableOpacity style={styles.navItem}>
         <Svg width="32" height="32" viewBox="0 0 32 32">
-          <Path d="M16 28.0001L14.0667 26.2668C11.8222 24.2446 9.96669 22.5001 8.50002 21.0334C7.03335 19.5668 5.86669 18.2499 5.00002 17.0828C4.13335 15.9166 3.52802 14.8446 3.18402 13.8668C2.84002 12.889 2.66758 11.889 2.66669 10.8668C2.66669 8.77789 3.36669 7.03345 4.76669 5.63345C6.16669 4.23345 7.91113 3.53345 10 3.53345C11.1556 3.53345 12.2556 3.77789 13.3 4.26678C14.3445 4.75567 15.2445 5.44456 16 6.33345C16.7556 5.44456 17.6556 4.75567 18.7 4.26678C19.7445 3.77789 20.8445 3.53345 22 3.53345C24.0889 3.53345 25.8334 4.23345 27.2334 5.63345C28.6334 7.03345 29.3334 8.77789 29.3334 10.8668C29.3334 11.889 29.1614 12.889 28.8174 13.8668C28.4734 14.8446 27.8676 15.9166 27 17.0828C26.1334 18.2499 24.9667 19.5668 23.5 21.0334C22.0334 22.5001 20.1778 24.2446 17.9334 26.2668L16 28.0001ZM16 24.4001C18.1334 22.489 19.8889 20.8503 21.2667 19.4841C22.6445 18.1179 23.7334 16.929 24.5334 15.9174C25.3334 14.9059 25.8889 14.0054 26.2 13.2161C26.5111 12.4268 26.6667 11.6437 26.6667 10.8668C26.6667 9.53345 26.2222 8.42234 25.3334 7.53345C24.4445 6.64456 23.3334 6.20011 22 6.20011C20.9556 6.20011 19.9889 6.49434 19.1 7.08278C18.2111 7.67122 17.6 8.42145 17.2667 9.33345H14.7334C14.4 8.42234 13.7889 7.67256 12.9 7.08411C12.0111 6.49567 11.0445 6.201 10 6.20011C8.66669 6.20011 7.55558 6.64456 6.66669 7.53345C5.7778 8.42234 5.33335 9.53409 5.33335 10.8668C5.33335 11.6446 5.48891 12.4281 5.80002 13.2174C6.11113 14.0068 6.66669 14.9068 7.46669 15.9174C8.26669 16.9281 9.35558 18.117 10.7334 19.4841C12.1111 20.8512 13.8667 22.4899 16 24.4001Z" fill="#fecd15"/>
+          <Path d="M16 28.0001L14.0667 26.2668C11.8222 24.2446 9.96669 22.5001 8.50002 21.0334C7.03335 19.5668 5.86669 18.2499 5.00002 17.0828C4.13335 15.9166 3.52802 14.8446 3.18402 13.8668C2.84002 12.889 2.66758 11.889 2.66669 10.8668C2.66669 8.77789 3.36669 7.03345 4.76669 5.63345C6.16669 4.23345 7.91113 3.53345 10 3.53345C11.1556 3.53345 12.2556 3.77789 13.3 4.26678C14.3445 4.75567 15.2445 5.44456 16 6.33345C16.7556 5.44456 17.6556 4.75567 18.7 4.26678C19.7445 3.77789 20.8445 3.53345 22 3.53345C24.0889 3.53345 25.8334 4.23345 27.2334 5.63345C28.6334 7.03345 29.3334 8.77789 29.3334 10.8668C29.3334 11.889 29.1614 12.889 28.8174 13.8668C28.4734 14.8446 27.8676 15.9166 27 17.0828C26.1334 18.2499 24.9667 19.5668 23.5 21.0334C22.0334 22.5001 20.1778 24.2446 17.9334 26.2668L16 28.0001ZM16 24.4001C18.1334 22.489 19.8889 20.8503 21.2667 19.4841C22.6445 18.1179 23.7334 16.929 24.5334 15.9174C25.3334 14.9059 25.8889 14.0054 26.2 13.2161C26.5111 12.4268 26.6667 11.6437 26.6667 10.8668C26.6667 9.53345 26.2222 8.42234 25.3334 7.53345C24.4445 6.64456 23.3334 6.20011 22 6.20011C20.9556 6.20011 19.9889 6.49434 18.1 7.08278C18.2111 7.67122 17.6 8.42145 17.2667 9.33345H14.7334C14.4 8.42234 13.7889 7.67256 12.9 7.08411C12.0111 6.49567 11.0445 6.201 10 6.20011C8.66669 6.20011 7.55558 6.64456 6.66669 7.53345C5.7778 8.42234 5.33335 9.53409 5.33335 10.8668C5.33335 11.6446 5.48891 12.4281 5.80002 13.2174C6.11113 14.0068 6.66669 14.9068 7.46669 15.9174C8.26669 16.9281 9.35558 18.117 10.7334 19.4841C12.1111 20.8512 13.8667 22.4899 16 24.4001Z" fill="#fecd15"/>
         </Svg>
       </TouchableOpacity>
       
@@ -437,609 +453,116 @@ export default function MapPage({ navigation }) {
         <Text style={styles.headerTitle}>Map</Text>
         <View style={styles.headerSpacer} />
       </View>
-
+      
       {/* Search Bar */}
       <SearchBar />
       
       {/* Location Bar */}
       <LocationBar />
       
-      {/* Map Area */}
-      <View style={styles.mapContainer}>
-        {/* WebView Ready Indicator */}
-        {!webViewReady && (
-          <View style={styles.webViewLoadingIndicator}>
-            <Text style={styles.webViewLoadingText}>Loading Map...</Text>
-          </View>
-        )}
-        
-        <WebView
-          ref={webViewRef}
-          source={{ html: `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ThunderTruck Map</title>
-    <script src='https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js'></script>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css' rel='stylesheet' />
-    <style>
-        body { 
-            margin: 0; 
-            padding: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        #map { 
-            position: absolute; 
-            top: 0; 
-            bottom: 0; 
-            width: 100%; 
-            height: 100%;
-            /* Ensure touch gestures work properly */
-            touch-action: manipulation;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
-        .mapboxgl-ctrl-top-right {
-            display: none;
-        }
-        .mapboxgl-ctrl-bottom-left {
-            display: none;
-        }
-        .mapboxgl-ctrl-bottom-right {
-            display: none;
-        }
-        .restaurant-marker {
-            background-color: #fecd15;
-            border: 2px solid #2D1E2F;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 12px;
-            color: #2D1E2F;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .restaurant-marker.large {
-            width: 30px;
-            height: 30px;
-            font-size: 14px;
-        }
-        .restaurant-popup {
-            background: white;
-            border-radius: 8px;
-            padding: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            border: 1px solid #e0e0e0;
-            max-width: 200px;
-        }
-        .restaurant-popup h3 {
-            margin: 0 0 8px 0;
-            color: #2D1E2F;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        .restaurant-popup p {
-            margin: 0;
-            color: #666;
-            font-size: 14px;
-        }
-        .rating {
-            color: #fecd15;
-            font-weight: bold;
-        }
-        .user-location-marker {
-            background-color: #4285f4;
-            border: 3px solid #ffffff;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            animation: pulse 2s infinite;
-            /* Ensure proper positioning */
-            position: relative;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-    </style>
-</head>
-<body>
-    <div id="map"></div>
-    <script>
-        // Send immediate message to React Native
-        if (window.ReactNativeWebView) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'debug',
-                message: 'HTML loaded, script started'
-            }));
-        }
-        // Debug function to send messages to React Native
-        function debugLog(message) {
-            console.log('🐛 WebView Debug:', message);
-            if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'debug',
-                    message: message
-                }));
-            }
-        }
-        
-        // Send initial debug message
-        debugLog('WebView script started');
-        
-        // Test basic WebView functionality
-        setTimeout(() => {
-            debugLog('5 second test - WebView is working');
-            if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'webViewReady',
-                    message: 'Basic WebView functionality confirmed'
-                }));
-            }
-        }, 5000);
-        
-        // Mapbox configuration
-        const MAPBOX_TOKEN = 'pk.eyJ1IjoidGh1bmRlcnRydWNrIiwiYSI6ImNtZWpjdzdscDBiengya29va3duNHBzbDQifQ.2q8IcDq0Yuk-guEpdyro5g';
-        
-        debugLog('Setting Mapbox token');
-        
-        // Check if Mapbox is available
-        if (typeof mapboxgl === 'undefined') {
-            debugLog('ERROR: Mapbox GL JS not loaded');
-            if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'mapError',
-                    error: 'Mapbox GL JS library not loaded'
-                }));
-            }
-        } else {
-            debugLog('Mapbox GL JS loaded successfully');
-            // Set the access token
-            mapboxgl.accessToken = MAPBOX_TOKEN;
-            debugLog('Mapbox token set');
-        }
-        
-        // Default location (Williamsburg, Brooklyn)
-        let defaultLocation = [-73.9571, 40.7081]; // [longitude, latitude]
-        let currentUserLocation = null;
-        let map = null;
-        
-        // Initialize the map
-        function initializeMap(centerCoordinates = defaultLocation) {
-            try {
-                debugLog('Initializing map...');
-                
-                if (typeof mapboxgl === 'undefined') {
-                    throw new Error('Mapbox GL JS not available');
-                }
-                
-                debugLog('Creating map instance');
-                map = new mapboxgl.Map({
-                    container: 'map',
-                    style: 'mapbox://styles/mapbox/streets-v12',
-                    center: centerCoordinates,
-                    zoom: 15,
-                    attributionControl: false,
-                    logoPosition: 'bottom-right',
-                    // Enable pinch-based zooming and touch interactions
-                    interactive: true,
-                    scrollZoom: true,
-                    dragPan: true,
-                    dragRotate: true,
-                    keyboard: true,
-                    doubleClickZoom: true,
-                    touchZoomRotate: true
-                });
-                
-                debugLog('Map instance created, adding event listeners');
-                
-                // Add event listeners first (before adding markers/controls)
-                addMapEventListeners();
-                
-                debugLog('Map initialization complete');
-            } catch (error) {
-                debugLog('ERROR initializing map: ' + error.message);
-                if (window.ReactNativeWebView) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                        type: 'mapError',
-                        error: error.message
-                    }));
-                }
-            }
-        }
-        
-        // Initialize map with default location after a short delay to ensure DOM is ready
-        setTimeout(() => {
-            debugLog('DOM ready, initializing map');
-            initializeMap();
-        }, 100);
-        
-        // Fallback: If map doesn't load within 10 seconds, send ready signal anyway
-        setTimeout(() => {
-            if (!map || !map.loaded()) {
-                debugLog('Map failed to load within 10 seconds, sending fallback ready signal');
-                if (window.ReactNativeWebView) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                        type: 'webViewReady',
-                        message: 'WebView ready (fallback)'
-                    }));
-                }
-            }
-        }, 10000);
-        
-        // Restaurant data around Williamsburg, Brooklyn
-        const restaurants = [
-            {
-                id: 1,
-                name: "L'Artusi",
-                rating: "4.8★",
-                coordinates: [-73.9591, 40.7091],
-                description: "Modern Italian cuisine in a chic setting"
-            },
-            {
-                id: 2,
-                name: "Peter Luger Steak House",
-                rating: "4.3★",
-                coordinates: [-73.9551, 40.7071],
-                description: "Legendary steakhouse since 1887"
-            },
-            {
-                id: 3,
-                name: "Tacos El Bronco",
-                rating: "4.0★",
-                coordinates: [-73.9581, 40.7061],
-                description: "Authentic Mexican street food"
-            }
-        ];
-        
-        // Add restaurant markers
-        function addRestaurantMarkers() {
-            restaurants.forEach((restaurant, index) => {
-                // Create marker element
-                const markerEl = document.createElement('div');
-                markerEl.className = \`restaurant-marker \${index === 0 ? 'large' : ''}\`;
-                markerEl.innerHTML = restaurant.rating.charAt(0);
-                
-                // Create popup
-                const popup = new mapboxgl.Popup({
-                    offset: 25,
-                    closeButton: false,
-                    className: 'restaurant-popup'
-                }).setHTML(\`
-                    <h3>\${restaurant.name}</h3>
-                    <p class="rating">\${restaurant.rating}</p>
-                    <p>\${restaurant.description}</p>
-                \`);
-                
-                // Add marker to map
-                new mapboxgl.Marker(markerEl)
-                    .setLngLat(restaurant.coordinates)
-                    .setPopup(popup)
-                    .addTo(map);
-            });
-        }
-        
-        // Add map controls
-        function addMapControls() {
-            // Add user location control
-            map.addControl(new mapboxgl.GeolocateControl({
-                positionOptions: {
-                    enableHighAccuracy: true
-                },
-                trackUserLocation: true,
-                showUserHeading: true
-            }));
-            
-            // Add navigation control
-            map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-            
-            // Add scale control
-            map.addControl(new mapboxgl.ScaleControl({
-                maxWidth: 80,
-                unit: 'metric'
-            }), 'bottom-left');
-        }
-        
-                // Add map event listeners
-        function addMapEventListeners() {
-            debugLog('Adding map event listeners');
-            
-            // Handle map load
-            map.on('load', () => {
-                debugLog('Map load event fired');
-                console.log('Map loaded successfully');
-                
-                // Add restaurant markers and controls after map loads
-                try {
-                    addRestaurantMarkers();
-                    addMapControls();
-                    debugLog('Markers and controls added');
-                } catch (error) {
-                    debugLog('Error adding markers/controls: ' + error.message);
-                }
-                
-                // Send message to React Native that map is ready
-                if (window.ReactNativeWebView) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                        type: 'mapLoaded',
-                        message: 'Mapbox map is ready'
-                    }));
-                    debugLog('Map loaded message sent to React Native');
-                }
-            });
-            
-            // Handle map errors
-            map.on('error', (e) => {
-                console.error('Map error:', e);
-                if (window.ReactNativeWebView) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                        type: 'mapError',
-                        error: e.error.message
-                    }));
-                }
-            });
-            
-            // Handle marker clicks
-            map.on('click', (e) => {
-                const features = map.queryRenderedFeatures(e.point, {
-                    layers: []
-                });
-                
-                if (features.length === 0) {
-                    // Send click coordinates to React Native
-                    if (window.ReactNativeWebView) {
-                        window.ReactNativeWebView.postMessage(JSON.stringify({
-                            type: 'mapClick',
-                            coordinates: e.lngLat
-                        }));
-                    }
-                }
-            });
-            
-            // Handle user location updates
-            map.on('geolocate', (e) => {
-                if (window.ReactNativeWebView) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                        type: 'userLocation',
-                        coordinates: e.coords
-                    }));
-                }
-            });
-        }
-
-        // Listen for messages from React Native
-        window.addEventListener('message', function(event) {
+      {/* Map Component */}
+      <Map
+        ref={mapRef}
+        webViewReady={webViewReady}
+        setWebViewReady={setWebViewReady}
+        userLocation={userLocation}
+        locationPermissionGranted={locationPermissionGranted}
+        onGPSButtonPress={handleGPSButtonPress}
+        onMessage={(event) => {
           try {
-            const data = JSON.parse(event.data);
+            const data = JSON.parse(event.nativeEvent.data);
+            console.log('✅ Map message received:', data);
             
-            if (data.type === 'locationPermission') {
-              if (data.granted) {
-                // Enable location features
-                console.log('Location permission granted, enabling location features');
-                // The geolocate control will automatically request location
-              } else {
-                // Disable location features
-                console.log('Location permission denied, location features disabled');
-                // Remove or disable location-related controls if needed
-              }
-            } else if (data.type === 'userLocationUpdate') {
-              // Update map to user's current location
-              console.log('Updating map to user location:', data.coordinates);
-              currentUserLocation = [data.coordinates.longitude, data.coordinates.latitude];
-              
-              // Fly to user's location
-              map.flyTo({
-                center: currentUserLocation,
-                zoom: 16,
-                duration: 2000
-              });
-              
-              // Add user location marker
-              addUserLocationMarker(currentUserLocation);
-              
-              // Send confirmation back to React Native
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'userLocationMarkerAdded',
-                  coordinates: currentUserLocation
-                }));
-              }
-              
-            } else if (data.type === 'defaultLocation') {
-              // Set map to default location (Williamsburg)
-              console.log('Setting map to default location (Williamsburg):', data.coordinates);
-              const defaultCoords = [data.coordinates.longitude, data.coordinates.latitude];
-              
-              map.flyTo({
-                center: defaultCoords,
-                zoom: 15,
-                duration: 2000
-              });
-            } else if (data.type === 'centerMapOnUserLocation') {
-              // GPS button pressed - center map on user's current location
-              console.log('GPS button pressed - centering map on user location');
-              
-              if (currentUserLocation) {
-                // If we have user location, fly to it
-                map.flyTo({
-                  center: currentUserLocation,
-                  zoom: 16,
-                  duration: 1500
-                });
-                
-                // Ensure user location marker is visible
-                if (window.userLocationMarker) {
-                  window.userLocationMarker.remove();
-                }
-                addUserLocationMarker(currentUserLocation);
-              } else {
-                // If no user location, try to get it
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                      const userCoords = [position.coords.longitude, position.coords.latitude];
-                      currentUserLocation = userCoords;
-                      
-                      map.flyTo({
-                        center: userCoords,
-                        zoom: 16,
-                        duration: 1500
-                      });
-                      
-                      addUserLocationMarker(userCoords);
-                    },
-                    (error) => {
-                      console.error('Error getting current location:', error);
-                      // Fall back to default location
-                      map.flyTo({
-                        center: defaultLocation,
-                        zoom: 15,
-                        duration: 1500
-                      });
-                    }
-                  );
-                } else {
-                  // Fall back to default location
-                  map.flyTo({
-                    center: defaultLocation,
-                    zoom: 15,
-                    duration: 1500
-                  });
-                }
-              }
+            switch (data.type) {
+              case 'mapLoaded':
+                console.log('🗺️ Mapbox map loaded successfully');
+                setWebViewReady(true);
+                break;
+              case 'mapError':
+                console.error('❌ Map error:', data.error);
+                Alert.alert('Map Error', `Failed to load map: ${data.error}`);
+                break;
+              case 'webViewReady':
+                console.log('🌐 WebView is ready');
+                setWebViewReady(true);
+                break;
+              case 'debug':
+                console.log('🐛 Debug message:', data.message);
+                break;
+              case 'mapClick':
+                console.log('👆 Map clicked at:', data.coordinates);
+                break;
+              case 'userLocation':
+                console.log('📍 User location:', data.coordinates);
+                break;
+              case 'userLocationMarkerAdded':
+                console.log('📍 User location marker added at:', data.coordinates);
+                break;
+              case 'centerMapOnUserLocation':
+                console.log('🎯 GPS button message received - centering map on user location');
+                break;
+              case 'gpsButtonPressed':
+                console.log('🎯 GPS button pressed in WebView, triggering GPS button handler');
+                handleGPSButtonPress();
+                break;
+              case 'userLocationUpdate':
+                console.log('🔄 User location update received:', data.coordinates);
+                break;
+              case 'userLocationObtained':
+                console.log('📍 User location obtained from WebView:', data.coordinates);
+                break;
+              case 'moveBlueDot':
+                console.log('🎯 Move blue dot request received:', data.coordinates);
+                break;
+              case 'markerMoved':
+                console.log('📍 Marker moved to:', data.coordinates);
+                updateMarkerPosition(data.coordinates);
+                break;
+              case 'markerMoveError':
+                console.error('❌ Error moving marker:', data.error);
+                Alert.alert('Marker Error', `Failed to move marker: ${data.error}`);
+                break;
+              case 'test':
+                console.log('🧪 Test message received:', data.message);
+                Alert.alert('Test Message', `WebView received: ${data.message}`);
+                break;
+              default:
+                console.log('❓ Unknown message type:', data.type);
+                break;
             }
           } catch (error) {
-            console.error('Error parsing message from React Native:', error);
+            console.error('❌ Error parsing map message:', error, 'Raw data:', event.nativeEvent.data);
           }
-        });
-        
-        // Add user location marker
-        function addUserLocationMarker(coordinates) {
-          // Remove existing user marker if any
-          if (window.userLocationMarker) {
-            window.userLocationMarker.remove();
-          }
-          
-          // Create user location marker
-          const userMarker = document.createElement('div');
-          userMarker.className = 'user-location-marker';
-          userMarker.innerHTML = '📍';
-          
-          // Add marker to map with proper offset for alignment
-          window.userLocationMarker = new mapboxgl.Marker({
-            element: userMarker,
-            anchor: 'center' // Center the marker on the coordinates
-          })
-            .setLngLat(coordinates)
-            .addTo(map);
-            
-          console.log('User location marker added at:', coordinates);
-        }
-      </script>
-    </body>
-    </html>
-          ` }}
-          style={styles.mapImage}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-          onMessage={(event) => {
-            try {
-              const data = JSON.parse(event.nativeEvent.data);
-              console.log('✅ Map message received:', data);
-              
-              switch (data.type) {
-                case 'mapLoaded':
-                  console.log('🗺️ Mapbox map loaded successfully');
-                  setWebViewReady(true);
-                  break;
-                case 'mapError':
-                  console.error('❌ Map error:', data.error);
-                  Alert.alert('Map Error', `Failed to load map: ${data.error}`);
-                  break;
-                case 'webViewReady':
-                  console.log('🌐 WebView is ready');
-                  setWebViewReady(true);
-                  break;
-                case 'debug':
-                  console.log('🐛 Debug message:', data.message);
-                  break;
-                case 'mapClick':
-                  console.log('👆 Map clicked at:', data.coordinates);
-                  break;
-                case 'userLocation':
-                  console.log('📍 User location:', data.coordinates);
-                  break;
-                case 'userLocationMarkerAdded':
-                  console.log('📍 User location marker added at:', data.coordinates);
-                  break;
-                case 'centerMapOnUserLocation':
-                  console.log('🎯 GPS button message received - centering map on user location');
-                  break;
-                case 'userLocationUpdate':
-                  console.log('🔄 User location update received:', data.coordinates);
-                  break;
-                default:
-                  console.log('❓ Unknown message type:', data.type);
-                  break;
-              }
-            } catch (error) {
-              console.error('❌ Error parsing map message:', error, 'Raw data:', event.nativeEvent.data);
-            }
-          }}
-          onLoadStart={() => {
-            console.log('🌐 WebView started loading');
-          }}
-          onLoadEnd={() => {
-            console.log('🌐 WebView finished loading');
-          }}
-          onLoadProgress={({ nativeEvent }) => {
-            console.log('🌐 WebView loading progress:', nativeEvent.progress);
-          }}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('❌ WebView error:', nativeEvent);
-            Alert.alert('WebView Error', `Failed to load WebView: ${nativeEvent.description}`);
-          }}
-          onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('❌ WebView HTTP error:', nativeEvent);
-            Alert.alert('WebView HTTP Error', `HTTP Error: ${nativeEvent.statusCode}`);
-          }}
-          renderError={(errorName) => {
-            console.error('❌ WebView render error:', errorName);
-            return (
-              <View style={styles.webViewError}>
-                <Text style={styles.webViewErrorText}>Failed to load map</Text>
-                <Text style={styles.webViewErrorText}>{errorName}</Text>
-              </View>
-            );
-          }}
-        />
-        
-        {/* User location indicator */}
-        <View style={styles.userLocationIndicator}>
-          <View style={styles.userLocationOuter}>
-            <View style={styles.userLocationInner} />
-          </View>
-        </View>
-      </View>
+        }}
+        onLoadStart={() => {
+          console.log('🌐 WebView started loading');
+        }}
+        onLoadEnd={() => {
+          console.log('🌐 WebView finished loading');
+        }}
+        onLoadProgress={({ nativeEvent }) => {
+          console.log('🌐 WebView loading progress:', nativeEvent.progress);
+        }}
+        onError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error('❌ WebView error:', nativeEvent);
+          Alert.alert('WebView Error', `Failed to load WebView: ${nativeEvent.description}`);
+        }}
+        onHttpError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          console.error('❌ WebView HTTP error:', nativeEvent);
+          Alert.alert('WebView HTTP Error', `HTTP Error: ${nativeEvent.statusCode}`);
+        }}
+        renderError={(errorName) => {
+          console.error('❌ WebView render error:', errorName);
+          return (
+            <View style={styles.webViewError}>
+              <Text style={styles.webViewErrorText}>Failed to load map</Text>
+              <Text style={styles.webViewErrorText}>{errorName}</Text>
+            </View>
+          );
+        }}
+      />
       
       {/* View List Button */}
       <TouchableOpacity style={styles.viewListButton}>
@@ -1050,117 +573,17 @@ export default function MapPage({ navigation }) {
       </TouchableOpacity>
       
       {/* Target/GPS Button */}
-      <FloatingActionButton style={styles.targetButton} onPress={handleGPSButtonPress}>
+      <TouchableOpacity style={styles.targetButton} onPress={handleGPSButtonPress}>
         <Svg width="36" height="36" viewBox="0 0 36 36">
           <Path d="M29.907 19.5C29.5731 22.1436 28.3693 24.601 26.4851 26.4851C24.601 28.3693 22.1436 29.5731 19.5 29.907V33H16.5V29.907C13.8564 29.5731 11.399 28.3693 9.51485 26.4851C7.6307 24.601 6.42688 22.1436 6.093 19.5H3V16.5H6.093C6.42688 13.8564 7.6307 11.399 9.51485 9.51485C11.399 7.6307 13.8564 6.42688 16.5 6.093V3H19.5V6.093C22.1436 6.42688 24.601 7.6307 26.4851 9.51485C28.3693 11.399 29.5731 13.8564 29.907 16.5H33V19.5H29.907ZM18 27C20.3869 27 22.6761 26.0518 24.364 24.364C26.0518 22.6761 27 20.3869 27 18C27 15.6131 26.0518 13.3239 24.364 11.636C22.6761 9.94821 20.3869 9 18 9C15.6131 9 13.3239 9.94821 11.636 11.636C9.94821 13.3239 9 15.6131 9 18C9 20.3869 9.94821 22.6761 11.636 24.364C13.3239 26.0518 15.6131 27 18 27ZM18 22.5C19.1935 22.5 20.3381 22.0259 21.182 21.182C22.0259 20.3381 22.5 19.1935 22.5 18C22.5 16.8065 22.0259 15.6619 21.182 14.818C20.3381 13.9741 19.1935 13.5 18 13.5C16.8065 13.5 15.6619 13.9741 14.818 14.818C13.9741 15.6619 13.5 16.8065 13.5 18C13.5 19.1935 13.9741 20.3381 14.818 21.182C15.6619 22.0259 16.8065 22.5 18 22.5Z" fill="#E6521F"/>
         </Svg>
-      </FloatingActionButton>
+      </TouchableOpacity>
       
       {/* Bottom Navigation */}
       <BottomNavigation />
 
-      {/* Location Permission Modal */}
-      <Modal
-        visible={showLocationModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={skipLocationPermission}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Svg width="48" height="48" viewBox="0 0 48 48" style={styles.locationIcon}>
-                <Path d="M24 3C16.268 3 10 9.268 10 17C10 28.5 24 45 24 45C24 45 38 28.5 38 17C38 9.268 31.732 3 24 3ZM24 22C21.791 22 20 20.209 20 18C20 15.791 21.791 14 24 14C26.209 14 28 15.791 28 18C28 20.209 26.209 22 24 22Z" fill="#fecd15"/>
-              </Svg>
-              <Text style={styles.modalTitle}>Enable Location Services</Text>
-              <Text style={styles.modalDescription}>
-                Allow ThunderTruck to access your location to show you nearby restaurants and provide better navigation.
-              </Text>
-            </View>
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.allowButton}
-                onPress={requestLocationPermission}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.allowButtonText}>Allow Location Access</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.skipButton}
-                onPress={skipLocationPermission}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.skipButtonText}>Skip for Now</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Debug Modal - User Address */}
-      <Modal
-        visible={showDebugModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowDebugModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Svg width="48" height="48" viewBox="0 0 48 48" style={styles.locationIcon}>
-                <Path d="M24 3C16.268 3 10 9.268 10 17C10 28.5 24 45 24 45C24 45 38 28.5 38 17C38 9.268 31.732 3 24 3ZM24 22C21.791 22 20 20.209 20 18C20 15.791 21.791 14 24 14C26.209 14 28 15.791 28 18C28 20.209 26.209 22 24 22Z" fill="#fecd15"/>
-              </Svg>
-              <Text style={styles.modalTitle}>Your Current Location</Text>
-              <Text style={styles.modalDescription}>
-                GPS coordinates and address information
-              </Text>
-            </View>
-            
-            {userAddress && (
-              <View style={styles.addressContainer}>
-                <View style={styles.addressRow}>
-                  <Text style={styles.addressLabel}>Full Address:</Text>
-                  <Text style={styles.addressText}>{userAddress.fullAddress}</Text>
-                </View>
-                <View style={styles.addressRow}>
-                  <Text style={styles.addressLabel}>Street:</Text>
-                  <Text style={styles.addressText}>{userAddress.street}</Text>
-                </View>
-                <View style={styles.addressRow}>
-                  <Text style={styles.addressLabel}>City:</Text>
-                  <Text style={styles.addressText}>{userAddress.city}</Text>
-                </View>
-                <View style={styles.addressRow}>
-                  <Text style={styles.addressLabel}>State:</Text>
-                  <Text style={styles.addressText}>{userAddress.state}</Text>
-                </View>
-                <View style={styles.addressRow}>
-                  <Text style={styles.addressLabel}>Country:</Text>
-                  <Text style={styles.addressText}>{userAddress.country}</Text>
-                </View>
-                <View style={styles.addressRow}>
-                  <Text style={styles.addressLabel}>Coordinates:</Text>
-                  <Text style={styles.addressText}>
-                    {userAddress.coordinates.latitude.toFixed(6)}, {userAddress.coordinates.longitude.toFixed(6)}
-                  </Text>
-                </View>
-              </View>
-            )}
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setShowDebugModal(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Modal removed as requested */}
     </SafeAreaView>
   );
 }
@@ -1196,64 +619,65 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   searchContainer: {
-    height: 30,
+    height: 40,
     marginHorizontal: 12,
     marginTop: 12,
     marginBottom: 12,
-    borderRadius: 4,
-    borderWidth: 0.1,
-    borderColor: '#000',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     backgroundColor: '#FFF',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
+    paddingHorizontal: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 3,
   },
   searchIcon: {
-    marginRight: 5,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 12,
-    color: '#000',
+    fontSize: 14,
+    color: '#333',
     fontFamily: 'Inter',
   },
   micIcon: {
-    marginLeft: 5,
+    marginLeft: 8,
   },
   locationBar: {
-    height: 45,
-    backgroundColor: '#FCE1E0',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
   },
   locationPin: {
-    marginRight: 3,
+    marginRight: 8,
   },
   locationText: {
     flex: 1,
-    marginLeft: 3,
   },
   locationTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#000',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
     fontFamily: 'Inter',
   },
   locationSubtitle: {
     fontSize: 12,
-    fontWeight: '400',
-    color: '#000',
+    color: '#666',
     fontFamily: 'Inter',
     marginTop: 2,
   },
   currentLocationIcon: {
-    marginLeft: 10,
+    marginLeft: 8,
   },
   mapContainer: {
     flex: 1,
@@ -1335,65 +759,118 @@ const styles = StyleSheet.create({
   },
   viewListButton: {
     position: 'absolute',
-    bottom: 118,
-    right: 27,
-    width: 100,
-    height: 36,
-    borderRadius: 4,
-    borderWidth: 0.1,
-    borderColor: '#000',
-    backgroundColor: '#FFF',
+    bottom: 105,
+    left: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#fecd15',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
   viewListText: {
+    marginLeft: 8,
     fontSize: 14,
-    fontWeight: '400',
-    color: '#E6521F',
-    fontFamily: 'Poppins',
-    marginLeft: 5,
+    fontWeight: '600',
+    color: '#2D1E2F',
+    fontFamily: 'Inter',
   },
   targetButton: {
     position: 'absolute',
-    bottom: 190,
-    right: 52,
-  },
-  floatingButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFF',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#fecd15',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  testButton: {
+    position: 'absolute',
+    bottom: 180,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#6c5ce7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  testButtonText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  currentLocationButton: {
+    position: 'absolute',
+    bottom: 180,
+    left: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#6c5ce7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  currentLocationButtonText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  addressButton: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#6c5ce7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  addressButtonText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   bottomNav: {
-    height: 50,
-    backgroundColor: '#282828',
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-around',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    alignItems: 'center',
+    backgroundColor: '#2D1E2F',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   navItem: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
   },
   header: {
     height: 77,
@@ -1428,117 +905,6 @@ const styles = StyleSheet.create({
     right: 10,
     width: 44,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-    width: '80%',
-  },
-  modalHeader: {
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  locationIcon: {
-    marginBottom: 10,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2D1E2F',
-    fontFamily: 'Inter',
-    marginBottom: 5,
-  },
-  modalDescription: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#666',
-    fontFamily: 'Inter',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalButtons: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  allowButton: {
-    backgroundColor: '#fecd15',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    width: '45%',
-  },
-  allowButtonText: {
-    color: '#282828',
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Inter',
-    textAlign: 'center',
-  },
-  skipButton: {
-    backgroundColor: '#fecd15',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    width: '45%',
-  },
-  skipButtonText: {
-    color: '#2D1E2F',
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Inter',
-    textAlign: 'center',
-  },
-  addressContainer: {
-    width: '100%',
-    marginBottom: 20,
-    paddingHorizontal: 10,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  addressLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2D1E2F',
-    fontFamily: 'Inter',
-    flex: 0.4,
-  },
-  addressText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#666',
-    fontFamily: 'Inter',
-    flex: 0.6,
-    textAlign: 'right',
-  },
-  closeButton: {
-    backgroundColor: '#fecd15',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-    width: '100%',
-  },
-  closeButtonText: {
-    color: '#282828',
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: 'Inter',
-    textAlign: 'center',
-  },
   webViewLoadingIndicator: {
     position: 'absolute',
     top: 0,
@@ -1570,5 +936,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  searchBar: {
+    height: 30,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 12,
+    borderRadius: 4,
+    borderWidth: 0.1,
+    borderColor: '#000',
+    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  searchText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#000',
+    fontFamily: 'Inter',
+    marginLeft: 5,
   },
 });
