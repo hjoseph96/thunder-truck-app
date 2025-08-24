@@ -212,33 +212,6 @@ const Map = forwardRef(({
           });
         }
         
-        // Function to fit map bounds to show both routes
-        function fitMapToAllRoutes() {
-          try {
-            if (!map) return;
-            
-            const bounds = new mapboxgl.LngLatBounds();
-            
-            // Add default route coordinates to bounds
-            if (defaultRouteGeoJSON && defaultRouteGeoJSON.geometry && defaultRouteGeoJSON.geometry.coordinates) {
-              defaultRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
-            }
-            
-            // Add bike route coordinates to bounds
-            if (bikeRouteGeoJSON && bikeRouteGeoJSON.geometry && bikeRouteGeoJSON.geometry.coordinates) {
-              bikeRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
-            }
-            
-            // Fit map to show all routes
-            if (!bounds.isEmpty()) {
-              map.fitBounds(bounds, { padding: 50, duration: 2000 });
-              console.log('WebView: Map bounds updated to show all routes');
-            }
-          } catch (error) {
-            console.error('WebView: Error fitting map bounds:', error);
-          }
-        }
-        
         // Initialize the map
         async function initializeMap() {
           try {
@@ -299,7 +272,7 @@ const Map = forwardRef(({
             map.on('move', updateMarkerPositionOnMapMove);
             map.on('zoom', updateMarkerPositionOnMapMove);
             
-            // Add render event listener to draw both routes on every render
+            // Add render event listener to draw the default route on every render
             map.on('render', function() {
               // Ensure the default route is always visible and drawn
               if (map.getSource('default-route') && map.getLayer('default-route-line')) {
@@ -386,7 +359,7 @@ const Map = forwardRef(({
             const coordinates = defaultRouteGeoJSON.geometry.coordinates;
             console.log('WebView: Route coordinates (first 3):', coordinates.slice(0, 3));
             
-            // Add the route layer with the specified color #219ebc
+            // Add the route layer with the specified color #fecd15
             map.addLayer({
               id: 'default-route-line',
               type: 'line',
@@ -434,7 +407,7 @@ const Map = forwardRef(({
             console.error('WebView: Error adding default route:', error);
           }
         }
-        
+
         // Function to add the bike route to the map
         function addBikeRoute() {
           try {
@@ -482,10 +455,10 @@ const Map = forwardRef(({
               const startCoord = coordinates[0];
               console.log('WebView: Bike route start coordinate:', startCoord);
               
-              // Create a custom bike icon element
+              // Create a custom bike icon element using the SVG
               const bikeIcon = document.createElement('div');
               bikeIcon.className = 'bike-icon';
-              bikeIcon.innerHTML = '🚲'; // Using emoji as fallback
+              bikeIcon.innerHTML = '🚲';
               bikeIcon.style.width = '30px';
               bikeIcon.style.height = '30px';
               bikeIcon.style.background = '#007cff';
@@ -494,7 +467,6 @@ const Map = forwardRef(({
               bikeIcon.style.display = 'flex';
               bikeIcon.style.alignItems = 'center';
               bikeIcon.style.justifyContent = 'center';
-              bikeIcon.style.fontSize = '18px';
               bikeIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
               bikeIcon.style.zIndex = '1000';
               
@@ -516,11 +488,38 @@ const Map = forwardRef(({
               console.log('WebView: Added bike icon at start:', startCoord);
               console.log('WebView: Added bike route end marker at:', endCoord);
             }
-
+            
             console.log('WebView: Bike route added successfully');
 
           } catch (error) {
             console.error('WebView: Error adding bike route:', error);
+          }
+        }
+        
+        // Function to fit map bounds to show both routes
+        function fitMapToAllRoutes() {
+          try {
+            if (!map) return;
+            
+            const bounds = new mapboxgl.LngLatBounds();
+            
+            // Add default route coordinates to bounds
+            if (defaultRouteGeoJSON && defaultRouteGeoJSON.geometry && defaultRouteGeoJSON.geometry.coordinates) {
+              defaultRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
+            }
+            
+            // Add bike route coordinates to bounds
+            if (bikeRouteGeoJSON && bikeRouteGeoJSON.geometry && bikeRouteGeoJSON.geometry.coordinates) {
+              bikeRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
+            }
+            
+            // Fit map to show all routes
+            if (!bounds.isEmpty()) {
+              map.fitBounds(bounds, { padding: 50, duration: 2000 });
+              console.log('WebView: Map bounds updated to show all routes');
+            }
+          } catch (error) {
+            console.error('WebView: Error fitting map bounds:', error);
           }
         }
         
