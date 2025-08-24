@@ -319,6 +319,62 @@ const Map = forwardRef(({
                 console.log('WebView: Render event - bike route layer missing, recreating...');
                 addBikeRoute();
               }
+              
+              // Ensure bike icon maintains position during map rerenders
+              if (bikeAnimationState.isAnimating && bikeAnimationState.bikeMarker) {
+                const coordinates = bikeRouteGeoJSON.geometry.coordinates; // Get coordinates from bikeRouteGeoJSON
+                const currentIndex = bikeAnimationState.currentIndex;
+                if (currentIndex < coordinates.length) {
+                  const currentCoord = coordinates[currentIndex];
+                  
+                  // Check if bike marker is still valid and in the correct position
+                  try {
+                    const markerPosition = bikeAnimationState.bikeMarker.getLngLat();
+                    const positionDiff = Math.abs(markerPosition.lng - currentCoord[0]) + Math.abs(markerPosition.lat - currentCoord[1]);
+                    
+                    if (positionDiff > 0.0001) { // If position is significantly off, restore it
+                      bikeAnimationState.bikeMarker.setLngLat(currentCoord);
+                      console.log('WebView: Render event - restored bike position to coordinate', currentIndex, 'at', currentCoord);
+                    }
+                  } catch (error) {
+                    // If marker is invalid, recreate it
+                    console.log('WebView: Render event - bike marker invalid, recreating...');
+                    bikeAnimationState.bikeMarker.remove();
+                    bikeAnimationState.bikeMarker = null;
+                    
+                    // Recreate bike marker at current position
+                    const bikeIcon = document.createElement('div');
+                    bikeIcon.className = 'bike-icon';
+                    bikeIcon.innerHTML = '🚲';
+                    bikeIcon.style.width = '30px';
+                    bikeIcon.style.height = '30px';
+                    bikeIcon.style.background = '#007cff';
+                    bikeIcon.style.border = '3px solid white';
+                    bikeIcon.style.borderRadius = '50%';
+                    bikeIcon.style.display = 'flex';
+                    bikeIcon.style.alignItems = 'center';
+                    bikeIcon.style.justifyContent = 'center';
+                    bikeIcon.style.fontSize = '18px';
+                    bikeIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+                    bikeIcon.style.zIndex = '1000';
+                    
+                    const newBikeMarker = new mapboxgl.Marker(bikeIcon)
+                      .setLngLat(currentCoord)
+                      .addTo(map);
+                    
+                    bikeAnimationState.bikeMarker = newBikeMarker;
+                    console.log('WebView: Render event - recreated bike marker at coordinate', currentIndex, 'at', currentCoord);
+                  }
+                }
+              }
+              
+              // Start bike animation automatically on first render if not already animating
+              if (!bikeAnimationState.isAnimating) {
+                console.log('WebView: Render event - starting bike animation automatically');
+                setTimeout(() => {
+                  animateBikeAlongRoute();
+                }, 500); // Small delay to ensure everything is ready
+              }
             });
             
             console.log('WebView: Map initialization complete');
@@ -455,26 +511,7 @@ const Map = forwardRef(({
               const startCoord = coordinates[0];
               console.log('WebView: Bike route start coordinate:', startCoord);
               
-              // Create a custom bike icon element using the SVG
-              const bikeIcon = document.createElement('div');
-              bikeIcon.className = 'bike-icon';
-              bikeIcon.innerHTML = '🚲';
-              bikeIcon.style.width = '30px';
-              bikeIcon.style.height = '30px';
-              bikeIcon.style.background = '#007cff';
-              bikeIcon.style.border = '3px solid white';
-              bikeIcon.style.borderRadius = '50%';
-              bikeIcon.style.display = 'flex';
-              bikeIcon.style.alignItems = 'center';
-              bikeIcon.style.justifyContent = 'center';
-              bikeIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-              bikeIcon.style.zIndex = '1000';
-              
-              // Create bike icon marker
-              const bikeMarker = new mapboxgl.Marker(bikeIcon)
-                .setLngLat(startCoord)
-                .setPopup(new mapboxgl.Popup().setHTML('<b>🚲 Bike Route Start</b><br>Lng: ' + startCoord[0].toFixed(6) + '<br>Lat: ' + startCoord[1].toFixed(6)))
-                .addTo(map);
+              // Note: Bike icon will be added by animation function, not here
               
               // End marker - coordinates are now in [longitude, latitude] format
               const endCoord = coordinates[coordinates.length - 1];
@@ -485,7 +522,6 @@ const Map = forwardRef(({
                 .setPopup(new mapboxgl.Popup().setHTML('<b>Bike Route End</b><br>Lng: ' + endCoord[0].toFixed(6) + '<br>Lat: ' + endCoord[1].toFixed(6)))
                 .addTo(map);
               
-              console.log('WebView: Added bike icon at start:', startCoord);
               console.log('WebView: Added bike route end marker at:', endCoord);
             }
             
@@ -508,7 +544,7 @@ const Map = forwardRef(({
               defaultRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
             }
             
-            // Add bike route coordinates to bounds
+            // Add bike route coordinates to bounds (static route only, no animation updates)
             if (bikeRouteGeoJSON && bikeRouteGeoJSON.geometry && bikeRouteGeoJSON.geometry.coordinates) {
               bikeRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
             }
@@ -520,6 +556,169 @@ const Map = forwardRef(({
             }
           } catch (error) {
             console.error('WebView: Error fitting map bounds:', error);
+          }
+        }
+        
+        // Bike animation variables
+        let bikeAnimationState = {
+          isAnimating: false,
+          currentIndex: 0,
+          bikeMarker: null,
+          animationInterval: null
+        };
+        
+        // Function to animate bike icon along the bike route
+        function animateBikeAlongRoute() {
+          try {
+            if (!map || !bikeRouteGeoJSON || !bikeRouteGeoJSON.geometry || !bikeRouteGeoJSON.geometry.coordinates) {
+              console.log('WebView: Cannot animate bike - missing route data');
+              return;
+            }
+            
+            const coordinates = bikeRouteGeoJSON.geometry.coordinates;
+            if (coordinates.length < 2) {
+              console.log('WebView: Cannot animate bike - insufficient coordinates');
+              return;
+            }
+            
+            // Stop any existing animation
+            if (bikeAnimationState.isAnimating) {
+              stopBikeAnimation();
+            }
+            
+            console.log('WebView: Starting bike animation along route');
+            
+            // Remove existing bike icon if it exists
+            const existingBikeIcon = document.querySelector('.bike-icon');
+            if (existingBikeIcon) {
+              existingBikeIcon.remove();
+            }
+            
+            // Create new bike icon element
+            const bikeIcon = document.createElement('div');
+            bikeIcon.className = 'bike-icon';
+            bikeIcon.innerHTML = '🚲';
+            bikeIcon.style.width = '30px';
+            bikeIcon.style.height = '30px';
+            bikeIcon.style.background = '#007cff';
+            bikeIcon.style.border = '3px solid white';
+            bikeIcon.style.borderRadius = '50%';
+            bikeIcon.style.display = 'flex';
+            bikeIcon.style.alignItems = 'center';
+            bikeIcon.style.justifyContent = 'center';
+            bikeIcon.style.fontSize = '18px';
+            bikeIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            bikeIcon.style.zIndex = '1000';
+            // Removed CSS transitions to prevent unwanted movement
+            
+            // Create bike marker starting at the first coordinate
+            const bikeMarker = new mapboxgl.Marker(bikeIcon)
+              .setLngLat(coordinates[0])
+              .addTo(map);
+            
+            // Store bike marker reference
+            bikeAnimationState.bikeMarker = bikeMarker;
+            bikeAnimationState.currentIndex = 0;
+            bikeAnimationState.isAnimating = true;
+            
+            // Function to update the route path from current bike position
+            function updateRouteFromBikePosition(bikePosition, remainingCoords) {
+              try {
+                // Create dynamic route from bike position to end
+                const dynamicRouteGeoJSON = {
+                  type: "Feature",
+                  properties: {
+                    name: "Dynamic Bike Route",
+                    description: "Route from current bike position to destination"
+                  },
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [bikePosition, ...remainingCoords]
+                  }
+                };
+                
+                // Update the bike route source with new data
+                if (map.getSource('bike-route')) {
+                  map.getSource('bike-route').setData(dynamicRouteGeoJSON);
+                }
+                
+                // Note: No map bounds updates during animation to prevent map movement
+              } catch (error) {
+                console.error('WebView: Error updating route from bike position:', error);
+              }
+            }
+            
+            // Function to move bike to next position
+            function moveBikeToNextPosition() {
+              if (!bikeAnimationState.isAnimating) {
+                console.log('WebView: Bike animation stopped');
+                return;
+              }
+              
+              const currentIndex = bikeAnimationState.currentIndex;
+              
+              // Get current and next position
+              const currentCoord = coordinates[currentIndex];
+              const nextCoord = coordinates[(currentIndex + 1) % coordinates.length]; // Loop back to start
+              
+              // Move bike directly to the next coordinate for consistent positioning
+              bikeMarker.setLngLat(nextCoord);
+              
+              // Update popup with current position
+              bikeMarker.setPopup(new mapboxgl.Popup().setHTML(
+                '<b>🚲 Bike Position</b><br>Lng: ' + nextCoord[0].toFixed(6) + '<br>Lat: ' + nextCoord[1].toFixed(6) + '<br>Progress: ' + Math.round(((currentIndex + 1) / coordinates.length) * 100) + '%'
+              ));
+              
+             
+              // Move to next coordinate
+              bikeAnimationState.currentIndex = (currentIndex + 1) % coordinates.length;
+              
+              // Update the route path only when moving to a new coordinate
+              const remainingCoordinates = coordinates.slice(bikeAnimationState.currentIndex + 1);
+              if (bikeAnimationState.currentIndex === 0) {
+                // If we're looping back to start, include all coordinates
+                updateRouteFromBikePosition(nextCoord, coordinates.slice(1));
+              } else {
+                updateRouteFromBikePosition(nextCoord, remainingCoordinates);
+              }
+              
+              console.log('WebView: Bike moved to coordinate ' + bikeAnimationState.currentIndex + ' at [' + nextCoord[0].toFixed(6) + ', ' + nextCoord[1].toFixed(6) + ']');
+              
+              // Continue animation with consistent timing
+              bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, 500); // Consistent 500ms intervals
+            }
+            
+            // Start the animation
+            bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, 500);
+            
+            console.log('WebView: Bike animation started successfully - will loop indefinitely with consistent movement');
+            
+          } catch (error) {
+            console.error('WebView: Error animating bike along route:', error);
+          }
+        }
+        
+        // Function to stop bike animation
+        function stopBikeAnimation() {
+          try {
+            // Stop the current animation loop
+            bikeAnimationState.isAnimating = false;
+            
+            // Clear the animation interval
+            if (bikeAnimationState.animationInterval) {
+              clearTimeout(bikeAnimationState.animationInterval);
+              bikeAnimationState.animationInterval = null;
+            }
+            
+            // Remove bike icon
+            if (bikeAnimationState.bikeMarker) {
+              bikeAnimationState.bikeMarker.remove();
+              bikeAnimationState.bikeMarker = null;
+            }
+            
+            console.log('WebView: Bike animation restarted for infinite loop');
+          } catch (error) {
+            console.error('WebView: Error restarting bike animation:', error);
           }
         }
         
