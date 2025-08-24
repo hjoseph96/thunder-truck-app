@@ -8,10 +8,19 @@ const MAPBOX_TOKEN = getMapboxAccessToken();
 // Default polyline from the utility
 const DEFAULT_POLYLINE = "__dwFvudaMeE}Bw@bFu@tUSjG]xDk@~H{@pKQjCIBgB~Ic@jCUlAMjAK~@?JFh@zEdNyArAeE~CmIjGiDrCoOjMaGjF{KdLeJ`JaAtAk@tA_AjDIb@yAnO_@vEeDjy@YvGMlDGd@_@vLA`@IlBEZErAItBG~@Bd@oB`f@Y|Gs@xOIp@mC`ZOJgBzSoAzM{@vJcAdIgCdQZf@~DjB~DnB~JbEnAvGnE_Bb@?z@T|MfEbCgPBK`E{AJA`FqBP?zYhG^RbCf\\ZdExE|m@qBZUJi@Jl@nB|@`Cp@vAbChEfBpCxEpGxCzDhH`KbCxDVb@T?f@T\\ZZd@F@z@tBAb@M^xBxDl@z@bAjBnBjDfCbF`AlBbBhCrAjBx@bB`AfD~@hDp@xBx@rB\\l@`BxDhC~ExBlDdDrEfBdCzBzBn@\\b@\\f@T|B~AlC~A\\HdAJv@^d@?d@BlAt@xBxB|@n@zCxAjE|AxBz@t@d@fI`DlAb@vCtA`DjBbBhAhBrAlD~CjBbBpBrAj@p@x@bB\\j@x@|@rAt@bA\\tBRz@Hn@Rl@d@P\\Lf@JzAClAClAFfCRjBX`Ap@vArEjIpAnAfClEb@l@ZZp@h@`@h@`@tAn@|BtAtApCvC~BxATTHV?r@Ad@DV^j@FV?`@Qb@OLUB}@@SLKTM|@_@~@EXEbAENMPo@Vq@FSLO\\IfACHTl@Hl@Ax@If@Ul@c@d@YNaBPo@h@@TG^_@WOd@INK^sCpICTe@tAML_@pA_@fA[~@g@~AaFmDgA~CTZdExCQ`@AL}EfN{DfLIDqA`EeC|GOl@EZm@bBCQDYKa@uJ|Kx]rn@aI`@nBvw@j@nTfB~r@rG|mAyMzA?ZX~EwMxAGeA";
 
+// New bike route polyline
+const BIKE_ROUTE_POLYLINE = "gj_wFfhrbMuDnHlBpBvSga@nLiU_FgFdKiShC{E@KgBsBvAkCGm@{Qef@hHy@iDco@RCU_DIOGE}@}PwMxAGeA";
+
 // Convert default polyline to GeoJSON
 const DEFAULT_ROUTE_GEOJSON = polylineToGeoJSON(DEFAULT_POLYLINE, {
   name: "Default Route",
   description: "Sample route from Queens to Brooklyn"
+});
+
+// Convert bike route polyline to GeoJSON
+const BIKE_ROUTE_GEOJSON = polylineToGeoJSON(BIKE_ROUTE_POLYLINE, {
+  name: "Bike Route",
+  description: "Bike route path"
 });
 
 const Map = forwardRef(({ 
@@ -123,40 +132,6 @@ const Map = forwardRef(({
         .gps-button:hover {
           background: #e6b800;
         }
-        .test-button {
-          background: #6c5ce7;
-          border: none;
-          border-radius: 50%;
-          width: 50px;
-          height: 50px;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 20px;
-          color: white;
-          position: absolute;
-          bottom: 80px;
-          right: 20px;
-        }
-        .debug-button {
-          background: #00b894;
-          border: none;
-          border-radius: 50%;
-          width: 50px;
-          height: 50px;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 20px;
-          color: white;
-          position: absolute;
-          bottom: 80px;
-          right: 80px;
-        }
         .user-location-marker {
           position: absolute;
           width: 20px;
@@ -204,8 +179,6 @@ const Map = forwardRef(({
       <div id="map"></div>
       
       <button class="gps-button" onclick="centerOnUserLocation()" title="Center on my location">📍</button>
-      <button class="test-button" onclick="testMoveBlueDot()" title="Test marker movement">🧪</button>
-      <button class="debug-button" onclick="showDebugInfo()" title="Show debug info">🐛</button>
       
       <script>
         let map;
@@ -215,6 +188,9 @@ const Map = forwardRef(({
         
         // Default route GeoJSON data
         const defaultRouteGeoJSON = ${JSON.stringify(DEFAULT_ROUTE_GEOJSON)};
+        
+        // New bike route GeoJSON data
+        const bikeRouteGeoJSON = ${JSON.stringify(BIKE_ROUTE_GEOJSON)};
         
         // Function to wait for Mapbox to be fully loaded
         function waitForMapboxWithTimeout(timeout = 5000) {
@@ -234,6 +210,33 @@ const Map = forwardRef(({
             
             checkMapbox();
           });
+        }
+        
+        // Function to fit map bounds to show both routes
+        function fitMapToAllRoutes() {
+          try {
+            if (!map) return;
+            
+            const bounds = new mapboxgl.LngLatBounds();
+            
+            // Add default route coordinates to bounds
+            if (defaultRouteGeoJSON && defaultRouteGeoJSON.geometry && defaultRouteGeoJSON.geometry.coordinates) {
+              defaultRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
+            }
+            
+            // Add bike route coordinates to bounds
+            if (bikeRouteGeoJSON && bikeRouteGeoJSON.geometry && bikeRouteGeoJSON.geometry.coordinates) {
+              bikeRouteGeoJSON.geometry.coordinates.forEach(coord => bounds.extend(coord));
+            }
+            
+            // Fit map to show all routes
+            if (!bounds.isEmpty()) {
+              map.fitBounds(bounds, { padding: 50, duration: 2000 });
+              console.log('WebView: Map bounds updated to show all routes');
+            }
+          } catch (error) {
+            console.error('WebView: Error fitting map bounds:', error);
+          }
         }
         
         // Initialize the map
@@ -260,8 +263,12 @@ const Map = forwardRef(({
             map.on('load', function() {
               console.log('WebView: Map loaded successfully');
               
-              // Add the default route to the map
+              // Add both routes to the map
               addDefaultRoute();
+              addBikeRoute();
+              
+              // Fit map to show all routes
+              fitMapToAllRoutes();
               
               // Only add user location marker if user location is actually set
               if (currentUserLocation) {
@@ -291,7 +298,56 @@ const Map = forwardRef(({
             // Add event listeners to update marker position when map moves
             map.on('move', updateMarkerPositionOnMapMove);
             map.on('zoom', updateMarkerPositionOnMapMove);
-             
+            
+            // Add render event listener to draw both routes on every render
+            map.on('render', function() {
+              // Ensure the default route is always visible and drawn
+              if (map.getSource('default-route') && map.getLayer('default-route-line')) {
+                // Route exists, ensure it's visible
+                console.log('WebView: Render event - ensuring default route is visible');
+                
+                // Force the route layer to be visible
+                try {
+                  map.setPaintProperty('default-route-line', 'line-opacity', 0.8);
+                  map.setPaintProperty('default-route-line', 'line-width', 4);
+                  map.setPaintProperty('default-route-line', 'line-color', '#219ebc');
+                } catch (error) {
+                  console.log('WebView: Could not update route paint properties:', error.message);
+                }
+              } else if (!map.getSource('default-route')) {
+                // Route source missing, recreate it
+                console.log('WebView: Render event - route source missing, recreating...');
+                addDefaultRoute();
+              } else if (!map.getLayer('default-route-line')) {
+                // Route layer missing, recreate it
+                console.log('WebView: Render event - route layer missing, recreating...');
+                addDefaultRoute();
+              }
+
+              // Ensure the bike route is always visible and drawn
+              if (map.getSource('bike-route') && map.getLayer('bike-route-line')) {
+                // Route exists, ensure it's visible
+                console.log('WebView: Render event - ensuring bike route is visible');
+                
+                // Force the route layer to be visible
+                try {
+                  map.setPaintProperty('bike-route-line', 'line-opacity', 0.8);
+                  map.setPaintProperty('bike-route-line', 'line-width', 4);
+                  map.setPaintProperty('bike-route-line', 'line-color', '#007cff'); // A different color for bike route
+                } catch (error) {
+                  console.log('WebView: Could not update bike route paint properties:', error.message);
+                }
+              } else if (!map.getSource('bike-route')) {
+                // Route source missing, recreate it
+                console.log('WebView: Render event - bike route source missing, recreating...');
+                addBikeRoute();
+              } else if (!map.getLayer('bike-route-line')) {
+                // Route layer missing, recreate it
+                console.log('WebView: Render event - bike route layer missing, recreating...');
+                addBikeRoute();
+              }
+            });
+            
             console.log('WebView: Map initialization complete');
             
           } catch (error) {
@@ -310,12 +366,15 @@ const Map = forwardRef(({
         // Function to add the default route to the map
         function addDefaultRoute() {
           try {
-            if (!map || !defaultRouteGeoJSON) {
-              console.log('WebView: Map or route data not ready, skipping route addition');
-              return;
-            }
+            console.log('WebView: Adding default route...');
             
-            console.log('WebView: Adding default route to map:', defaultRouteGeoJSON);
+            // Remove existing route if it exists
+            if (map.getLayer('default-route-line')) {
+              map.removeLayer('default-route-line');
+            }
+            if (map.getSource('default-route')) {
+              map.removeSource('default-route');
+            }
             
             // Add the route source
             map.addSource('default-route', {
@@ -323,7 +382,11 @@ const Map = forwardRef(({
               data: defaultRouteGeoJSON
             });
             
-            // Add the route layer with the specified color #fecd15
+            // Get coordinates from the validated GeoJSON
+            const coordinates = defaultRouteGeoJSON.geometry.coordinates;
+            console.log('WebView: Route coordinates (first 3):', coordinates.slice(0, 3));
+            
+            // Add the route layer with the specified color #219ebc
             map.addLayer({
               id: 'default-route-line',
               type: 'line',
@@ -333,39 +396,131 @@ const Map = forwardRef(({
                 'line-cap': 'round'
               },
               paint: {
-                'line-color': '#fecd15',
+                'line-color': '#219ebc',
                 'line-width': 4,
                 'line-opacity': 0.8
-              }
+              },
+              minzoom: 0,
+              maxzoom: 24
             });
             
-            // Add route start and end markers
-            const coordinates = defaultRouteGeoJSON.geometry.coordinates;
+            // Add markers at the exact start and end coordinates
             if (coordinates.length > 0) {
-              // Start marker
+              // Start marker - coordinates are now in [longitude, latitude] format
               const startCoord = coordinates[0];
+              console.log('WebView: Start coordinate:', startCoord);
+              
               const startMarker = new mapboxgl.Marker({ color: '#00ff00' })
                 .setLngLat(startCoord)
-                .setPopup(new mapboxgl.Popup().setHTML('<b>Route Start</b>'))
+                .setPopup(new mapboxgl.Popup().setHTML('<b>Route Start</b><br>Lng: ' + startCoord[0].toFixed(6) + '<br>Lat: ' + startCoord[1].toFixed(6)))
                 .addTo(map);
               
-              // End marker
+              // End marker - coordinates are now in [longitude, latitude] format
               const endCoord = coordinates[coordinates.length - 1];
+              console.log('WebView: End coordinate:', endCoord);
+              
               const endMarker = new mapboxgl.Marker({ color: '#ff0000' })
                 .setLngLat(endCoord)
-                .setPopup(new mapboxgl.Popup().setHTML('<b>Route End</b>'))
+                .setPopup(new mapboxgl.Popup().setHTML('<b>Route End</b><br>Lng: ' + endCoord[0].toFixed(6) + '<br>Lat: ' + endCoord[1].toFixed(6)))
                 .addTo(map);
+              
+              console.log('WebView: Added start marker at:', startCoord);
+              console.log('WebView: Added end marker at:', endCoord);
             }
-            
-            // Fit map to show the entire route
-            const bounds = new mapboxgl.LngLatBounds();
-            coordinates.forEach(coord => bounds.extend(coord));
-            map.fitBounds(bounds, { padding: 50, duration: 2000 });
             
             console.log('WebView: Default route added successfully');
             
           } catch (error) {
             console.error('WebView: Error adding default route:', error);
+          }
+        }
+        
+        // Function to add the bike route to the map
+        function addBikeRoute() {
+          try {
+            console.log('WebView: Adding bike route...');
+
+            // Remove existing bike route if it exists
+            if (map.getLayer('bike-route-line')) {
+              map.removeLayer('bike-route-line');
+            }
+            if (map.getSource('bike-route')) {
+              map.removeSource('bike-route');
+            }
+
+            // Add the bike route source
+            map.addSource('bike-route', {
+              type: 'geojson',
+              data: bikeRouteGeoJSON
+            });
+
+            // Get coordinates from the validated GeoJSON
+            const coordinates = bikeRouteGeoJSON.geometry.coordinates;
+            console.log('WebView: Bike route coordinates (first 3):', coordinates.slice(0, 3));
+
+            // Add the bike route layer with a different color
+            map.addLayer({
+              id: 'bike-route-line',
+              type: 'line',
+              source: 'bike-route',
+              layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+              },
+              paint: {
+                'line-color': '#007cff', // A different color for bike route
+                'line-width': 4,
+                'line-opacity': 0.8
+              },
+              minzoom: 0,
+              maxzoom: 24
+            });
+
+            // Add markers at the exact start and end coordinates
+            if (coordinates.length > 0) {
+              // Start marker - coordinates are now in [longitude, latitude] format
+              const startCoord = coordinates[0];
+              console.log('WebView: Bike route start coordinate:', startCoord);
+              
+              // Create a custom bike icon element
+              const bikeIcon = document.createElement('div');
+              bikeIcon.className = 'bike-icon';
+              bikeIcon.innerHTML = '🚲'; // Using emoji as fallback
+              bikeIcon.style.width = '30px';
+              bikeIcon.style.height = '30px';
+              bikeIcon.style.background = '#007cff';
+              bikeIcon.style.border = '3px solid white';
+              bikeIcon.style.borderRadius = '50%';
+              bikeIcon.style.display = 'flex';
+              bikeIcon.style.alignItems = 'center';
+              bikeIcon.style.justifyContent = 'center';
+              bikeIcon.style.fontSize = '18px';
+              bikeIcon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+              bikeIcon.style.zIndex = '1000';
+              
+              // Create bike icon marker
+              const bikeMarker = new mapboxgl.Marker(bikeIcon)
+                .setLngLat(startCoord)
+                .setPopup(new mapboxgl.Popup().setHTML('<b>🚲 Bike Route Start</b><br>Lng: ' + startCoord[0].toFixed(6) + '<br>Lat: ' + startCoord[1].toFixed(6)))
+                .addTo(map);
+              
+              // End marker - coordinates are now in [longitude, latitude] format
+              const endCoord = coordinates[coordinates.length - 1];
+              console.log('WebView: Bike route end coordinate:', endCoord);
+              
+              const endMarker = new mapboxgl.Marker({ color: '#007cff' }) // Use the same color as the line
+                .setLngLat(endCoord)
+                .setPopup(new mapboxgl.Popup().setHTML('<b>Bike Route End</b><br>Lng: ' + endCoord[0].toFixed(6) + '<br>Lat: ' + endCoord[1].toFixed(6)))
+                .addTo(map);
+              
+              console.log('WebView: Added bike icon at start:', startCoord);
+              console.log('WebView: Added bike route end marker at:', endCoord);
+            }
+
+            console.log('WebView: Bike route added successfully');
+
+          } catch (error) {
+            console.error('WebView: Error adding bike route:', error);
           }
         }
         
@@ -429,50 +584,6 @@ const Map = forwardRef(({
               existingMarker.remove();
               console.log('WebView: Removed existing marker due to no user location');
             }
-          }
-        }
-        
-        // Function to test marker movement
-        function testMoveBlueDot() {
-          const testCoords = [-73.9855, 40.7580]; // Times Square
-          console.log('WebView: Testing marker movement to Times Square');
-          
-          currentUserLocation = testCoords;
-          
-          if (map) {
-            map.flyTo({
-              center: testCoords,
-              zoom: 16,
-              duration: 2000
-            });
-            
-            // Update marker position
-            addUserLocationMarker(testCoords);
-          }
-        }
-        
-        // Function to show debug info
-        function showDebugInfo() {
-          console.log('WebView: Debug Info:', {
-            mapLoaded: !!map,
-            currentUserLocation,
-            defaultLocation,
-            hasLocationPermission,
-            defaultRouteGeoJSON: defaultRouteGeoJSON
-          });
-          
-          // Also check marker visibility
-          const userMarker = document.querySelector('.user-location-marker');
-          console.log('WebView: User marker element:', userMarker);
-          if (userMarker) {
-            console.log('WebView: Marker styles:', {
-              left: userMarker.style.left,
-              top: userMarker.style.top,
-              transform: userMarker.style.transform,
-              display: userMarker.style.display,
-              visibility: userMarker.style.visibility,
-              opacity: userMarker.style.opacity
-            });
           }
         }
         

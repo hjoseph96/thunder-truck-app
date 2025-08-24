@@ -13,17 +13,22 @@ function polylineToGeoJSON(encodedPolyline, options = {}) {
     // Decode the polyline to coordinates array
     const coordinates = polyline.decode(encodedPolyline);
     
+    // IMPORTANT: Mapbox expects [longitude, latitude] format
+    // The polyline decoder returns [latitude, longitude], so we need to swap them
+    const correctedCoordinates = coordinates.map(coord => [coord[1], coord[0]]);
+    
     // Create GeoJSON Feature
     const geoJson = {
       type: "Feature",
       properties: {
         name: options.name || "Route",
         description: options.description || "Decoded polyline route",
-        coordinateCount: coordinates.length
+        coordinateCount: correctedCoordinates.length,
+        note: "Coordinates corrected to [longitude, latitude] format for Mapbox compatibility"
       },
       geometry: {
         type: "LineString",
-        coordinates: coordinates
+        coordinates: correctedCoordinates
       }
     };
     
@@ -36,11 +41,15 @@ function polylineToGeoJSON(encodedPolyline, options = {}) {
 /**
  * Convert a Google Directions API encoded polyline to coordinates array
  * @param {string} encodedPolyline - The encoded polyline string from Google Directions API
- * @returns {Array} Array of coordinate pairs [longitude, latitude]
+ * @returns {Array} Array of coordinate pairs [longitude, latitude] for Mapbox compatibility
  */
 function polylineToCoordinates(encodedPolyline) {
   try {
-    return polyline.decode(encodedPolyline);
+    const coordinates = polyline.decode(encodedPolyline);
+    
+    // IMPORTANT: Mapbox expects [longitude, latitude] format
+    // The polyline decoder returns [latitude, longitude], so we need to swap them
+    return coordinates.map(coord => [coord[1], coord[0]]);
   } catch (error) {
     throw new Error(`Failed to decode polyline: ${error.message}`);
   }
@@ -53,7 +62,7 @@ function polylineToCoordinates(encodedPolyline) {
  */
 function getRouteStats(encodedPolyline) {
   try {
-    const coordinates = polyline.decode(encodedPolyline);
+    const coordinates = polylineToCoordinates(encodedPolyline); // Use corrected format
     
     if (coordinates.length === 0) {
       return {
@@ -68,9 +77,10 @@ function getRouteStats(encodedPolyline) {
     const lastCoord = coordinates[coordinates.length - 1];
     
     // Calculate approximate distance (very rough estimation)
+    // Note: coordinates are now in [longitude, latitude] format
+    const lngDiff = Math.abs(lastCoord[0] - firstCoord[0]);
     const latDiff = Math.abs(lastCoord[1] - firstCoord[1]);
-    const lonDiff = Math.abs(lastCoord[0] - firstCoord[0]);
-    const roughDistance = Math.sqrt(latDiff * latDiff + lonDiff * lonDiff) * 111; // Rough km conversion
+    const roughDistance = Math.sqrt(lngDiff * lngDiff + latDiff * latDiff) * 111; // Rough km conversion
     
     return {
       coordinateCount: coordinates.length,
@@ -82,7 +92,8 @@ function getRouteStats(encodedPolyline) {
         longitude: lastCoord[0],
         latitude: lastCoord[1]
       },
-      approximateDistance: roughDistance
+      approximateDistance: roughDistance,
+      note: "Coordinates are in [longitude, latitude] format for Mapbox compatibility"
     };
   } catch (error) {
     throw new Error(`Failed to get route stats: ${error.message}`);
