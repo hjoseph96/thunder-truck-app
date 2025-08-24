@@ -14,6 +14,7 @@
   "dependencies": {
     "@apollo/client": "^3.13.9",
     "@brandingbrand/react-native-snap-carousel": "^3.11.0",
+    "@mapbox/polyline": "^1.2.1",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/stack": "^7.4.7",
@@ -21,6 +22,7 @@
     "expo": "~53.0.20",
     "expo-location": "^18.1.6",
     "expo-status-bar": "~2.2.3",
+    "geojson-polyline": "^1.0.3",
     "graphql": "^16.11.0",
     "react": "19.0.0",
     "react-native": "0.79.5",
