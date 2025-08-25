@@ -21,11 +21,11 @@ export default function ExplorerHome({ navigation }) {
   const carouselRef = useRef(null);
 
   const slideImages = [
-    require('../assets/slide-1.png'),
-    require('../assets/slide-2.png'),
-    require('../assets/slide-3.png'),
-    require('../assets/slide-4.png'),
-    require('../assets/slide-5.png')
+          require('../assets/images/slide-1.png'),
+      require('../assets/images/slide-2.png'),
+      require('../assets/images/slide-3.png'),
+      require('../assets/images/slide-4.png'),
+      require('../assets/images/slide-5.png')
   ];
 
   const renderSlideItem = ({ item, index }) => {

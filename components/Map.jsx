@@ -372,7 +372,7 @@ const Map = forwardRef(({
               if (!bikeAnimationState.isAnimating) {
                 console.log('WebView: Render event - starting bike animation automatically');
                 setTimeout(() => {
-                  animateBikeAlongRoute();
+                  animateBikeAlongRoute({ shouldLoop: false, speed: 500 });
                 }, 500); // Small delay to ensure everything is ready
               }
             });
@@ -564,11 +564,16 @@ const Map = forwardRef(({
           isAnimating: false,
           currentIndex: 0,
           bikeMarker: null,
-          animationInterval: null
+          animationInterval: null,
+          totalCoordinates: 0,
+          isCompleted: false,
+          completionCallback: null,
+          shouldLoop: false,
+          progress: 0
         };
         
         // Function to animate bike icon along the bike route
-        function animateBikeAlongRoute() {
+        function animateBikeAlongRoute(options = {}) {
           try {
             if (!map || !bikeRouteGeoJSON || !bikeRouteGeoJSON.geometry || !bikeRouteGeoJSON.geometry.coordinates) {
               console.log('WebView: Cannot animate bike - missing route data');
@@ -586,7 +591,11 @@ const Map = forwardRef(({
               stopBikeAnimation();
             }
             
-            console.log('WebView: Starting bike animation along route');
+            // Apply options
+            const shouldLoop = options.shouldLoop || false;
+            const speed = options.speed || 500; // Default 500ms between moves
+            
+            console.log('WebView: Starting bike animation along route with options:', { shouldLoop, speed });
             
             // Remove existing bike icon if it exists
             const existingBikeIcon = document.querySelector('.bike-icon');
@@ -616,10 +625,15 @@ const Map = forwardRef(({
               .setLngLat(coordinates[0])
               .addTo(map);
             
-            // Store bike marker reference
+            // Store bike marker reference and initialize state
             bikeAnimationState.bikeMarker = bikeMarker;
             bikeAnimationState.currentIndex = 0;
             bikeAnimationState.isAnimating = true;
+            bikeAnimationState.totalCoordinates = coordinates.length;
+            bikeAnimationState.isCompleted = false;
+            bikeAnimationState.progress = 0;
+            bikeAnimationState.shouldLoop = shouldLoop;
+            bikeAnimationState.animationSpeed = speed;
             
             // Function to update the route path from current bike position
             function updateRouteFromBikePosition(bikePosition, remainingCoords) {
@@ -659,37 +673,110 @@ const Map = forwardRef(({
               
               // Get current and next position
               const currentCoord = coordinates[currentIndex];
-              const nextCoord = coordinates[(currentIndex + 1) % coordinates.length]; // Loop back to start
+              const nextIndex = currentIndex + 1;
+              
+              // Check if we've reached the destination
+              if (nextIndex >= coordinates.length) {
+                // Destination reached!
+                console.log('WebView: 🎯 Destination reached! Bike animation completed');
+                
+                // Move bike to final destination coordinate
+                bikeMarker.setLngLat(coordinates[coordinates.length - 1]);
+                
+                // Update popup to show completion
+                bikeMarker.setPopup(new mapboxgl.Popup().setHTML(
+                  '<b>🎯 Destination Reached!</b><br>🚲 Bike has arrived at the final destination<br>Lng: ' + coordinates[coordinates.length - 1][0].toFixed(6) + '<br>Lat: ' + coordinates[coordinates.length - 1][1].toFixed(6) + '<br>Progress: 100%'
+                ));
+                
+                // Update animation state
+                bikeAnimationState.isCompleted = true;
+                bikeAnimationState.progress = 100;
+                bikeAnimationState.currentIndex = coordinates.length - 1;
+                
+                // Send completion message to React Native
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'bikeAnimationCompleted',
+                    coordinates: {
+                      latitude: coordinates[coordinates.length - 1][1],
+                      longitude: coordinates[coordinates.length - 1][0]
+                    },
+                    progress: 100,
+                    totalCoordinates: coordinates.length,
+                    completionTime: new Date().toISOString()
+                  }));
+                }
+                
+                // Add completion celebration effect
+                addCompletionCelebration(coordinates[coordinates.length - 1]);
+                
+                // Handle completion behavior
+                if (bikeAnimationState.shouldLoop) {
+                  // Restart animation from beginning
+                  console.log('WebView: Restarting bike animation due to loop setting');
+                  setTimeout(() => {
+                    bikeAnimationState.currentIndex = 0;
+                    bikeAnimationState.isCompleted = false;
+                    bikeAnimationState.progress = 0;
+                    bikeAnimationState.isAnimating = true;
+                    bikeMarker.setLngLat(coordinates[0]);
+                    bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, 500);
+                  }, 2000); // Wait 2 seconds before restarting
+                } else {
+                  // Stop animation and keep bike at destination
+                  console.log('WebView: Bike animation completed, keeping bike at destination');
+                  bikeAnimationState.isAnimating = false;
+                  if (bikeAnimationState.animationInterval) {
+                    clearTimeout(bikeAnimationState.animationInterval);
+                    bikeAnimationState.animationInterval = null;
+                  }
+                }
+                
+                return;
+              }
+              
+              // Continue normal animation
+              const nextCoord = coordinates[nextIndex];
               
               // Move bike directly to the next coordinate for consistent positioning
               bikeMarker.setLngLat(nextCoord);
               
-              // Update popup with current position
-              bikeMarker.setPopup(new mapboxgl.Popup().setHTML(
-                '<b>🚲 Bike Position</b><br>Lng: ' + nextCoord[0].toFixed(6) + '<br>Lat: ' + nextCoord[1].toFixed(6) + '<br>Progress: ' + Math.round(((currentIndex + 1) / coordinates.length) * 100) + '%'
-              ));
+              // Calculate and update progress
+              const progress = Math.round(((nextIndex + 1) / coordinates.length) * 100);
+              bikeAnimationState.progress = progress;
+              bikeAnimationState.currentIndex = nextIndex;
               
-             
-              // Move to next coordinate
-              bikeAnimationState.currentIndex = (currentIndex + 1) % coordinates.length;
-              
-              // Update the route path only when moving to a new coordinate
-              const remainingCoordinates = coordinates.slice(bikeAnimationState.currentIndex + 1);
-              if (bikeAnimationState.currentIndex === 0) {
-                // If we're looping back to start, include all coordinates
-                updateRouteFromBikePosition(nextCoord, coordinates.slice(1));
-              } else {
-                updateRouteFromBikePosition(nextCoord, remainingCoordinates);
+              // Send progress update to React Native
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'bikeAnimationProgress',
+                  progress: progress,
+                  currentIndex: nextIndex + 1,
+                  totalCoordinates: coordinates.length,
+                  coordinates: {
+                    latitude: nextCoord[1],
+                    longitude: nextCoord[0]
+                  }
+                }));
               }
               
-              console.log('WebView: Bike moved to coordinate ' + bikeAnimationState.currentIndex + ' at [' + nextCoord[0].toFixed(6) + ', ' + nextCoord[1].toFixed(6) + ']');
+              // Update popup with current position and progress
+              bikeMarker.setPopup(new mapboxgl.Popup().setHTML(
+                '<b>🚲 Bike Position</b><br>Lng: ' + nextCoord[0].toFixed(6) + '<br>Lat: ' + nextCoord[1].toFixed(6) + '<br>Progress: ' + progress + '%<br>Coordinates: ' + (nextIndex + 1) + ' of ' + coordinates.length
+              ));
               
-              // Continue animation with consistent timing
-              bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, 500); // Consistent 500ms intervals
+              // Update the route path from current bike position
+              const remainingCoordinates = coordinates.slice(nextIndex + 1);
+              updateRouteFromBikePosition(nextCoord, remainingCoordinates);
+              
+              console.log('WebView: Bike moved to coordinate ' + (nextIndex + 1) + ' of ' + coordinates.length + ' at [' + nextCoord[0].toFixed(6) + ', ' + nextCoord[1].toFixed(6) + '] - Progress: ' + progress + '%');
+              
+              // Continue animation with configurable timing
+              bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, bikeAnimationState.animationSpeed || 500);
             }
             
-            // Start the animation
-            bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, 500);
+            // Start the animation with configurable speed
+            bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, bikeAnimationState.animationSpeed || 500);
             
             console.log('WebView: Bike animation started successfully - will loop indefinitely with consistent movement');
             
@@ -716,9 +803,148 @@ const Map = forwardRef(({
               bikeAnimationState.bikeMarker = null;
             }
             
-            console.log('WebView: Bike animation restarted for infinite loop');
+            console.log('WebView: Bike animation stopped');
+          } catch (error) {
+            console.error('WebView: Error stopping bike animation:', error);
+          }
+        }
+        
+        // Function to restart bike animation
+        function restartBikeAnimation() {
+          try {
+            console.log('WebView: Restarting bike animation');
+            
+            // Reset animation state
+            bikeAnimationState.currentIndex = 0;
+            bikeAnimationState.isCompleted = false;
+            bikeAnimationState.progress = 0;
+            bikeAnimationState.isAnimating = true;
+            
+            // Move bike back to start
+            if (bikeAnimationState.bikeMarker && coordinates.length > 0) {
+              bikeAnimationState.bikeMarker.setLngLat(coordinates[0]);
+              
+              // Update popup to show restart
+              bikeAnimationState.bikeMarker.setPopup(new mapboxgl.Popup().setHTML(
+                '<b>🚲 Bike Restarted</b><br>Lng: ' + coordinates[0][0].toFixed(6) + '<br>Lat: ' + coordinates[0][1].toFixed(6) + '<br>Progress: 0%<br>Coordinates: 1 of ' + coordinates.length
+              ));
+            }
+            
+            // Start animation again with configurable speed
+            bikeAnimationState.animationInterval = setTimeout(moveBikeToNextPosition, bikeAnimationState.animationSpeed || 500);
+            
+            console.log('WebView: Bike animation restarted successfully');
           } catch (error) {
             console.error('WebView: Error restarting bike animation:', error);
+          }
+        }
+        
+        // Function to set bike animation loop behavior
+        function setBikeAnimationLoop(shouldLoop) {
+          try {
+            bikeAnimationState.shouldLoop = shouldLoop;
+            console.log('WebView: Bike animation loop setting changed to:', shouldLoop);
+            
+            // Send confirmation to React Native
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'bikeAnimationLoopChanged',
+                shouldLoop: shouldLoop
+              }));
+            }
+          } catch (error) {
+            console.error('WebView: Error setting bike animation loop:', error);
+          }
+        }
+        
+        // Function to get current bike animation status
+        function getBikeAnimationStatus() {
+          try {
+            const status = {
+              isAnimating: bikeAnimationState.isAnimating,
+              isCompleted: bikeAnimationState.isCompleted,
+              currentIndex: bikeAnimationState.currentIndex,
+              totalCoordinates: bikeAnimationState.totalCoordinates,
+              progress: bikeAnimationState.progress,
+              shouldLoop: bikeAnimationState.shouldLoop,
+              currentPosition: null,
+              estimatedTimeOfArrival: null,
+              animationSpeed: bikeAnimationState.animationSpeed || 500
+            };
+            
+            // Get current position if bike marker exists
+            if (bikeAnimationState.bikeMarker) {
+              const lngLat = bikeAnimationState.bikeMarker.getLngLat();
+              status.currentPosition = {
+                longitude: lngLat.lng,
+                latitude: lngLat.lat
+              };
+            }
+            
+            // Calculate estimated time of arrival
+            if (bikeAnimationState.isAnimating && !bikeAnimationState.isCompleted) {
+              const remainingCoordinates = bikeAnimationState.totalCoordinates - bikeAnimationState.currentIndex - 1;
+              const remainingTime = remainingCoordinates * (bikeAnimationState.animationSpeed || 500);
+              status.estimatedTimeOfArrival = new Date(Date.now() + remainingTime).toISOString();
+            }
+            
+            console.log('WebView: Bike animation status:', status);
+            return status;
+          } catch (error) {
+            console.error('WebView: Error getting bike animation status:', error);
+            return null;
+          }
+        }
+        
+        // Function to add completion celebration effect
+        function addCompletionCelebration(coordinates) {
+          try {
+            console.log('WebView: Adding completion celebration effect at:', coordinates);
+            
+            // Create celebration container
+            const celebration = document.createElement('div');
+            celebration.className = 'completion-celebration';
+            celebration.innerHTML = '🎉';
+            celebration.style.position = 'absolute';
+            celebration.style.fontSize = '48px';
+            celebration.style.zIndex = '2000';
+            celebration.style.pointerEvents = 'none';
+            celebration.style.animation = 'celebration-bounce 2s ease-out forwards';
+            
+            // Position celebration at destination
+            if (map) {
+              const point = map.project(coordinates);
+              celebration.style.left = point.x + 'px';
+              celebration.style.top = (point.y - 50) + 'px';
+              celebration.style.transform = 'translate(-50%, -50%)';
+            }
+            
+            // Add celebration styles
+            const celebrationStyles = document.createElement('style');
+            celebrationStyles.textContent = 
+              '@keyframes celebration-bounce {' +
+              '  0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }' +
+              '  50% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }' +
+              '  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }' +
+              '}';
+            document.head.appendChild(celebrationStyles);
+            
+            // Add to map
+            document.body.appendChild(celebration);
+            
+            // Remove celebration after animation
+            setTimeout(() => {
+              if (celebration.parentNode) {
+                celebration.parentNode.removeChild(celebration);
+              }
+              if (celebrationStyles.parentNode) {
+                celebrationStyles.parentNode.removeChild(celebrationStyles);
+              }
+            }, 2000);
+            
+            console.log('WebView: Completion celebration effect added');
+          } catch (error) {
+            console.error('WebView: Error adding completion celebration:', error);
           }
         }
         
@@ -1026,6 +1252,64 @@ const Map = forwardRef(({
                   }
                 } catch (error) {
                   console.error('WebView: Error updating marker position:', error);
+                }
+              }
+            } else if (data.type === 'controlBikeAnimation') {
+              // Control bike animation behavior
+              console.log('WebView: Bike animation control command:', data.action);
+              
+              try {
+                switch (data.action) {
+                  case 'start':
+                    if (!bikeAnimationState.isAnimating) {
+                      const options = {
+                        shouldLoop: data.shouldLoop || false,
+                        speed: data.speed || 500
+                      };
+                      animateBikeAlongRoute(options);
+                    }
+                    break;
+                  case 'stop':
+                    stopBikeAnimation();
+                    break;
+                  case 'restart':
+                    restartBikeAnimation();
+                    break;
+                  case 'setLoop':
+                    setBikeAnimationLoop(data.shouldLoop || false);
+                    break;
+                  case 'getStatus':
+                    const status = getBikeAnimationStatus();
+                    if (window.ReactNativeWebView) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'bikeAnimationStatus',
+                        status: status
+                      }));
+                    }
+                    break;
+                  default:
+                    console.log('WebView: Unknown bike animation action:', data.action);
+                }
+                
+                // Send confirmation back to React Native
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'bikeAnimationControlResponse',
+                    action: data.action,
+                    success: true
+                  }));
+                }
+              } catch (error) {
+                console.error('WebView: Error controlling bike animation:', error);
+                
+                // Send error back to React Native
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'bikeAnimationControlResponse',
+                    action: data.action,
+                    success: false,
+                    error: error.message
+                  }));
                 }
               }
             }

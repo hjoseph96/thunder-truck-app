@@ -28,13 +28,13 @@ export default function LandingPage({ navigation }) {
       <View style={styles.contentContainer}>
         
         <Image
-          source={require('../assets/thunder-truck-text-logo.png')}
+          source={require('../assets/images/thunder-truck-text-logo.png')}
           style={styles.textLogoImage}
           resizeMode="contain"
         />
 
         <Image
-          source={require('../assets/thunder-truck-hero-image.png')}
+          source={require('../assets/images/thunder-truck-hero-image.png')}
           style={styles.logoImage}
           resizeMode="cover"
         />
