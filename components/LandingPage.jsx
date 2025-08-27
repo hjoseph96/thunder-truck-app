@@ -56,7 +56,6 @@ export default function LandingPage({ navigation }) {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -129,3 +128,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+

@@ -13,6 +13,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G, ClipPath, Rect, Defs } from 'react-native-svg';
 import Carousel from '@brandingbrand/react-native-snap-carousel';
+import FoodTypesHeader from './FoodTypesHeader';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -132,6 +133,9 @@ export default function ExplorerHome({ navigation }) {
           <View style={styles.questionHeader}>
             <Text style={styles.questionText}>Hungry? Let’s roll.</Text>
           </View>
+
+          {/* Food Types Header */}
+          <FoodTypesHeader />
 
           {/* Grid Layout for Categories */}
           <View style={styles.categoriesGrid}>

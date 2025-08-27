@@ -1,0 +1,129 @@
+/* LandingPage Component Styles */
+
+.landing-page-container {
+  flex: 1;
+  position: relative;
+  background-color: #fecd15; /* Yellow background */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-page-striped-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+.landing-page-stripe {
+  position: absolute;
+  width: 20px;
+  height: 200vh;
+  transform: rotate(45deg);
+  top: -50vh;
+  background-color: #D4A574; /* Light brown stripes */
+}
+
+.landing-page-content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0 86px;
+  z-index: 1;
+}
+
+.landing-page-text-logo-image {
+  width: 250px;
+  height: 250px;
+}
+
+.landing-page-logo-image {
+  width: 250px;
+  height: 250px;
+  margin-bottom: 30px;
+}
+
+.landing-page-nav-button {
+  background-color: #2D1E2F;
+  padding: 15px 30px;
+  border-radius: 25px;
+  border: 2px solid #1a1419;
+  box-shadow: 0 4px 4.65px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.landing-page-nav-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 6.65px rgba(0, 0, 0, 0.4);
+}
+
+.landing-page-nav-button-text {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.landing-page-arrow-container {
+  position: absolute;
+  bottom: 52px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 1;
+}
+
+.landing-page-arrow-text {
+  color: #D4A574; /* Light brown arrow to match stripes */
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .landing-page-content-container {
+    padding: 0 40px;
+  }
+  
+  .landing-page-text-logo-image,
+  .landing-page-logo-image {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .landing-page-nav-button {
+    padding: 12px 24px;
+  }
+  
+  .landing-page-nav-button-text {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page-content-container {
+    padding: 0 20px;
+  }
+  
+  .landing-page-text-logo-image,
+  .landing-page-logo-image {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .landing-page-nav-button {
+    padding: 10px 20px;
+  }
+  
+  .landing-page-nav-button-text {
+    font-size: 14px;
+  }
+}
