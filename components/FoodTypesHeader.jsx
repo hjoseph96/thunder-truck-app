@@ -5,10 +5,13 @@ import { fetchFoodTypes } from '../lib/food-types-service';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-export default function FoodTypesHeader() {
+export default function FoodTypesHeader({ navigation }) {
   const [foodTypes, setFoodTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMorePages, setHasMorePages] = useState(true);
 
   // Function to sanitize and validate CDN URLs
   const sanitizeImageUrl = (url) => {
@@ -36,32 +39,68 @@ export default function FoodTypesHeader() {
     loadFoodTypes();
   }, []);
 
-  const loadFoodTypes = async () => {
+  const loadFoodTypes = async (page = 1, append = false) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (page === 1) {
+        setLoading(true);
+        setError(null);
+      } else {
+        setLoadingMore(true);
+      }
       
       // Fetch food types from GraphQL API
-      const data = await fetchFoodTypes(1); // Start with page 1
+      const data = await fetchFoodTypes(page);
 
-      console.log('Food types:', data);
+      console.log(`Food types page ${page}:`, data);
 
-      setFoodTypes(data);
+      if (append && data && data.length > 0) {
+        // Append new food types to existing ones
+        setFoodTypes(prevFoodTypes => [...prevFoodTypes, ...data]);
+      } else if (data && data.length > 0) {
+        // Replace food types for first page
+        setFoodTypes(data);
+      }
+
+      // Check if there are more pages (assuming 10 per page from your schema)
+      setHasMorePages(data && data.length === 10);
+      setCurrentPage(page);
     } catch (err) {
       console.error('Error loading food types:', err);
-      setError(err.message || 'Failed to load food types');
+      if (page === 1) {
+        setError(err.message || 'Failed to load food types');
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreFoodTypes = async () => {
+    if (!loadingMore && hasMorePages) {
+      const nextPage = currentPage + 1;
+      await loadFoodTypes(nextPage, true);
+    }
+  };
+
+  const handleScroll = (event) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    
+    // Check if we're near the end of horizontal scroll
+    const isNearEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 50;
+    
+    if (isNearEnd && !loadingMore && hasMorePages) {
+      console.log('Near end of scroll, loading more food types...');
+      loadMoreFoodTypes();
     }
   };
 
   const handleFoodTypePress = (foodType) => {
-    // TODO: Navigate to food type specific page
-    console.log('Navigating to food type:', foodType.title);
+    // Navigate to FoodTypeViewer with the selected food type
+    navigation.navigate('FoodTypeViewer', { foodType });
   };
 
   const handleRetry = () => {
-    loadFoodTypes();
+    loadFoodTypes(1);
   };
 
   if (loading) {
@@ -115,6 +154,8 @@ export default function FoodTypesHeader() {
           contentContainerStyle={styles.scrollContent}
           decelerationRate="fast"
           snapToInterval={120}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           {foodTypes.map((foodType) => (
             <TouchableOpacity
@@ -149,6 +190,16 @@ export default function FoodTypesHeader() {
               </Text>
             </TouchableOpacity>
           ))}
+          
+          {/* Loading indicator for more food types */}
+          {loadingMore && (
+            <View style={styles.loadingMoreContainer}>
+              <View style={styles.loadingMoreSpinner}>
+                <Text style={styles.loadingMoreText}>...</Text>
+              </View>
+              <Text style={styles.loadingMoreLabel}>Loading more</Text>
+            </View>
+          )}
         </ScrollView>
       </View>
       
@@ -261,5 +312,42 @@ const styles = StyleSheet.create({
   },
   fallbackText: {
     fontSize: 24,
+  },
+  loadingMoreContainer: {
+    alignItems: 'center',
+    marginHorizontal: 10,
+    width: 100,
+    minHeight: 100,
+    justifyContent: 'center',
+  },
+  loadingMoreSpinner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8f8f8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  loadingMoreText: {
+    fontSize: 20,
+    color: '#666',
+  },
+  loadingMoreLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+  endOfListContainer: {
+    alignItems: 'center',
+    marginHorizontal: 10,
+    width: 100,
+    minHeight: 100,
+    justifyContent: 'center',
+  },
+  endOfListText: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
   },
 });

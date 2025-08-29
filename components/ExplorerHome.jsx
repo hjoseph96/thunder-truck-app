@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,15 @@ import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G, ClipPath, Rect, Defs } from 'react-native-svg';
 import Carousel from '@brandingbrand/react-native-snap-carousel';
 import FoodTypesHeader from './FoodTypesHeader';
+import { getNearbyFoodTrucksWithCache, getMockLocation } from '../lib/food-trucks-service';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function ExplorerHome({ navigation }) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [nearbyFoodTrucks, setNearbyFoodTrucks] = useState([]);
+  const [loadingFoodTrucks, setLoadingFoodTrucks] = useState(true);
+  const [foodTrucksError, setFoodTrucksError] = useState(null);
   const carouselRef = useRef(null);
 
   const slideImages = [
@@ -28,6 +32,49 @@ export default function ExplorerHome({ navigation }) {
       require('../assets/images/slide-4.png'),
       require('../assets/images/slide-5.png')
   ];
+
+  // Load nearby food trucks on component mount
+  useEffect(() => {
+    loadNearbyFoodTrucks();
+  }, []);
+
+
+
+  const loadNearbyFoodTrucks = async () => {
+    try {
+      setLoadingFoodTrucks(true);
+      setFoodTrucksError(null);
+      
+      // Get mock location for testing (replace with actual user location)
+      const location = getMockLocation();
+      
+      // Fetch nearby food trucks within 30 miles
+      const result = await getNearbyFoodTrucksWithCache({
+        ...location,
+        radius: 30,
+        page: 1
+      });
+
+      console.log('Nearby food trucks:', result);
+      
+      // Extract food trucks array from the result
+      const foodTrucks = result.foodTrucks || [];
+      
+      // Take only the top 4 results
+      const top4FoodTrucks = foodTrucks.slice(0, 4);
+      setNearbyFoodTrucks(top4FoodTrucks);
+    } catch (error) {
+      console.error('Error loading nearby food trucks:', error);
+      setFoodTrucksError(error.message || 'Failed to load nearby food trucks');
+    } finally {
+      setLoadingFoodTrucks(false);
+    }
+  };
+
+  const handleFoodTruckPress = (foodTruck) => {
+    // TODO: Navigate to food truck detail page
+    console.log('Navigating to food truck:', foodTruck.name);
+  };
 
   const renderSlideItem = ({ item, index }) => {
     return (
@@ -135,52 +182,60 @@ export default function ExplorerHome({ navigation }) {
           </View>
 
           {/* Food Types Header */}
-          <FoodTypesHeader />
+          <FoodTypesHeader navigation={navigation} />
 
-          {/* Grid Layout for Categories */}
+          {/* Nearby Food Trucks Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Featured Nearby Food Trucks</Text>
+            <Text style={styles.sectionSubtitle}>Within 30 miles of your location</Text>
+          </View>
+
+          {/* Grid Layout for Food Trucks */}
           <View style={styles.categoriesGrid}>
-            <TouchableOpacity style={styles.categoryItem}>
-              <Image
-                source={{uri: 'https://api.builder.io/api/v1/image/assets/TEMP/6441ea7b1bfe2c54c78e966c210007d5a55c13e0'}}
-                style={styles.categoryImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.categoryText}>Italian</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.categoryItem}>
-              <Image
-                source={{uri: 'https://api.builder.io/api/v1/image/assets/TEMP/2c2fe82379ca9735853ab26649f88b157acf2af7'}}
-                style={styles.categoryImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.categoryText}>Indian</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.categoryItem}>
-              <Image
-                source={{uri: 'https://api.builder.io/api/v1/image/assets/TEMP/610510e9c226ff95cc39d7ff74c327fab433350b'}}
-                style={styles.categoryImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.categoryText}>Mexican</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.categoryItem}>
-              <Image
-                source={{uri: 'https://api.builder.io/api/v1/image/assets/TEMP/afd733b2759b142eec2e1fe43c0abd685a902da5'}}
-                style={styles.categoryImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.categoryText}>Spanish</Text>
-            </TouchableOpacity>
+            {loadingFoodTrucks ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading nearby food trucks...</Text>
+              </View>
+            ) : foodTrucksError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{foodTrucksError}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadNearbyFoodTrucks}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : nearbyFoodTrucks.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No food trucks found nearby.</Text>
+                <Text style={styles.emptySubtext}>Try expanding your search radius</Text>
+              </View>
+            ) : (
+              nearbyFoodTrucks.map((foodTruck, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.categoryItem}
+                  onPress={() => handleFoodTruckPress(foodTruck)}
+                >
+                                          <Image
+                       source={{ 
+                         uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/100x100/cccccc/666666?text=No+Image'
+                       }}
+                       style={styles.categoryImage}
+                       resizeMode="cover"
+                     />
+                                     <Text style={styles.categoryText}>{foodTruck.name}</Text>
+                   <Text style={styles.foodTruckSubtext}>
+                     {foodTruck.foodTypes?.map(ft => ft.title).join(', ') || 'Various cuisines'}
+                   </Text>
+                   <Text style={styles.deliveryFeeText}>
+                     ${foodTruck.deliveryFee} delivery
+                   </Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
 
-        {/* Load More Button */}
-        <TouchableOpacity style={styles.loadMoreButton}>
-          <Text style={styles.loadMoreText}>Load More</Text>
-        </TouchableOpacity>
+
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -389,6 +444,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 27,
     marginTop: 30,
   },
+  sectionHeader: {
+    marginTop: 30,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontFamily: 'Poppins',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2D1E2F',
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  sectionSubtitle: {
+    fontFamily: 'Poppins',
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#666',
+    textAlign: 'center',
+  },
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -409,30 +484,68 @@ const styles = StyleSheet.create({
   categoryText: {
     fontFamily: 'Poppins',
     fontSize: 14,
+    fontWeight: '600',
+    color: '#2D1E2F',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  foodTruckSubtext: {
+    fontFamily: 'Poppins',
+    fontSize: 12,
     fontWeight: '400',
-    color: '#000',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  deliveryFeeText: {
+    fontFamily: 'Poppins',
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'green',
     textAlign: 'center',
   },
-  loadMoreButton: {
-    backgroundColor: 'rgba(254, 205, 21, 0.25)',
-    borderRadius: 4,
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-    alignSelf: 'center',
-    marginTop: 30,
-    marginBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
-    elevation: 2,
+  loadingContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 40,
   },
-  loadMoreText: {
+  loadingText: {
     fontFamily: 'Poppins',
     fontSize: 16,
-    fontWeight: '400',
-    color: '#000',
+    color: '#666',
+    textAlign: 'center',
   },
+  errorContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  errorText: {
+    fontFamily: 'Poppins',
+    fontSize: 16,
+    color: '#ff0000',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  emptyContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontFamily: 'Poppins',
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  emptySubtext: {
+    fontFamily: 'Poppins',
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+
   bottomNav: {
     flexDirection: 'row',
     paddingVertical: 9,

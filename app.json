@@ -4,13 +4,34 @@
     "slug": "ThunderTruck",
     "version": "1.0.0",
     "orientation": "portrait",
-            "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-              "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "fonts": [
+      {
+        "asset": "./assets/fonts/Cairo-Regular.ttf",
+        "family": "Cairo"
+      },
+      {
+        "asset": "./assets/fonts/Cairo-Light.ttf",
+        "family": "Cairo",
+        "weight": "300"
+      },
+      {
+        "asset": "./assets/fonts/Cairo-Medium.ttf",
+        "family": "Cairo",
+        "weight": "500"
+      },
+      {
+        "asset": "./assets/fonts/Cairo-Bold.ttf",
+        "family": "Cairo",
+        "weight": "700"
+      }
+    ],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -31,7 +52,7 @@
       ]
     },
     "web": {
-              "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png"
     }
   }
 }

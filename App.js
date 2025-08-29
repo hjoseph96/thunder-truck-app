@@ -8,6 +8,8 @@ import MarkdownViewer from './components/MarkdownViewer';
 import VerifyOTP from './components/VerifyOTP';
 import ExplorerHome from './components/ExplorerHome';
 import MapPage from './components/MapPage';
+import FoodTypeViewer from './components/FoodTypeViewer';
+import FoodTruckViewer from './components/FoodTruckViewer';
 
 const Stack = createStackNavigator();
 
@@ -67,6 +69,20 @@ export default function App() {
           component={MapPage}
           options={{
             title: 'Map'
+          }}
+        />
+        <Stack.Screen
+          name="FoodTypeViewer"
+          component={FoodTypeViewer}
+          options={{
+            title: 'Food Type Viewer'
+          }}
+        />
+        <Stack.Screen
+          name="FoodTruckViewer"
+          component={FoodTruckViewer}
+          options={{
+            title: 'Food Truck Viewer'
           }}
         />
       </Stack.Navigator>

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import PhoneInput from 'react-native-phone-number-input';
 import { authService } from '../lib/api-service';
+import { storeToken, storeUserData } from '../lib/token-manager';
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,6 +61,19 @@ export default function SignIn({ navigation }) {
       const result = await authService.signIn(`+1${phoneNumber}`);
       
       if (result.success) {
+        // Store the JWT token and user data for future authenticated requests
+        if (result.token) {
+          try {
+            await storeToken(result.token);
+            if (result.user) {
+              await storeUserData(result.user);
+            }
+            console.log('JWT token and user data stored successfully');
+          } catch (storageError) {
+            console.error('Error storing authentication data:', storageError);
+          }
+        }
+        
         Alert.alert(
           'Success!', 
           'Signed in successfully!',

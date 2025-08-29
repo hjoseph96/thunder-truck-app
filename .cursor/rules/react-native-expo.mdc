@@ -11,6 +11,7 @@ Code Style and Structure:
 - Use Functional Components: Prefer functional components with hooks (useState, useEffect, etc.) over class components.
 - Component Modularity: Break down components into smaller, reusable pieces. Keep components focused on a single responsibility.
 - Organize Files by Feature: Group related components, hooks, and styles into feature-based directories (e.g., user-profile, chat-screen).
+- "The edit tool seems to have removed the component content." Avoid removing code using the edit tool.
 
 Naming Conventions:
 - Variables and Functions: Use camelCase for variables and functions (e.g., isFetchingData, handleUserInput).
