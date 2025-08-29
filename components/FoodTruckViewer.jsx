@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 40,
     right: 20,
     width: 80,
     height: 80,
@@ -319,10 +319,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo',
     fontWeight: 'bold',
     marginBottom: 5,
+    marginLeft: 16,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    bottom: 60,
+    position: 'absolute',
   },
   foodTruckMeta: {
     flexDirection: 'row',
@@ -364,7 +367,7 @@ const styles = StyleSheet.create({
   },
   deliveryFeeAmount: {
     color: '#fecd15',
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     textShadowColor: 'rgba(0, 0, 0, 0.4)',
     textShadowOffset: { width: 0, height: 1 },
