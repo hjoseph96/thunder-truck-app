@@ -14,7 +14,9 @@ const MenuItemComponent = ({
   description, 
   price,
   onPress,
-  onAddToCart 
+  onAddToCart,
+  navigation,
+  menuItem
 }) => {
   const [scaleValue] = useState(new Animated.Value(1));
   const [imageLoading, setImageLoading] = useState(true);
@@ -76,6 +78,16 @@ const MenuItemComponent = ({
     setImageError(true);
   };
 
+  const handlePress = () => {
+    if (navigation && menuItem) {
+      // Navigate to MenuItemViewer if navigation and menuItem are provided
+      navigation.navigate('MenuItemViewer', { menuItem });
+    } else if (onPress) {
+      // Fall back to custom onPress if provided
+      onPress();
+    }
+  };
+
   const renderImageSkeleton = () => (
     <View style={styles.imageSkeleton}>
       <Animated.View 
@@ -96,7 +108,7 @@ const MenuItemComponent = ({
   return (
     <TouchableOpacity
       style={styles.container}
-      onPress={onPress}
+      onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       activeOpacity={0.8}

@@ -26,7 +26,7 @@ export default function ExplorerHome({ navigation }) {
   const carouselRef = useRef(null);
 
   const slideImages = [
-          require('../assets/images/slide-1.png'),
+      require('../assets/images/slide-1.png'),
       require('../assets/images/slide-2.png'),
       require('../assets/images/slide-3.png'),
       require('../assets/images/slide-4.png'),

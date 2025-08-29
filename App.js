@@ -10,6 +10,7 @@ import ExplorerHome from './components/ExplorerHome';
 import MapPage from './components/MapPage';
 import FoodTypeViewer from './components/FoodTypeViewer';
 import FoodTruckViewer from './components/FoodTruckViewer';
+import MenuItemViewer from './components/MenuItemViewer';
 
 const Stack = createStackNavigator();
 
@@ -83,6 +84,13 @@ export default function App() {
           component={FoodTruckViewer}
           options={{
             title: 'Food Truck Viewer'
+          }}
+        />
+        <Stack.Screen
+          name="MenuItemViewer"
+          component={MenuItemViewer}
+          options={{
+            title: 'Menu Item Viewer'
           }}
         />
       </Stack.Navigator>

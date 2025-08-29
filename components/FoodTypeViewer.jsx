@@ -115,9 +115,10 @@ export default function FoodTypeViewer({ navigation, route }) {
       {...(Platform.OS === 'web' && { 'data-food-truck-id': truck.id })}
     >
       <Image
-        source={{ 
-          uri: truck.coverImageUrl || 'https://via.placeholder.com/150x100/cccccc/666666?text=No+Image'
-        }}
+        source={truck.coverImageUrl 
+          ? { uri: truck.coverImageUrl }
+          : require('../assets/images/blank-menu-item.png')
+        }
         style={styles.truckImage}
         resizeMode="cover"
       />
