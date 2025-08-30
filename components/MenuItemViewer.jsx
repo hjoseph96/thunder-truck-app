@@ -190,20 +190,26 @@ export default function MenuItemViewer({ navigation, route }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Content Section */}
         <View style={styles.contentSection}>
-          <Text style={styles.menuItemName}>{menuItem.name}</Text>
-          <Text style={styles.menuItemPrice}>+${menuItem.price}</Text>
+            <View style={styles.headerRow}>
+                <Text style={styles.menuItemName}>{menuItem.name}</Text>
+                <Text style={styles.menuItemPrice}>+${menuItem.price}</Text>
+            </View>
           {menuItem.description && (
-            <Text style={styles.menuItemDescription}>{menuItem.description}</Text>
+            <Text style={styles.menuItemDescription}>
+                {menuItem.description}
+            </Text>
           )}
         </View>
-
-        {/* Option Groups */}
-        {mockOptionGroups.map((optionGroup) => renderOptionGroup(optionGroup))}
         
-        {/* Add to Cart Button */}
-        <TouchableOpacity style={styles.addToCartButton}>
-          <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-        </TouchableOpacity>
+        <View>
+            {/* Option Groups */}
+            {mockOptionGroups.map((optionGroup) => renderOptionGroup(optionGroup))}
+            
+            {/* Add to Cart Button */}
+            <TouchableOpacity style={styles.addToCartButton}>
+                <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+            </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -260,50 +266,63 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
     marginTop: 0,
     zIndex: 2,
   },
   contentSection: {
     backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    overflow: 'scroll',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1
+  },
+  headerRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   menuItemName: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#132a13',
-    marginBottom: 8,
     fontFamily: 'Cairo',
+    letterSpacing: -0.8,
+    flex: 1,
+    marginRight: 12,
   },
   menuItemPrice: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fecd15',
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#008000',
+    backgroundColor: '#51cf66',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
     marginBottom: 12,
+    marginTop: 12,
     fontFamily: 'Cairo',
+    maxWidth: 100,
+    textAlign: 'center',
   },
   menuItemDescription: {
     fontSize: 16,
-    lineHeight: 24,
-    color: '#666',
+    lineHeight: 20,
+    color: '#343e3d',
     fontFamily: 'Cairo',
+    fontWeight: '300',
+    width: 340,
+    overflow: 'hidden',
   },
   optionGroup: {
     backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
     elevation: 3,
   },
   optionGroupHeader: {
@@ -375,7 +394,7 @@ const styles = StyleSheet.create({
   },
   optionPrice: {
     fontSize: 14,
-    color: '#fecd15',
+    color: '#2dc653',
     fontWeight: '600',
     fontFamily: 'Cairo',
   },
@@ -418,18 +437,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fecd15',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 25,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 40,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
+    borderBottomRightRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   addToCartButtonText: {
-    color: '#000',
+    color: '#926c15',
     fontSize: 18,
     fontWeight: 'bold',
     fontFamily: 'Cairo',
