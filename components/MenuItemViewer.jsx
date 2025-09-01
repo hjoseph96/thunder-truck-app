@@ -271,7 +271,7 @@ export default function MenuItemViewer({ navigation, route }) {
 
     return (
       <View style={styles.cartItemsContainer}>
-        <Text style={styles.cartItemsTitle}>Cart Items</Text>
+        <Text style={styles.cartItemsTitle}>Cart</Text>
         <View style={styles.cartItemsList}>
           {cartData.cartItems.map((cartItem) => {
             const totalPrice = (cartItem.menuItem.price * cartItem.quantity).toFixed(2);

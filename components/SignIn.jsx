@@ -11,12 +11,16 @@ import {
 import PhoneInput from 'react-native-phone-number-input';
 import { authService } from '../lib/api-service';
 import { storeToken, storeUserData } from '../lib/token-manager';
+import { resetSessionExpiration } from '../lib/session-manager';
 
 const { width, height } = Dimensions.get('window');
 
-export default function SignIn({ navigation }) {
+export default function SignIn({ navigation, route }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Check for session expired message
+  const sessionMessage = route?.params?.message;
 
   // Format phone number for display
   const formatPhoneNumber = (number) => {
@@ -68,6 +72,8 @@ export default function SignIn({ navigation }) {
             if (result.user) {
               await storeUserData(result.user);
             }
+            // Reset session expiration state after successful sign in
+            resetSessionExpiration();
             console.log('JWT token and user data stored successfully');
           } catch (storageError) {
             console.error('Error storing authentication data:', storageError);
@@ -115,6 +121,13 @@ export default function SignIn({ navigation }) {
       <View style={styles.content}>
         <Text style={styles.titleText}>Welcome Back!</Text>
         <Text style={styles.subtitleText}>Sign in to your account</Text>
+        
+        {/* Session Expired Message */}
+        {sessionMessage && (
+          <View style={styles.sessionMessageContainer}>
+            <Text style={styles.sessionMessageText}>{sessionMessage}</Text>
+          </View>
+        )}
 
         {/* Phone Number Input */}
         <View style={styles.inputContainer}>
@@ -208,6 +221,21 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginBottom: 40,
+  },
+  sessionMessageContainer: {
+    backgroundColor: '#ff6b6b',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ff5252',
+  },
+  sessionMessageText: {
+    fontSize: 14,
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   inputContainer: {
     marginBottom: 20,

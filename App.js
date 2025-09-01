@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LandingPage from './components/LandingPage';
@@ -11,12 +11,20 @@ import MapPage from './components/MapPage';
 import FoodTypeViewer from './components/FoodTypeViewer';
 import FoodTruckViewer from './components/FoodTruckViewer';
 import MenuItemViewer from './components/MenuItemViewer';
+import { setNavigationRef } from './lib/session-manager';
 
 const Stack = createStackNavigator();
 
 export default function App() {
+  const navigationRef = useRef(null);
+
+  const onReady = () => {
+    // Set the navigation reference for session management
+    setNavigationRef(navigationRef.current);
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} onReady={onReady}>
       <Stack.Navigator
         initialRouteName="LandingPage"
         screenOptions={{

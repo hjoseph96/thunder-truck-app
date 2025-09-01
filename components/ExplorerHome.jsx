@@ -90,9 +90,10 @@ export default function ExplorerHome({ navigation }) {
     }
   };
 
+  
   const handleFoodTruckPress = (foodTruck) => {
-    // TODO: Navigate to food truck detail page
-    console.log('Navigating to food truck:', foodTruck.name);
+    // Navigate to FoodTruckViewer with the selected food truck
+    navigation.navigate('FoodTruckViewer', { foodTruck });
   };
 
   const handleOnboardingClose = async (wasSuccessful = false) => {
