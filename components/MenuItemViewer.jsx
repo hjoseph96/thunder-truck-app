@@ -314,6 +314,12 @@ export default function MenuItemViewer({ navigation, route }) {
         <View style={styles.cartTotal}>
           <Text style={styles.cartTotalText}>Total: {cartData.totalPrice}</Text>
         </View>
+        <TouchableOpacity 
+          style={styles.checkoutButton}
+          onPress={() => navigation.navigate('Checkout')}
+        >
+          <Text style={styles.checkoutButtonText}>Checkout</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -969,6 +975,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#132a13',
     textAlign: 'right',
+    fontFamily: 'Cairo',
+  },
+  checkoutButton: {
+    backgroundColor: '#28a745',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  checkoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
     fontFamily: 'Cairo',
   },
 });

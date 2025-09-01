@@ -14,7 +14,9 @@ import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G, ClipPath, Rect, Defs } from 'react-native-svg';
 import Carousel from '@brandingbrand/react-native-snap-carousel';
 import FoodTypesHeader from './FoodTypesHeader';
+import OnboardingModal from './OnboardingModal';
 import { getNearbyFoodTrucksWithCache, getMockLocation } from '../lib/food-trucks-service';
+import { getStoredUserData } from '../lib/token-manager';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -23,6 +25,8 @@ export default function ExplorerHome({ navigation }) {
   const [nearbyFoodTrucks, setNearbyFoodTrucks] = useState([]);
   const [loadingFoodTrucks, setLoadingFoodTrucks] = useState(true);
   const [foodTrucksError, setFoodTrucksError] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [userData, setUserData] = useState(null);
   const carouselRef = useRef(null);
 
   const slideImages = [
@@ -33,10 +37,25 @@ export default function ExplorerHome({ navigation }) {
       require('../assets/images/slide-5.png')
   ];
 
-  // Load nearby food trucks on component mount
+  // Load nearby food trucks and check user data on component mount
   useEffect(() => {
+    checkUserData();
     loadNearbyFoodTrucks();
   }, []);
+
+  const checkUserData = async () => {
+    try {
+      const user = await getStoredUserData();
+      setUserData(user);
+      
+      // Show onboarding if any required fields are missing
+      if (!user || !user.email || !user.firstName || !user.lastName) {
+        setShowOnboarding(true);
+      }
+    } catch (error) {
+      console.error('Error checking user data:', error);
+    }
+  };
 
 
 
@@ -74,6 +93,25 @@ export default function ExplorerHome({ navigation }) {
   const handleFoodTruckPress = (foodTruck) => {
     // TODO: Navigate to food truck detail page
     console.log('Navigating to food truck:', foodTruck.name);
+  };
+
+  const handleOnboardingClose = async (wasSuccessful = false) => {
+    setShowOnboarding(false);
+    
+    if (wasSuccessful) {
+      // If onboarding was successful, update user data without re-checking
+      // This prevents the modal from reopening
+      try {
+        const user = await getStoredUserData();
+        setUserData(user);
+        // Don't call checkUserData() to avoid reopening modal
+      } catch (error) {
+        console.error('Error updating user data after successful onboarding:', error);
+      }
+    } else {
+      // If onboarding was cancelled/closed without completion, refresh user data
+      await checkUserData();
+    }
   };
 
   const renderSlideItem = ({ item, index }) => {
@@ -280,6 +318,13 @@ export default function ExplorerHome({ navigation }) {
           </Svg>
         </TouchableOpacity>
       </View>
+
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        visible={showOnboarding}
+        onClose={handleOnboardingClose}
+        userData={userData}
+      />
     </SafeAreaView>
   );
 }
