@@ -81,7 +81,10 @@ const MenuItemComponent = ({
   const handlePress = () => {
     if (navigation && menuItem) {
       // Navigate to MenuItemViewer if navigation and menuItem are provided
-      navigation.navigate('MenuItemViewer', { menuItem });
+      navigation.navigate('MenuItemViewer', { 
+        menuItemId: menuItem.id,
+        foodTruckId: menuItem.foodTruckId 
+      });
     } else if (onPress) {
       // Fall back to custom onPress if provided
       onPress();

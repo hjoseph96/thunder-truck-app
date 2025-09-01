@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,45 +8,112 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
+import { getMenuItemWithCache } from '../lib/menu-item-service';
+import { getCart, addMenuItemToCart } from '../lib/cart-service';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function MenuItemViewer({ navigation, route }) {
-  const { menuItem } = route.params;
+  const { menuItemId, foodTruckId } = route.params;
+  const [menuItem, setMenuItem] = useState(null);
+  const [relatedMenuItems, setRelatedMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
+  const [showCartPopup, setShowCartPopup] = useState(false);
+  const [cartData, setCartData] = useState(null);
+  const [cartLoading, setCartLoading] = useState(false);
 
-  // Mock data structure for testing - remove when schema is updated
-  const mockOptionGroups = menuItem.optionGroups || [
-    {
-      id: '1',
-      name: 'Size',
-      limit: 1,
-      options: [
-        { id: '1-1', name: 'Small', price: 0.00, imageUrl: null },
-        { id: '1-2', name: 'Medium', price: 2.00, imageUrl: null },
-        { id: '1-3', name: 'Large', price: 4.00, imageUrl: null },
-      ]
-    },
-    {
-      id: '2',
-      name: 'Toppings',
-      limit: 3,
-      options: [
-        { id: '2-1', name: 'Extra Cheese', price: 1.50, imageUrl: null },
-        { id: '2-2', name: 'Bacon', price: 2.50, imageUrl: null },
-        { id: '2-3', name: 'Mushrooms', price: 1.00, imageUrl: null },
-        { id: '2-4', name: 'Pepperoni', price: 2.00, imageUrl: null },
-      ]
+  useEffect(() => {
+    const loadMenuItem = async () => {
+      try {
+        setLoading(true);
+        const result = await getMenuItemWithCache(menuItemId);
+        setMenuItem(result.menuItem);
+        setRelatedMenuItems(result.relatedMenuItems || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (menuItemId) {
+      loadMenuItem();
     }
-  ];
+  }, [menuItemId]);
 
   const handleBackPress = () => {
     navigation.goBack();
   };
 
-  const handleOptionSelect = (optionGroupId, optionId, isSingleSelect = false) => {
+  const handleCartPress = async () => {
+    if (!showCartPopup) {
+      // Load cart data when opening popup
+      await loadCartData();
+    }
+    setShowCartPopup(!showCartPopup);
+  };
+
+  const loadCartData = async () => {
+    try {
+      setCartLoading(true);
+      
+      if (!foodTruckId) {
+        console.error('No foodTruckId available in route params');
+        return;
+      }
+      
+      const cart = await getCart(foodTruckId);
+      setCartData(cart);
+    } catch (error) {
+      console.error('Error loading cart:', error);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const handleQuantityChange = async (menuItemId, change) => {
+    try {
+      setCartLoading(true);
+      // Add the menu item to cart (API will handle quantity logic)
+      const updatedCart = await addMenuItemToCart(menuItemId);
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const handleAddToCart = async () => {
+    try {
+      setCartLoading(true);
+      
+      // Convert selected options to the format expected by the API
+      const cartItemOptions = Object.entries(selectedOptions).flatMap(([optionGroupId, optionIds]) => {
+        return optionIds.map(optionId => ({
+          optionId: optionId
+        }));
+      });
+
+      const updatedCart = await addMenuItemToCart(menuItem.id, cartItemOptions);
+      setCartData(updatedCart);
+      
+      // Show cart popup after adding item
+      setShowCartPopup(true);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const handleOptionSelect = (optionGroupId, optionId, isSingleSelect = false, limit = null) => {
     setSelectedOptions(prev => {
       const newSelection = { ...prev };
       
@@ -63,8 +130,14 @@ export default function MenuItemViewer({ navigation, route }) {
         const optionIndex = currentSelection.indexOf(optionId);
         
         if (optionIndex > -1) {
+          // Remove option if already selected
           currentSelection.splice(optionIndex, 1);
         } else {
+          // Check if we can add more options
+          if (limit && currentSelection.length >= limit) {
+            // Cannot add more options, limit reached
+            return prev;
+          }
           currentSelection.push(optionId);
         }
       }
@@ -90,18 +163,20 @@ export default function MenuItemViewer({ navigation, route }) {
     return (
       <View key={optionGroup.id} style={styles.optionGroup}>
         <View style={styles.optionGroupHeader}>
-          <Text style={styles.optionGroupTitle}>{optionGroup.name}</Text>
-          <View style={[
-            styles.requiredTag,
-            isComplete && styles.requiredTagComplete
-          ]}>
-            <Text style={[
-              styles.requiredTagText,
-              isComplete && styles.requiredTagTextComplete
+          <Text style={styles.optionGroupTitle}>{optionGroup.name || 'Customizations'}</Text>
+          {optionGroup.required && (
+            <View style={[
+              styles.requiredTag,
+              isComplete && styles.requiredTagComplete
             ]}>
-              {isComplete ? '✓' : 'Required'}
-            </Text>
-          </View>
+              <Text style={[
+                styles.requiredTagText,
+                isComplete && styles.requiredTagTextComplete
+              ]}>
+                {isComplete ? '✓' : 'Required'}
+              </Text>
+            </View>
+          )}
         </View>
         
         {optionGroup.limit && (
@@ -116,7 +191,10 @@ export default function MenuItemViewer({ navigation, route }) {
               <View style={styles.optionContent}>
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionName}>{option.name}</Text>
-                  <Text style={styles.optionPrice}>+${option.price}</Text>
+                  {
+                    option.price > 0 && 
+                        <Text style={styles.optionPrice}>+${option.price}</Text>
+                  }
                 </View>
                 
                 {option.imageUrl && (
@@ -131,9 +209,16 @@ export default function MenuItemViewer({ navigation, route }) {
               <TouchableOpacity
                 style={[
                   styles.optionSelector,
-                  isOptionSelected(optionGroup.id, option.id) && styles.optionSelectorSelected
+                  isOptionSelected(optionGroup.id, option.id) && styles.optionSelectorSelected,
+                  !isOptionSelected(optionGroup.id, option.id) && 
+                  optionGroup.limit && 
+                  (selectedOptions[optionGroup.id]?.length || 0) >= optionGroup.limit && 
+                  styles.optionSelectorDisabled
                 ]}
-                onPress={() => handleOptionSelect(optionGroup.id, option.id, isSingleSelect)}
+                onPress={() => handleOptionSelect(optionGroup.id, option.id, isSingleSelect, optionGroup.limit)}
+                disabled={!isOptionSelected(optionGroup.id, option.id) && 
+                         optionGroup.limit && 
+                         (selectedOptions[optionGroup.id]?.length || 0) >= optionGroup.limit}
               >
                 {isOptionSelected(optionGroup.id, option.id) && (
                   <View style={styles.optionSelectorInner}>
@@ -152,16 +237,127 @@ export default function MenuItemViewer({ navigation, route }) {
     );
   };
 
-  if (!menuItem) {
+  if (loading) {
     return (
       <View style={styles.container}>
         <StatusBar style="dark" />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>No menu item data available</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#fecd15" />
+          <Text style={styles.loadingText}>Loading menu item...</Text>
         </View>
       </View>
     );
   }
+
+  if (error || !menuItem) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            {error || 'No menu item data available'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const renderCartItems = () => {
+    if (!cartData || !cartData.cartItems || cartData.cartItems.length === 0) {
+      return (
+        <Text style={styles.cartEmptyText}>Your cart is empty</Text>
+      );
+    }
+
+    return (
+      <View style={styles.cartItemsContainer}>
+        <Text style={styles.cartItemsTitle}>Cart Items</Text>
+        <View style={styles.cartItemsList}>
+          {cartData.cartItems.map((cartItem) => {
+            const totalPrice = (cartItem.menuItem.price * cartItem.quantity).toFixed(2);
+            return (
+              <View key={cartItem.id} style={styles.cartItem}>
+                <View style={styles.cartItemLeft}>
+                  {cartItem.menuItem.imageUrl && (
+                    <Image
+                      source={{ uri: cartItem.menuItem.imageUrl }}
+                      style={styles.cartItemImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                </View>
+                <View style={styles.cartItemCenter}>
+                  <Text style={styles.cartItemName}>{cartItem.menuItem.name}</Text>
+                  <Text style={styles.cartItemPrice}>${totalPrice}</Text>
+                </View>
+                <View style={styles.cartItemRight}>
+                  <TouchableOpacity
+                    style={styles.quantityButton}
+                    onPress={() => handleQuantityChange(cartItem.menuItem.id, -1)}
+                    disabled={cartLoading}
+                  >
+                    <Text style={styles.quantityButtonText}>-</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.quantityText}>{cartItem.quantity}</Text>
+                  <TouchableOpacity
+                    style={styles.quantityButton}
+                    onPress={() => handleQuantityChange(cartItem.menuItem.id, 1)}
+                    disabled={cartLoading}
+                  >
+                    <Text style={styles.quantityButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+        <View style={styles.cartTotal}>
+          <Text style={styles.cartTotalText}>Total: {cartData.totalPrice}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderRelatedMenuItems = () => {
+    if (!relatedMenuItems || relatedMenuItems.length === 0) return null;
+
+    return (
+      <View style={styles.relatedMenuItemsContainer}>
+        <Text style={styles.relatedMenuItemsTitle}>You might also like</Text>
+        <View style={styles.relatedMenuItemsGrid}>
+          {relatedMenuItems.map((relatedItem) => (
+            <TouchableOpacity
+              key={relatedItem.id}
+              style={styles.relatedMenuItem}
+              onPress={() => navigation.navigate('MenuItemViewer', { 
+                menuItemId: relatedItem.id,
+                foodTruckId: foodTruckId 
+              })}
+            >
+              <Image
+                source={relatedItem.imageUrl 
+                  ? { uri: relatedItem.imageUrl }
+                  : require('../assets/images/blank-menu-item.png')
+                }
+                style={styles.relatedMenuItemImage}
+                resizeMode="cover"
+              />
+              <View style={styles.relatedMenuItemContent}>
+                <Text style={styles.relatedMenuItemName} numberOfLines={2}>
+                  {relatedItem.name}
+                </Text>
+                {relatedItem.price && (
+                  <Text style={styles.relatedMenuItemPrice}>
+                    ${relatedItem.price}
+                </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -203,16 +399,60 @@ export default function MenuItemViewer({ navigation, route }) {
         
         <View>
             {/* Option Groups */}
-            {mockOptionGroups.map((optionGroup) => renderOptionGroup(optionGroup))}
+            {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
+              menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
+            )}
             
-            {/* Add to Cart Button */}
-            <TouchableOpacity style={styles.addToCartButton}>
-                <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-            </TouchableOpacity>
+            {/* Related Menu Items */}
+            {renderRelatedMenuItems()}
+            
+        {/* Add to Cart Button */}
+        <TouchableOpacity 
+          style={styles.addToCartButton}
+          onPress={handleAddToCart}
+          disabled={cartLoading}
+        >
+            <Text style={styles.addToCartButtonText}>
+              {cartLoading ? 'Adding...' : 'Add to Cart'}
+            </Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+    
+    {/* Fixed Cart Icon */}
+    <TouchableOpacity style={styles.cartIcon} onPress={handleCartPress}>
+      <MaterialIcons name="shopping-cart" size={28} color="#000" />
+    </TouchableOpacity>
+
+    {/* Cart Popup Modal */}
+    {showCartPopup && (
+      <>
+        {/* Backdrop to close popup when tapping outside */}
+        <TouchableOpacity 
+          style={styles.cartPopupBackdrop} 
+          onPress={() => setShowCartPopup(false)}
+          activeOpacity={1}
+        />
+        <View style={styles.cartPopup}>
+          <View style={styles.cartPopupContent}>
+            {cartLoading ? (
+              <ActivityIndicator size="small" color="#F9B319" />
+            ) : (
+              <ScrollView 
+                style={styles.cartPopupScroll}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
+              >
+                {renderCartItems()}
+              </ScrollView>
+            )}
+          </View>
+          <View style={styles.cartPopupTriangle} />
         </View>
-      </ScrollView>
-    </View>
-  );
+      </>
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -279,7 +519,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: 'scroll',
     borderBottomColor: '#eee',
-    borderBottomWidth: 1
+    borderBottomWidth: 1,
   },
   headerRow: {
     display: 'flex',
@@ -418,6 +658,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fecd15',
     borderColor: '#fecd15',
   },
+  optionSelectorDisabled: {
+    backgroundColor: '#e0e0e0',
+    borderColor: '#ccc',
+    opacity: 0.5,
+  },
   optionSelectorInner: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -437,6 +682,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fecd15',
     paddingVertical: 16,
     paddingHorizontal: 32,
+    height: 60,
+    width: screenWidth,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -447,7 +694,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
   },
   addToCartButtonText: {
-    color: '#926c15',
+    color: '#76520e',
     fontSize: 18,
     fontWeight: 'bold',
     fontFamily: 'Cairo',
@@ -465,5 +712,263 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 16,
+    fontFamily: 'Cairo',
+  },
+  relatedMenuItemsContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  relatedMenuItemsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#132a13',
+    marginBottom: 16,
+    fontFamily: 'Cairo',
+  },
+  relatedMenuItemsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  relatedMenuItem: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  relatedMenuItemImage: {
+    width: '100%',
+    height: 120,
+  },
+  relatedMenuItemContent: {
+    padding: 12,
+  },
+  relatedMenuItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#132a13',
+    marginBottom: 4,
+    fontFamily: 'Cairo',
+  },
+  relatedMenuItemPrice: {
+    fontSize: 12,
+    color: '#008000',
+    fontWeight: '600',
+    fontFamily: 'Cairo',
+  },
+  cartIcon: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F9B319',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  cartPopupBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 998,
+  },
+  cartPopup: {
+    position: 'absolute',
+    bottom: 120,
+    right: 20,
+    zIndex: 999,
+  },
+  cartPopupContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    width: 300,
+    height: 250,
+    maxHeight: 500,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  cartPopupScroll: {
+    flex: 1,
+  },
+  cartPopupScrollContent: {
+    flexGrow: 1,
+  },
+  cartPopupTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#132a13',
+    marginBottom: 8,
+    fontFamily: 'Cairo',
+  },
+  cartPopupText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    fontFamily: 'Cairo',
+    lineHeight: 20,
+  },
+  cartPopupButton: {
+    backgroundColor: '#F9B319',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cartPopupButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Cairo',
+  },
+  cartPopupTriangle: {
+    position: 'absolute',
+    bottom: -8,
+    right: 20,
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#fff',
+  },
+  // Cart Items Styles
+  cartEmptyText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    fontFamily: 'Cairo',
+  },
+  cartItemsContainer: {
+    width: '100%',
+  },
+  cartItemsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#132a13',
+    marginBottom: 12,
+    fontFamily: 'Cairo',
+  },
+  cartItemsList: {
+    width: '100%',
+  },
+  cartItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#e0e0e0',
+    width: '100%',
+  },
+  cartItemLeft: {
+    marginRight: 12,
+  },
+  cartItemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+  },
+  cartItemCenter: {
+    flex: 1,
+    marginRight: 12,
+  },
+  cartItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#132a13',
+    marginBottom: 4,
+    fontFamily: 'Cairo',
+  },
+  cartItemPrice: {
+    fontSize: 12,
+    color: '#008000',
+    fontWeight: '600',
+    fontFamily: 'Cairo',
+  },
+  cartItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quantityButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F9B319',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+  },
+  quantityButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    fontFamily: 'Cairo',
+  },
+  quantityText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#132a13',
+    marginHorizontal: 8,
+    fontFamily: 'Cairo',
+    minWidth: 20,
+    textAlign: 'center',
+  },
+  cartTotal: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  cartTotalText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#132a13',
+    textAlign: 'right',
+    fontFamily: 'Cairo',
   },
 });

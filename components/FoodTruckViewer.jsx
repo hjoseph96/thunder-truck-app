@@ -97,7 +97,7 @@ export default function FoodTruckViewer({ navigation, route }) {
                 onPress={() => handleMenuItemPress(item)}
                 onAddToCart={() => handleAddToCart(item)}
                 navigation={navigation}
-                menuItem={item}
+                menuItem={{...item, foodTruckId: foodTruck.id}}
               />
             </View>
           ))}
@@ -140,7 +140,7 @@ export default function FoodTruckViewer({ navigation, route }) {
                     onPress={() => handleMenuItemPress(item)}
                     onAddToCart={() => handleAddToCart(item)}
                     navigation={navigation}
-                    menuItem={item}
+                    menuItem={{...item, foodTruckId: foodTruck.id}}
                   />
                 ))}
               </View>
