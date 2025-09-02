@@ -346,7 +346,7 @@ export default function MenuItemViewer({ navigation, route }) {
         </View>
         <TouchableOpacity 
           style={styles.checkoutButton}
-          onPress={() => navigation.navigate('Checkout')}
+          onPress={() => navigation.navigate('PaymentScreen')}
         >
           <Text style={styles.checkoutButtonText}>Checkout</Text>
         </TouchableOpacity>
