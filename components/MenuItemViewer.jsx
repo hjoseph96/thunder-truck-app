@@ -13,7 +13,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getMenuItemWithCache } from '../lib/menu-item-service';
-import { getCart, addMenuItemToCart } from '../lib/cart-service';
+import { getCart, addMenuItemToCart, changeCartItemQuantity } from '../lib/cart-service';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -77,11 +77,41 @@ export default function MenuItemViewer({ navigation, route }) {
     }
   };
 
-  const handleQuantityChange = async (menuItemId, change) => {
+  const handleQuantityChange = async (cartItemId, change) => {
     try {
       setCartLoading(true);
-      // Add the menu item to cart (API will handle quantity logic)
-      const updatedCart = await addMenuItemToCart(menuItemId);
+
+      // Find the current cart item to get its current quantity
+      const currentCartItem = cartData.cartItems.find(item => item.id === cartItemId);
+      if (!currentCartItem) {
+        console.error('Cart item not found:', cartItemId);
+        return;
+      }
+
+      // Calculate new quantity
+      const newQuantity = Math.max(0, currentCartItem.quantity + change);
+      
+      if (newQuantity === 0) {
+        // If quantity becomes 0, we could implement remove functionality here
+        // For now, just return without updating
+        return;
+      }
+
+      const updatedCartItem = await changeCartItemQuantity(cartItemId, newQuantity);
+
+      const updatedCartItems = cartData.cartItems.map(cartItem => {
+        if (cartItem.id === updatedCartItem.id)
+          cartItem.quantity = updatedCartItem.quantity;
+        
+        return cartItem; 
+      })
+
+      const updatedCart = {
+        ...cartData,
+        cartItems: updatedCartItems
+      }
+
+
       setCartData(updatedCart);
     } catch (error) {
       console.error('Error updating quantity:', error);
@@ -293,7 +323,7 @@ export default function MenuItemViewer({ navigation, route }) {
                 <View style={styles.cartItemRight}>
                   <TouchableOpacity
                     style={styles.quantityButton}
-                    onPress={() => handleQuantityChange(cartItem.menuItem.id, -1)}
+                    onPress={() => handleQuantityChange(cartItem.id, -1)}
                     disabled={cartLoading}
                   >
                     <Text style={styles.quantityButtonText}>-</Text>
@@ -301,7 +331,7 @@ export default function MenuItemViewer({ navigation, route }) {
                   <Text style={styles.quantityText}>{cartItem.quantity}</Text>
                   <TouchableOpacity
                     style={styles.quantityButton}
-                    onPress={() => handleQuantityChange(cartItem.menuItem.id, 1)}
+                    onPress={() => handleQuantityChange(cartItem.id, 1)}
                     disabled={cartLoading}
                   >
                     <Text style={styles.quantityButtonText}>+</Text>
