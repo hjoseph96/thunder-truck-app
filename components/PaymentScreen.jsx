@@ -17,7 +17,7 @@ import {
   CardField,
 } from '@stripe/stripe-react-native';
 import { createPaymentIntent } from '../lib/payment-service';
-import { getStoredToken } from '../lib/token-manager';
+import { getStoredToken, getStoredUserData } from '../lib/token-manager';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -31,6 +31,8 @@ const PaymentScreen = ({ route, navigation }) => {
   const [clientSecret, setClientSecret] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [userToken, setUserToken] = useState('');
+  const [userData, setUserData] = useState(null);
+
   const [amount, setAmount] = useState(2000); // Default $20.00 in cents
 
   // ============================================================================
@@ -59,14 +61,15 @@ const PaymentScreen = ({ route, navigation }) => {
 
       // Step 2: Confirm payment with Stripe
       const result = await confirmPayment(paymentIntentData.clientSecret, {
-        paymentMethodType: 'Card',
-        paymentMethodData: {
-          billingDetails: {
-            email: email,
-          },
-        },
+            paymentMethodType: 'Card',
+            paymentMethodData: {
+            billingDetails: {
+                email: email,
+            },
+            setupFutureUsage: 'OffSession',  // 🔑 This saves the payment method!
+        }
       });
-      console.log('Result:', result);
+      console.log('Result: ', result);
 
       if (result.paymentIntent.status === 'Succeeded') {
           Alert.alert('Success', 'Payment successful!');
@@ -127,6 +130,7 @@ const PaymentScreen = ({ route, navigation }) => {
       Alert.alert('Payment Failed', error.message);
     } else {
       Alert.alert('Success', 'Payment completed successfully!');
+
       // Payment successful - handle success
       handlePaymentSuccess();
     }
@@ -220,6 +224,13 @@ const PaymentScreen = ({ route, navigation }) => {
     const loadUserToken = async () => {
       const token = await getStoredToken();
       setUserToken(token);
+
+      // Load user data
+      const userData = await getStoredUserData();
+      setUserData(userData);
+
+      // Set email to user's email
+      setEmail(userData?.email);
     };
     loadUserToken();
   }, []);
@@ -237,23 +248,6 @@ const PaymentScreen = ({ route, navigation }) => {
         keyboardType="email-address"
         autoCapitalize="none"
       />
-
-      {/* Payment Method Selection */}
-      <View style={styles.methodSelector}>
-        <TouchableOpacity
-          style={[styles.methodButton, paymentMethod === 'card' && styles.selectedMethod]}
-          onPress={() => setPaymentMethod('card')}
-        >
-          <Text style={styles.methodButtonText}>Card Payment</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.methodButton, paymentMethod === 'payment_sheet' && styles.selectedMethod]}
-          onPress={() => setPaymentMethod('payment_sheet')}
-        >
-          <Text style={styles.methodButtonText}>Payment Sheet</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Card Field (Method 1) */}
       {paymentMethod === 'card' && (
@@ -280,25 +274,6 @@ const PaymentScreen = ({ route, navigation }) => {
             ) : (
               <Text style={styles.payButtonText}>Pay ${(amount / 100).toFixed(2)}</Text>
             )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Payment Sheet (Method 2) */}
-      {paymentMethod === 'payment_sheet' && (
-        <View style={styles.paymentSheetContainer}>
-          <TouchableOpacity
-            style={styles.initButton}
-            onPress={initializePaymentSheet}
-          >
-            <Text style={styles.buttonText}>Initialize Payment</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.payButton}
-            onPress={handlePaymentSheetPayment}
-          >
-            <Text style={styles.payButtonText}>Open Payment Sheet</Text>
           </TouchableOpacity>
         </View>
       )}

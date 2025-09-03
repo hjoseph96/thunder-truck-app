@@ -14,6 +14,7 @@ import FoodTruckViewer from './components/FoodTruckViewer';
 import MenuItemViewer from './components/MenuItemViewer';
 import { setNavigationRef } from './lib/session-manager';
 import PaymentScreen from './components/PaymentScreen';
+import CheckoutForm from './components/CheckoutForm';
 import { STRIPE_CONFIG } from './config/stripe-config';
 
 const Stack = createStackNavigator();
@@ -114,6 +115,13 @@ export default function App() {
             component={PaymentScreen}
             options={{
               title: 'Payment'
+            }}
+          />
+          <Stack.Screen
+            name="CheckoutForm"
+            component={CheckoutForm}
+            options={{
+              title: 'Checkout'
             }}
           />
         </Stack.Navigator>

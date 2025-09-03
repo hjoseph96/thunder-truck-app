@@ -106,6 +106,8 @@ export default function MenuItemViewer({ navigation, route }) {
         return cartItem; 
       })
 
+      cartData.totalPrice = `$${updatedCartItems.reduce((acc, item) => acc + item.menuItem.price * item.quantity, 0).toFixed(2)}`;
+
       const updatedCart = {
         ...cartData,
         cartItems: updatedCartItems
@@ -344,12 +346,12 @@ export default function MenuItemViewer({ navigation, route }) {
         <View style={styles.cartTotal}>
           <Text style={styles.cartTotalText}>Total: {cartData.totalPrice}</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.checkoutButton}
-          onPress={() => navigation.navigate('PaymentScreen')}
-        >
-          <Text style={styles.checkoutButtonText}>Checkout</Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.checkoutButton}
+            onPress={() => navigation.navigate('CheckoutForm', { foodTruckId: foodTruckId })}
+          >
+            <Text style={styles.checkoutButtonText}>Checkout</Text>
+          </TouchableOpacity>
       </View>
     );
   };
@@ -506,7 +508,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
-    elevation: 8
+    elevation: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e39219',
+    margin: 2,
   },
   headerImage: {
     width: '100%',
@@ -544,6 +549,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 0,
     zIndex: 2,
+    
   },
   contentSection: {
     backgroundColor: '#fff',
@@ -1022,8 +1028,9 @@ const styles = StyleSheet.create({
   },
   checkoutButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 21,
+    fontWeight: '800',
     fontFamily: 'Cairo',
+    letterSpacing: 0.5,
   },
 });
