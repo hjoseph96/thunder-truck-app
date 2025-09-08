@@ -346,12 +346,13 @@ export default function MenuItemViewer({ navigation, route }) {
         <View style={styles.cartTotal}>
           <Text style={styles.cartTotalText}>Total: {cartData.totalPrice}</Text>
         </View>
-          <TouchableOpacity 
-            style={styles.checkoutButton}
-            onPress={() => navigation.navigate('CheckoutForm', { foodTruckId: foodTruckId })}
-          >
-            <Text style={styles.checkoutButtonText}>Checkout</Text>
-          </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.checkoutButton}
+          onPress={() => navigation.navigate('CheckoutForm', { foodTruckId: foodTruckId })}
+        >
+          <Text style={styles.checkoutButtonText}>Checkout</Text>
+        </TouchableOpacity>
       </View>
     );
   };

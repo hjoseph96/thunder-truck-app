@@ -122,7 +122,9 @@ const CheckoutForm = ({ route, navigation }) => {
         >
           <MaterialIcons name="arrow-back" size={24} color="#fbfad8" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Checkout</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Checkout</Text>
+        </View>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingTop: 35,
     backgroundColor: '#ffac33',
-    borderBottomWidth: 2,
+    borderBottomWidth: 1,
     borderBottomColor: '#ee7623',
   },
   backButton: {
@@ -256,10 +258,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     color: '#fbfad8',
-    fontWeight: '600',
-    fontSize: 18,
+    fontWeight: '900',
+    fontSize: 21,
     letterSpacing: 0.5,
     textAlign: 'center',
+    letterSpacing: -0.2
+  },
+  headerTitleContainer: {
+    width: 10,
+    backgroundColor: '#fbfad8',
+    borderRadius: 16,
+    flex: 1,
+    zIndex: 100,
   },
   headerSpacer: {
     width: 40,
@@ -273,7 +283,8 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: 'white',
     marginVertical: 1,
-
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   sectionTitle: {
     fontSize: 16,
@@ -378,10 +389,14 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     backgroundColor: '#fbfad8',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',
+    borderTopWidth: 2,
+    borderTopColor: '#ee7623',
+    borderTopRightRadius: 0,
+    borderTopLeftRadius: 0,
   },
   nextButtonText: {
     color: '#D38105',

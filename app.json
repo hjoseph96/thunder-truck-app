@@ -4,12 +4,12 @@
     "slug": "ThunderTruck",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/thundertruck_icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/thundertruck_icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#fb9d13"
     },
     "fonts": [
       {
@@ -37,12 +37,17 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses location to show your position on the map and provide location-based services.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to show your position on the map and provide location-based services."
+      },
+      "entitlements": {
+        "com.apple.developer.in-app-payments": [
+          "merchant.com.thundertruck.app"
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/thundertruck_icon.png",
+        "backgroundColor": "#fb9d13"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [

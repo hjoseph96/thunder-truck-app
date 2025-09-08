@@ -10,20 +10,24 @@ import {
   TextInput,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 import {
   useStripe,
   useConfirmPayment,
   CardField,
+  usePlatformPay,
 } from '@stripe/stripe-react-native';
 import { createPaymentIntent } from '../lib/payment-service';
 import { getStoredToken, getStoredUserData } from '../lib/token-manager';
+import { STRIPE_CONFIG } from '../config/stripe-config';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const PaymentScreen = ({ route, navigation }) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { confirmPayment, loading } = useConfirmPayment();
+  const { isPlatformPaySupported, confirmPlatformPayPayment } = usePlatformPay();
   
   const [cardDetails, setCardDetails] = useState(null);
   const [email, setEmail] = useState('');
@@ -142,10 +146,14 @@ const PaymentScreen = ({ route, navigation }) => {
   // 5. APPLE PAY INTEGRATION
   // ============================================================================
 
-  const { confirmApplePayPayment } = useStripe();
-
   const handleApplePay = async () => {
     try {
+      // Check if Apple Pay is supported
+      if (!isPlatformPaySupported) {
+        Alert.alert('Apple Pay Not Available', 'Apple Pay is not supported on this device');
+        return;
+      }
+
       // Create payment intent using GraphQL service
       const paymentIntentData = await createPaymentIntent(amount);
       
@@ -156,17 +164,35 @@ const PaymentScreen = ({ route, navigation }) => {
       }
       
       const { clientSecret } = paymentIntentData;
+      console.log('Apple Pay - Client Secret:', clientSecret);
 
-      // Present Apple Pay
-      const { error } = await confirmApplePayPayment(clientSecret);
+      // Present Apple Pay using confirmPlatformPayPayment
+      const { error } = await confirmPlatformPayPayment(clientSecret, {
+        applePay: {
+          cartItems: [
+            {
+              label: 'ThunderTruck Order',
+              amount: (amount / 100).toFixed(2),
+              paymentType: 'Immediate',
+            },
+          ],
+          merchantCountryCode: 'US',
+          currencyCode: 'USD',
+          requiredBillingContactFields: ['emailAddress'],
+          requiredShippingContactFields: [],
+        },
+      });
 
       if (error) {
+        console.log('Apple Pay Failed:', error);
         Alert.alert('Apple Pay Failed', error.message);
       } else {
         Alert.alert('Success', 'Apple Pay payment completed!');
+        handlePaymentSuccess();
       }
     } catch (err) {
-      Alert.alert('Error', 'Apple Pay failed');
+      console.log('Apple Pay Error:', err);
+      Alert.alert('Error', 'Apple Pay failed: ' + err.message);
     }
   };
 
@@ -278,21 +304,25 @@ const PaymentScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      {/* Apple Pay Button (iOS only) */}
-      <TouchableOpacity
-        style={styles.applePayButton}
-        onPress={handleApplePay}
-      >
-        <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
-      </TouchableOpacity>
+      {/* Apple Pay Button (iOS only and when supported) */}
+      {Platform.OS === 'ios' && isPlatformPaySupported && (
+        <TouchableOpacity
+          style={styles.applePayButton}
+          onPress={handleApplePay}
+        >
+          <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Google Pay Button (Android only) */}
-      <TouchableOpacity
-        style={styles.googlePayButton}
-        onPress={handleGooglePay}
-      >
-        <Text style={styles.payButtonText}>Pay with Google Pay</Text>
-      </TouchableOpacity>
+      {Platform.OS === 'android' && (
+        <TouchableOpacity
+          style={styles.googlePayButton}
+          onPress={handleGooglePay}
+        >
+          <Text style={styles.payButtonText}>Pay with Google Pay</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 };

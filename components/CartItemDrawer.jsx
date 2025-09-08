@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -37,8 +38,17 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle }) => {
       <TouchableOpacity style={styles.header} onPress={onToggle}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
-            <Text style={styles.foodTruckName}>{foodTruckName}</Text>
-            <Text style={styles.itemCount}>{totalItems} items</Text>
+            <View style={styles.foodTruckImageContainer}>
+              {cartItems[0].foodTruckData.coverImageUrl && (
+                  <Image source={{ uri: cartItems[0].foodTruckData.coverImageUrl }} style={styles.cartItemImage} />
+                )}
+            </View>
+
+            <View style={styles.foodTruckNameContainer}>
+              <Text style={styles.foodTruckName}>{foodTruckName}</Text>
+              
+              <Text style={styles.itemCount}>{totalItems} items</Text>
+            </View>
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.totalPrice}>${(totalPrice).toFixed(2)}</Text>
@@ -54,21 +64,32 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle }) => {
           {cartItems.map((item,  index) => (
             <View key={item.cartItem.id} style={styles.cartItem}>
               <View style={styles.cartItemLeft}>
-                <Text style={styles.itemName}>{item.cartItem.menuItem?.name}</Text>
-                {item.cartItem.menuItem?.description && (
-                  <Text style={styles.itemDescription}>
-                    {item.cartItem.menuItem.description}
-                  </Text>
-                )}
-                {item.cartItem.cartItemOptions && item.cartItem.cartItemOptions.length > 0 && (
-                  <View style={styles.optionsContainer}>
-                    {item.cartItem.cartItemOptions.map((option, optIndex) => (
-                      <Text key={optIndex} style={styles.optionText}>
-                        + {option.option?.name}
-                      </Text>
-                    ))}
-                  </View>
-                )}
+
+                <View style={styles.itemImageContainer}>
+                  {item.cartItem.menuItem?.imageUrl && (
+                    <Image source={{ uri: item.cartItem.menuItem.imageUrl }} style={styles.cartItemImage} />
+                  )}
+                </View>
+                
+                <View style={styles.itemNameContainer}>
+                  <Text style={styles.itemName}>{item.cartItem.menuItem?.name}</Text>
+
+                  {item.cartItem.menuItem?.description && (
+                    <Text style={styles.itemDescription}>
+                      {item.cartItem.menuItem.description}
+                    </Text>
+                  )}
+                  {item.cartItem.cartItemOptions && item.cartItem.cartItemOptions.length > 0 && (
+                    <View style={styles.optionsContainer}>
+                      {item.cartItem.cartItemOptions.map((option, optIndex) => (
+                        <Text key={optIndex} style={styles.optionText}>
+                          + {option.option?.name}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+                
               </View>
               <View style={styles.cartItemRight}>
                 <Text style={styles.itemPrice}>
@@ -106,12 +127,16 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   foodTruckName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
     marginBottom: 2,
+    marginLeft: 12
   },
   itemCount: {
     fontSize: 14,
@@ -144,10 +169,13 @@ const styles = StyleSheet.create({
   },
   cartItemLeft: {
     flex: 1,
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
     marginRight: 12,
   },
   itemName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     color: '#646060',
     letterSpacing: 0.08,
@@ -194,6 +222,47 @@ const styles = StyleSheet.create({
     bottom: 2,
     position: 'relative',
     letterSpacing: 0.5,
+  },
+  cartItemImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 6,
+  },
+  foodTruckImageContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 6,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  foodTruckNameContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'row',
+    justifyContent: 'flex-start',
+    marginLeft: 12,
+  },
+  foodTruckName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  itemCount: {
+    fontSize: 14,
+    color: '#666',
+  },
+  itemImageContainer: {
+    width: 48,
+    height: 40,
+    borderRadius: 6,
+  },
+  itemNameContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    marginLeft: 35,
+    marginTop: 28,
   },
 });
 

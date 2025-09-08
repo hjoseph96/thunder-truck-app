@@ -68,8 +68,8 @@ const styles = StyleSheet.create({
   },
   promotionSubtext: {
     fontSize: 14,
-    fontWeight: '200',
-    color: '#999',
+    fontWeight: '600',
+    color: 'forestgreen',
     borderRadius: 18,
   },
 });
