@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fetchUser } from '../lib/user-service';
-import { getCart } from '../lib/cart-service';
+import { fetchCarts, changeCartItemQuantity, removeCartItem } from '../lib/cart-service';
 import CartItemDrawer from './CartItemDrawer';
 import PaymentMethodSection from './PaymentMethodSection';
 import PromotionsSection from './PromotionsSection';
@@ -19,14 +19,44 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const CheckoutForm = ({ route, navigation }) => {
   const [userData, setUserData] = useState(null);
-  const [cartData, setCartData] = useState(null);
+  const [cartsData, setCartsData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [cartLoading, setCartLoading] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState(route.params?.selectedAddress || null);
   const [expandedDrawers, setExpandedDrawers] = useState({});
 
   useEffect(() => {
     loadCheckoutData();
   }, []);
+
+  // Handle initial selected address from route params
+  useEffect(() => {
+    if (route.params?.selectedAddress) {
+      setSelectedAddress(route.params.selectedAddress);
+      // Clear the route params to prevent re-setting
+      navigation.setParams({ selectedAddress: undefined });
+    }
+  }, [route.params?.selectedAddress, navigation]);
+
+  useEffect(() => {
+    console.log('Carts Data Length: ', cartsData.length);
+  }, [cartsData]);
+
+  // Reload data when returning from AddAddressForm or handle selected address
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Check if there's a selected address from route params
+      if (route.params?.selectedAddress) {
+        setSelectedAddress(route.params.selectedAddress);
+        // Clear the route params to prevent re-setting on subsequent focuses
+        navigation.setParams({ selectedAddress: undefined });
+      } else {
+        loadCheckoutData();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, route.params]);
 
   const loadCheckoutData = async () => {
     try {
@@ -37,22 +67,25 @@ const CheckoutForm = ({ route, navigation }) => {
       setUserData(user);
       
       // Set default address if available
-      if (user?.user_addresses?.length > 0) {
-        setSelectedAddress(user.user_addresses[0]);
+      if (user?.userAddresses?.length > 0 && !selectedAddress) {
+        const defaultAddress = user.userAddresses.find(address => address.isDefault);
+        setSelectedAddress(defaultAddress);
       }
       
-      // Load cart data
-      const cart = await getCart(route.params?.foodTruckId);
-      setCartData(cart);
+      // Load all carts data
+      const carts = await fetchCarts();
+      setCartsData(carts);
       
       // Initialize expanded drawers (all open by default)
-      if (cart?.cartItems) {
+      if (carts && carts.length > 0) {
         const initialExpanded = {};
 
-        console.log('Cart Data:', cart);
-        cart.cartItems.forEach(item => {
-          const foodTruckName = cart.foodTruck.name;
-          initialExpanded[foodTruckName] = true;
+        console.log('Carts Data Length: ', carts.length);
+        carts.forEach(cart => {
+          if (cart.cartItems && cart.cartItems.length > 0) {
+            const foodTruckName = cart.foodTruck.name;
+            initialExpanded[foodTruckName] = false;
+          }
         });
         setExpandedDrawers(initialExpanded);
       }
@@ -70,33 +103,98 @@ const CheckoutForm = ({ route, navigation }) => {
     }));
   };
 
+  const handleQuantityChange = async (cartItemId, quantityChange) => {
+    try {
+      setCartLoading(true);
+      
+      // Find the cart item to get current quantity
+      let currentQuantity = 0;
+      let cartToUpdate = null;
+      
+      for (const cart of cartsData) {
+        const cartItem = cart.cartItems.find(item => item.id === cartItemId);
+        
+        if (cartItem) {
+          currentQuantity = cartItem.quantity;
+          cartToUpdate = cart;
+          break;
+        }
+      }
+      
+      const newQuantity = currentQuantity + quantityChange;
+      
+      if (newQuantity <= 0) {
+        // Remove the cart item completely
+        await removeCartItem(cartItemId);
+        
+        // Reload carts to reflect the deletion
+        const updatedCarts = await fetchCarts();
+
+        setCartsData(updatedCarts);
+        
+        // Check if the cart is now empty and remove it from expanded drawers
+        const updatedCart = updatedCarts.find(cart => cart.id === cartToUpdate.id);
+        if (!updatedCart || !updatedCart.cartItems || updatedCart.cartItems.length === 0) {
+          setExpandedDrawers(prev => {
+            const newExpanded = { ...prev };
+            delete newExpanded[cartToUpdate.foodTruck.name];
+            return newExpanded;
+          });
+        }
+      } else {
+        // Update the quantity
+        await changeCartItemQuantity(cartItemId, newQuantity);
+        
+        // Reload carts to reflect the changes
+        const updatedCarts = await fetchCarts();
+
+        console.log('Updated Carts Data Length: ', updatedCarts.length);
+        setCartsData(updatedCarts);
+      }
+    } catch (error) {
+      // TODO: Show error message to user
+      console.error('Error updating cart item quantity:', error);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
   const groupCartItemsByFoodTruck = () => {
-    if (!cartData?.cartItems) return {};
+    if (!cartsData || cartsData.length === 0) return {};
     
     const grouped = {};
-    cartData.cartItems.forEach(item => {
-      // Try to get food truck name from different possible locations
-      const foodTruckName = cartData.foodTruck.name;
-
-      if (!grouped[foodTruckName]) {
-        grouped[foodTruckName] = [];
+    
+    cartsData.forEach(cart => {
+      if (cart.cartItems && cart.cartItems.length > 0) {
+        const foodTruckName = cart.foodTruck.name;
+        
+        if (!grouped[foodTruckName]) {
+          grouped[foodTruckName] = [];
+        }
+        
+        cart.cartItems.forEach(item => {
+          grouped[foodTruckName].push({ cartItem: item, foodTruckData: cart.foodTruck });
+        });
       }
-      grouped[foodTruckName].push({ cartItem: item, foodTruckData: cartData.foodTruck });
     });
     
     return grouped;
   };
 
   const calculateSubtotal = () => {
-    if (!cartData?.cartItems) return 0;
-    return cartData.cartItems.reduce((total, item) => {
-      return total + (item.menuItem?.price || 0) * item.quantity;
+    if (!cartsData || cartsData.length === 0) return 0;
+    
+    return cartsData.reduce((total, cart) => {
+      const cartTotal = parseFloat(cart.totalPrice.replace('$', '')) || 0;
+      return total + cartTotal;
     }, 0);
   };
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const deliveryFee = cartData?.deliveryFee || 0;
+    // For multiple carts, we might want to calculate delivery fees differently
+    // For now, let's assume a flat delivery fee or calculate based on the number of food trucks
+    const deliveryFee = cartsData.length > 0 ? 5.00 : 0; // $5 per order for now
     const promotionDiscount = 0; // TODO: Calculate from promotions
     return subtotal + deliveryFee - promotionDiscount;
   };
@@ -128,13 +226,16 @@ const CheckoutForm = ({ route, navigation }) => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Delivery Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery</Text>
-          <TouchableOpacity style={styles.addressSelector}>
+          <TouchableOpacity 
+            style={styles.addressSelector}
+            onPress={() => selectedAddress ? navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, updateSelectedAddress: setSelectedAddress }) : navigation.navigate('AddAddressForm')}
+          >
             <View style={styles.addressContent}>
-              <MaterialIcons name="location-on" size={20} color="#FECD15" style={styles.locationIcon} />
+              <MaterialIcons name="location-on" size={24} color="red" style={styles.locationIcon} />
               <View style={styles.addressDetails}>
                 {selectedAddress ? (
                   <>
@@ -165,6 +266,8 @@ const CheckoutForm = ({ route, navigation }) => {
               cartItems={cartItemData}
               isExpanded={expandedDrawers[foodTruckName]}
               onToggle={() => toggleDrawer(foodTruckName)}
+              onQuantityChange={handleQuantityChange}
+              cartLoading={cartLoading}
             />
           ))}
         </View>
@@ -190,7 +293,7 @@ const CheckoutForm = ({ route, navigation }) => {
             <View style={styles.fareRow}>
               <Text style={styles.fareLabel}>Delivery Fee:</Text>
               <Text style={styles.fareValue}>
-                ${(cartData?.deliveryFee || 0).toFixed(2)}
+                ${(cartsData.length > 0 ? 2.99 * cartsData.length : 0).toFixed(2)}
               </Text>
             </View>
             <View style={[styles.fareRow, styles.totalRow]}>

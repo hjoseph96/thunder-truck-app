@@ -18,7 +18,7 @@ export const API_CONFIG = {
   
   // Production environment
   production: {
-    baseURL: 'https://your-production-api.com',
+    baseURL: 'https://api.thundertruck.app',
     graphqlEndpoint: '/graphql',
     timeout: 20000, // 20 seconds
   },

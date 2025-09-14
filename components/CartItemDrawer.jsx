@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle }) => {
+const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuantityChange, cartLoading = false }) => {
   const rotateValue = new Animated.Value(isExpanded ? 1 : 0);
 
   React.useEffect(() => {
@@ -96,8 +96,22 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle }) => {
                   ${((item.cartItem.menuItem?.price || 0) * item.cartItem.quantity).toFixed(2)}
                 </Text>
 
-                <View style={styles.quantityCircle}>
+                <View style={styles.quantityControls}>
+                  <TouchableOpacity
+                    style={styles.quantityButton}
+                    onPress={() => onQuantityChange && onQuantityChange(item.cartItem.id, -1)}
+                    disabled={cartLoading}
+                  >
+                    <Text style={styles.quantityButtonText}>-</Text>
+                  </TouchableOpacity>
                   <Text style={styles.quantityText}>{item.cartItem.quantity}</Text>
+                  <TouchableOpacity
+                    style={styles.quantityButton}
+                    onPress={() => onQuantityChange && onQuantityChange(item.cartItem.id, 1)}
+                    disabled={cartLoading}
+                  >
+                    <Text style={styles.quantityButtonText}>+</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -133,6 +147,7 @@ const styles = StyleSheet.create({
   },
   foodTruckName: {
     fontSize: 16,
+    width: 25,
     fontWeight: '600',
     color: '#333',
     marginBottom: 2,
@@ -200,19 +215,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  quantityCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FECD15',
-    justifyContent: 'center',
+  quantityControls: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginLeft: 8,
+  },
+  quantityButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F9B319',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quantityButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    fontFamily: 'Cairo',
   },
   quantityText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#fbf9d7',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#132a13',
+    marginHorizontal: 12,
+    fontFamily: 'Cairo',
   },
   itemPrice: {
     fontSize: 14,
@@ -247,6 +274,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 2,
+    textOverflow: 'ellipsis',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    maxWidth: '90%',
   },
   itemCount: {
     fontSize: 14,

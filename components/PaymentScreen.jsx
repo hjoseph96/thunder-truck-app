@@ -188,7 +188,7 @@ const PaymentScreen = ({ route, navigation }) => {
         Alert.alert('Apple Pay Failed', error.message);
       } else {
         Alert.alert('Success', 'Apple Pay payment completed!');
-        handlePaymentSuccess();
+        handlePaymentSuccess(paymentIntentData);
       }
     } catch (err) {
       console.log('Apple Pay Error:', err);
@@ -236,6 +236,10 @@ const PaymentScreen = ({ route, navigation }) => {
   const handlePaymentSuccess = (paymentIntent) => {
     // Update local state, navigate to success screen, etc.
     console.log('Payment successful:', paymentIntent?.id);
+
+    if (paymentIntent) {
+      setPaymentIntent(paymentIntent);
+    }
     
     // Navigate back to previous screen or to success screen
     navigation.goBack();

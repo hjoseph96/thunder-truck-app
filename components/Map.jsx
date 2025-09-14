@@ -58,6 +58,7 @@ const Map = forwardRef(({
   useEffect(() => {
     if (userLocation && webViewReady) {
       console.log('Map: Sending user location to WebView:', userLocation);
+      
       sendMessageToWebView({
         type: 'userLocationUpdate',
         coordinates: {
@@ -1311,6 +1312,49 @@ const Map = forwardRef(({
                     error: error.message
                   }));
                 }
+              }
+            } else if (data.type === 'centerMapOnCoordinates') {
+              // Center map on specific coordinates
+              if (data.coordinates && map) {
+                console.log('WebView: Centering map on coordinates:', data.coordinates);
+                map.flyTo({
+                  center: data.coordinates,
+                  zoom: 16,
+                  duration: 1500
+                });
+              }
+            } else if (data.type === 'addAddressMarker') {
+              // Add a marker for the submitted address
+              if (data.coordinates && data.addressData && map) {
+                console.log('WebView: Adding address marker at:', data.coordinates);
+                
+                // Create a custom marker element
+                const markerElement = document.createElement('div');
+                markerElement.style.width = '24px';
+                markerElement.style.height = '24px';
+                markerElement.style.borderRadius = '50%';
+                markerElement.style.backgroundColor = '#FECD15';
+                markerElement.style.border = '3px solid #fff';
+                markerElement.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+                markerElement.style.display = 'flex';
+                markerElement.style.alignItems = 'center';
+                markerElement.style.justifyContent = 'center';
+                markerElement.style.fontSize = '12px';
+                markerElement.innerHTML = '📍';
+                
+                // Create the marker
+                const addressMarker = new mapboxgl.Marker(markerElement)
+                  .setLngLat(data.coordinates)
+                  .setPopup(new mapboxgl.Popup().setHTML(
+                    '<div style="padding: 8px;">' +
+                      '<strong>' + (data.addressData.label || 'Address') + '</strong><br>' +
+                      data.addressData.streetLineOne + '<br>' +
+                      data.addressData.city + ', ' + data.addressData.state +
+                    '</div>'
+                  ))
+                  .addTo(map);
+                
+                console.log('WebView: Address marker added successfully');
               }
             }
           } catch (error) {

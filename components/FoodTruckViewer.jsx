@@ -8,10 +8,14 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 import { getFoodTruckWithCache } from '../lib/food-truck-service';
+import { getCart, addMenuItemToCart, changeCartItemQuantity } from '../lib/cart-service';
 import MenuItemComponent from './MenuItemComponent';
+import CartPopup from './CartPopup';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -20,10 +24,16 @@ export default function FoodTruckViewer({ navigation, route }) {
   const [foodTruck, setFoodTruck] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Cart-related state
+  const [cartData, setCartData] = useState(null);
+  const [cartLoading, setCartLoading] = useState(false);
+  const [showCartPopup, setShowCartPopup] = useState(false);
 
   useEffect(() => {
     if (initialFoodTruck?.id) {
       loadFoodTruckData();
+      loadCartData();
     }
   }, [initialFoodTruck]);
 
@@ -45,6 +55,45 @@ export default function FoodTruckViewer({ navigation, route }) {
     }
   };
 
+  const loadCartData = async () => {
+    try {
+      setCartLoading(true);
+      const cart = await getCart(initialFoodTruck.id);
+      
+      console.log('Loaded Cart Data: ', cart);
+      setCartData(cart);
+    } catch (error) {
+      console.error('Error loading cart:', error);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const handleQuantityChange = async (cartItemId, change) => {
+    try {
+      setCartLoading(true);
+      const currentCartItem = cartData.cartItems.find(item => item.id === cartItemId);
+      if (!currentCartItem) {
+        console.error('Cart item not found:', cartItemId);
+        return;
+      }
+
+      const newQuantity = currentCartItem.quantity + change;
+      if (newQuantity <= 0) {
+        // TODO: Handle item removal
+        return;
+      }
+
+      await changeCartItemQuantity(cartItemId, newQuantity);
+      const updatedCart = await getCart(initialFoodTruck.id);
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error updating cart item quantity:', error);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
   const handleBackPress = () => {
     navigation.goBack();
   };
@@ -55,8 +104,31 @@ export default function FoodTruckViewer({ navigation, route }) {
     Alert.alert('Menu Item', `You selected: ${menuItem.name} - $${menuItem.price}`);
   };
 
-  const handleAddToCart = (menuItem) => {
-    Alert.alert('Add to Cart', `Added ${menuItem.name} to cart!`);
+  const handleAddToCart = async (menuItem) => {
+    try {
+      setCartLoading(true);
+      
+      // Add menu item to cart (no options for now, can be extended later)
+      const cartItemOptions = [];
+      await addMenuItemToCart(menuItem.id, cartItemOptions);
+      
+      // Reload cart data to get updated cart
+      const updatedCart = await getCart(initialFoodTruck.id);
+
+      console.log('Updated Cart Data: ', updatedCart);
+      setCartData(updatedCart);
+
+      setShowCartPopup(true);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      Alert.alert('Error', 'Failed to add item to cart. Please try again.');
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const handleCartPress = () => {
+    setShowCartPopup(true);
   };
 
   const renderFeaturedSection = () => {
@@ -243,6 +315,22 @@ export default function FoodTruckViewer({ navigation, route }) {
         {/* Full Menu Section */}
         {renderMenuSection()}
       </ScrollView>
+
+      {/* Cart Icon */}
+      <TouchableOpacity style={styles.cartIcon} onPress={handleCartPress}>
+        <MaterialIcons name="shopping-cart" size={28} color="#000" />
+      </TouchableOpacity>
+
+      {/* Cart Popup Modal */}
+      <CartPopup
+        visible={showCartPopup}
+        cartData={cartData}
+        cartLoading={cartLoading}
+        onClose={() => setShowCartPopup(false)}
+        onQuantityChange={handleQuantityChange}
+        onCheckout={(foodTruckId) => navigation.navigate('CheckoutForm', { foodTruckId })}
+        foodTruckId={initialFoodTruck.id}
+      />
     </View>
   );
 }
@@ -537,6 +625,23 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  cartIcon: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F9B319',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
   },
 });
 

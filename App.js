@@ -15,6 +15,8 @@ import MenuItemViewer from './components/MenuItemViewer';
 import { setNavigationRef } from './lib/session-manager';
 import PaymentScreen from './components/PaymentScreen';
 import CheckoutForm from './components/CheckoutForm';
+import AddAddressForm from './components/AddAddressForm';
+import UserAddressList from './components/UserAddressList';
 import { STRIPE_CONFIG } from './config/stripe-config';
 
 const Stack = createStackNavigator();
@@ -122,6 +124,20 @@ export default function App() {
             component={CheckoutForm}
             options={{
               title: 'Checkout'
+            }}
+          />
+          <Stack.Screen
+            name="AddAddressForm"
+            component={AddAddressForm}
+            options={{
+              title: 'Add Address'
+            }}
+          />
+          <Stack.Screen
+            name="UserAddressList"
+            component={UserAddressList}
+            options={{
+              title: 'Select Address'
             }}
           />
         </Stack.Navigator>

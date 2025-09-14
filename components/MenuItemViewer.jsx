@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getMenuItemWithCache } from '../lib/menu-item-service';
 import { getCart, addMenuItemToCart, changeCartItemQuantity } from '../lib/cart-service';
+import CartPopup from './CartPopup';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -97,22 +98,9 @@ export default function MenuItemViewer({ navigation, route }) {
         return;
       }
 
-      const updatedCartItem = await changeCartItemQuantity(cartItemId, newQuantity);
+      await changeCartItemQuantity(cartItemId, newQuantity);
 
-      const updatedCartItems = cartData.cartItems.map(cartItem => {
-        if (cartItem.id === updatedCartItem.id)
-          cartItem.quantity = updatedCartItem.quantity;
-        
-        return cartItem; 
-      })
-
-      cartData.totalPrice = `$${updatedCartItems.reduce((acc, item) => acc + item.menuItem.price * item.quantity, 0).toFixed(2)}`;
-
-      const updatedCart = {
-        ...cartData,
-        cartItems: updatedCartItems
-      }
-
+      const updatedCart = await getCart(foodTruckId);
 
       setCartData(updatedCart);
     } catch (error) {
@@ -294,68 +282,6 @@ export default function MenuItemViewer({ navigation, route }) {
     );
   }
 
-  const renderCartItems = () => {
-    if (!cartData || !cartData.cartItems || cartData.cartItems.length === 0) {
-      return (
-        <Text style={styles.cartEmptyText}>Your cart is empty</Text>
-      );
-    }
-
-    return (
-      <View style={styles.cartItemsContainer}>
-        <Text style={styles.cartItemsTitle}>Cart</Text>
-        <View style={styles.cartItemsList}>
-          {cartData.cartItems.map((cartItem) => {
-            const totalPrice = (cartItem.menuItem.price * cartItem.quantity).toFixed(2);
-            return (
-              <View key={cartItem.id} style={styles.cartItem}>
-                <View style={styles.cartItemLeft}>
-                  {cartItem.menuItem.imageUrl && (
-                    <Image
-                      source={{ uri: cartItem.menuItem.imageUrl }}
-                      style={styles.cartItemImage}
-                      resizeMode="cover"
-                    />
-                  )}
-                </View>
-                <View style={styles.cartItemCenter}>
-                  <Text style={styles.cartItemName}>{cartItem.menuItem.name}</Text>
-                  <Text style={styles.cartItemPrice}>${totalPrice}</Text>
-                </View>
-                <View style={styles.cartItemRight}>
-                  <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => handleQuantityChange(cartItem.id, -1)}
-                    disabled={cartLoading}
-                  >
-                    <Text style={styles.quantityButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.quantityText}>{cartItem.quantity}</Text>
-                  <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => handleQuantityChange(cartItem.id, 1)}
-                    disabled={cartLoading}
-                  >
-                    <Text style={styles.quantityButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-        <View style={styles.cartTotal}>
-          <Text style={styles.cartTotalText}>Total: {cartData.totalPrice}</Text>
-        </View>
-
-        <TouchableOpacity 
-          style={styles.checkoutButton}
-          onPress={() => navigation.navigate('CheckoutForm', { foodTruckId: foodTruckId })}
-        >
-          <Text style={styles.checkoutButtonText}>Checkout</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
 
   const renderRelatedMenuItems = () => {
     if (!relatedMenuItems || relatedMenuItems.length === 0) return null;
@@ -464,32 +390,15 @@ export default function MenuItemViewer({ navigation, route }) {
     </TouchableOpacity>
 
     {/* Cart Popup Modal */}
-    {showCartPopup && (
-      <>
-        {/* Backdrop to close popup when tapping outside */}
-        <TouchableOpacity 
-          style={styles.cartPopupBackdrop} 
-          onPress={() => setShowCartPopup(false)}
-          activeOpacity={1}
-        />
-        <View style={styles.cartPopup}>
-          <View style={styles.cartPopupContent}>
-            {cartLoading ? (
-              <ActivityIndicator size="small" color="#F9B319" />
-            ) : (
-              <ScrollView 
-                style={styles.cartPopupScroll}
-                showsVerticalScrollIndicator={false}
-                nestedScrollEnabled={true}
-              >
-                {renderCartItems()}
-              </ScrollView>
-            )}
-          </View>
-          <View style={styles.cartPopupTriangle} />
-        </View>
-      </>
-    )}
+    <CartPopup
+      visible={showCartPopup}
+      cartData={cartData}
+      cartLoading={cartLoading}
+      onClose={() => setShowCartPopup(false)}
+      onQuantityChange={handleQuantityChange}
+      onCheckout={(foodTruckId) => navigation.navigate('CheckoutForm', { foodTruckId })}
+      foodTruckId={foodTruckId}
+    />
   </View>
 );
 }
