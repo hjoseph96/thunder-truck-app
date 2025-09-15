@@ -258,13 +258,19 @@ const PaymentScreen = ({ route, navigation }) => {
           <View style={styles.sectionTitleContainer}>
             <Text style={styles.sectionTitle}>Order Breakdown</Text>
           </View>
-          <View style={styles.orderMenuPanel}>
-            {groupedItems && Object.entries(groupedItems).map(([truckName, items]) => {
-              const totalItems = items.reduce((sum, item) => sum + item.cartItem?.quantity, 0);
-              const truckTotal = items.reduce((sum, item) => sum + ((item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity), 0);
-              
-              return (
-                <View key={truckName} style={styles.truckPanel}>
+           <View style={styles.orderMenuPanel}>
+             {groupedItems && Object.entries(groupedItems).map(([truckName, items], index) => {
+               const totalItems = items.reduce((sum, item) => sum + item.cartItem?.quantity, 0);
+               const truckTotal = items.reduce((sum, item) => sum + ((item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity), 0);
+               const isFirst = index === 0;
+               const isLast = index === Object.entries(groupedItems).length - 1;
+               
+               return (
+                 <View key={truckName} style={[
+                   styles.truckPanel,
+                   isFirst && styles.truckPanelFirst,
+                   isLast && styles.truckPanelLast
+                 ]}>
                   {/* Truck Header */}
                   <View style={styles.truckHeader}>
                     <View style={styles.truckHeaderLeft}>
@@ -346,7 +352,7 @@ const PaymentScreen = ({ route, navigation }) => {
         </View>
 
         {/* Payment Section */}
-        <View style={styles.section}>
+        <View style={styles.paymentInfoSection}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
               <Text style={styles.sectionTitle}>Payment Method</Text>
@@ -475,11 +481,26 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  paymentInfoSection: {
+    marginHorizontal: 24,
+    marginVertical: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   orderMenuPanel: {
-    borderRadius: 24,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    elevation: 9,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
   },
   orderDetailsSection: {
     marginHorizontal: 16,
@@ -568,14 +589,17 @@ const styles = StyleSheet.create({
   },
   // Truck Panel Styles
   truckPanel: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: 'transparent',
+    marginBottom: 0,
+  },
+  truckPanelFirst: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
+  },
+  truckPanelLast: {
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     overflow: 'hidden',
   },
   truckHeader: {
@@ -641,6 +665,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderWidth: 1,
     borderColor: '#e9ecef',
+    minHeight: 96,
   },
   itemImageContainer: {
     marginRight: 12,
