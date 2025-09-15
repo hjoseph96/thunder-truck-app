@@ -218,6 +218,7 @@ const CheckoutForm = ({ route, navigation }) => {
     selectedAddress: selectedAddress,
     userData: userData,
     groupedItems: groupedItems,
+    cartIds: cartsData.map((cart) => cart.id),
     orderTotal: calculateTotal(),
     orderDeliveryFee: calculateDeliveryFee(),
     orderSubtotal: calculateSubtotal(),

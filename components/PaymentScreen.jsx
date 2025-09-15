@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   Alert,
   TouchableOpacity,
@@ -18,10 +19,12 @@ import {
   CardField,
   usePlatformPay,
 } from '@stripe/stripe-react-native';
-import { createPaymentIntent } from '../lib/payment-service';
+import { createPaymentIntent, createOrders } from '../lib/payment-service';
 import { fetchUser } from '../lib/user-service';
 import CreditCardIcon from './CreditCardIcon';
 import PaymentMethodManager from './PaymentMethodManager';
+import DeliveryMethodSelector from './DeliveryMethodSelector';
+import OrderSuccessAnimation from './OrderSuccessAnimation';
 
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -33,14 +36,14 @@ const PaymentScreen = ({ route, navigation }) => {
   const { 
     selectedAddress, userData, groupedItems,
     orderTotal, orderDeliveryFee, orderSubtotal,
-    orderDiscountTotal
+    orderDiscountTotal, cartIds
   } = route.params;
   
-  const [cardDetails, setCardDetails] = useState(null);
   const [deliveryAddress, setDeliveryAddress] = useState(selectedAddress);
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState(userData.defaultUserPaymentMethod);
-  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' or 'payment_sheet'
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState(null);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   // Helper functions
   const handleAddressUpdate = (updatedAddress) => {
@@ -54,6 +57,16 @@ const PaymentScreen = ({ route, navigation }) => {
     } catch (error) {
       console.error('Error updating payment method:', error);
     }
+  };
+
+  const handleDeliveryMethodUpdate = (updatedDeliveryMethod) => {
+    setSelectedDeliveryMethod(updatedDeliveryMethod);
+  };
+
+  const handleSuccessAnimationComplete = () => {
+    setShowSuccessAnimation(false);
+    // Navigate back or to success screen
+    navigation.goBack();
   };
 
   const formatCurrency = (amount) => {
@@ -74,8 +87,10 @@ const PaymentScreen = ({ route, navigation }) => {
     }
 
     try {
+      const totalInCents = parseInt(orderTotal * 100);
+
       // Step 1: Create PaymentIntent using GraphQL service
-      const paymentIntentData = await createPaymentIntent(orderTotal);
+      const paymentIntentData = await createPaymentIntent(totalInCents);
       
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
         Alert.alert('Error', 'Failed to get payment intent from server');
@@ -84,10 +99,10 @@ const PaymentScreen = ({ route, navigation }) => {
 
       // Step 2: Confirm payment with Stripe using saved payment method
       const result = await confirmPayment(paymentIntentData.clientSecret, {
-            paymentMethodType: 'Card',
-            paymentMethodData: {
-          paymentMethodId: defaultPaymentMethod.stripePaymentMethodId,
-        }
+          paymentMethodType: 'Card',
+          paymentMethodData: {
+            paymentMethodId: defaultPaymentMethod.stripePaymentMethodId,
+          },
       });
 
       if (result.paymentIntent.status === 'Succeeded') {
@@ -118,7 +133,8 @@ const PaymentScreen = ({ route, navigation }) => {
       }
 
       // Create payment intent using GraphQL service
-      const paymentIntentData = await createPaymentIntent(amount);
+      const totalInCents = parseInt(orderTotal * 100);
+      const paymentIntentData = await createPaymentIntent(totalInCents);
       
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
         Alert.alert('Error', 'Failed to get payment intent from server');
@@ -135,7 +151,7 @@ const PaymentScreen = ({ route, navigation }) => {
           cartItems: [
             {
               label: 'ThunderTruck Order',
-              amount: (amount / 100).toFixed(2),
+              amount: (totalInCents / 100).toFixed(2),
               paymentType: 'Immediate',
             },
           ],
@@ -167,8 +183,9 @@ const PaymentScreen = ({ route, navigation }) => {
 
   const handleGooglePay = async () => {
     try {
+      const totalInCents = parseInt(orderTotal * 100);
       // Create payment intent using GraphQL service
-      const paymentIntentData = await createPaymentIntent(amount);
+      const paymentIntentData = await createPaymentIntent(totalInCents);
       
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
         Alert.alert('Error', 'Failed to get payment intent from server');
@@ -208,6 +225,106 @@ const PaymentScreen = ({ route, navigation }) => {
     navigation.goBack();
   };
 
+  const setPaymentIntent = async (paymentIntent) => {
+    try {
+      const orderData = constructOrderData(paymentIntent);
+      console.log('Order Data: ', orderData);
+
+      console.log('Cart IDs: ', cartIds);
+
+      const createdOrdersData = await createOrders(orderData, cartIds);
+      console.log('Created Orders Data: ', createdOrdersData);
+
+      if (createdOrdersData.success) {
+        // Show success animation
+        setShowSuccessAnimation(true);
+      }
+    } catch (error) {
+      console.error('Error creating orders:', error);
+      Alert.alert('Order Error', 'Failed to create your order. Please try again.');
+    }
+  };
+
+  const constructOrderData = (paymentIntent) => {
+    const orderAddress = {
+      destinationType: selectedAddress.destinationType,
+      streetLineOne: selectedAddress.streetLineOne,
+      streetLineTwo: selectedAddress.streetLineTwo,
+      city: selectedAddress.city,
+      state: selectedAddress.state,
+      zipCode: selectedAddress.zipCode,
+      country: selectedAddress.country,
+      latlong: selectedAddress.latlong,
+      deliveryInstructions: selectedAddress.deliveryInstructions,
+    }
+
+    const userOrderData = {
+      promotionId: null,
+      deliveryMethodId: selectedDeliveryMethod.id,
+      subtotalCents: parseInt(orderSubtotal * 100),
+      deliveryFeeCents: parseInt(orderDeliveryFee * 100),
+      tipCents: 0,
+      userId: userData.id,
+      orderItems: Object.entries(groupedItems).map(([truckName, items], index) => {
+        return {
+          vendorName: truckName,
+          menuItemName: items[0].cartItem.menuItem.name,
+          quantity: items[0].cartItem.quantity,
+          totalPriceCents: parseInt((items[0].cartItem.menuItem.price * items[0].cartItem.quantity) * 100),
+        }
+      }).flat(),
+      orderPayments: [{
+        amountChargedCents: parseInt(orderTotal * 100),
+        userPaymentMethodId: defaultPaymentMethod.id,
+        stripePaymentIntentId: paymentIntent.id,
+      }],
+      orderAddresses: [orderAddress],
+    }
+
+    if (Object.keys(groupedItems).length === 1) {
+      const firstTruck = Object.values(groupedItems)[0];
+      userOrderData.foodTruckId = firstTruck[0].foodTruckData.id;
+    }
+    
+    const singleDeliveryFeeInCents = 299;
+    const foodTruckOrderData = Object.entries(groupedItems).map(([truckName, items], index) => {
+      const truckTotal = items.reduce((sum, item) => sum + ((item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity), 0);
+      const foodTruckId = items[0].foodTruckData.id;
+      const userId = userData.id;
+
+      const orderItems = items.map((item) => {
+        return {
+          vendorName: truckName,
+          menuItemName: item.cartItem.menuItem.name,
+          quantity: item.cartItem.quantity,
+          totalPriceCents: parseInt((item.cartItem.menuItem.price * item.cartItem.quantity) * 100),
+        }
+      })
+
+      const orderPayments = [{
+        amountChargedCents: parseInt(truckTotal * 100) + singleDeliveryFeeInCents,
+        userPaymentMethodId: defaultPaymentMethod.id,
+        stripePaymentIntentId: paymentIntent.id,
+      }]
+
+      return {
+        userId: userId,
+        foodTruckId: foodTruckId,
+        promotionId: null,
+        deliveryMethodId: selectedDeliveryMethod.id,
+        foodTruckId: items[0].foodTruckData.id,
+        subtotalCents: parseInt(orderSubtotal * 100),
+        deliveryFeeCents: parseInt(orderDeliveryFee * 100),
+        tipCents: 0,
+        orderItems: orderItems,
+        orderPayments: orderPayments,
+        orderAddresses: [orderAddress],
+      }
+    });
+
+    return [userOrderData, ...foodTruckOrderData];
+  }
+
   // ============================================================================
   // 8. COMPONENT RENDER
   // ============================================================================
@@ -236,6 +353,7 @@ const PaymentScreen = ({ route, navigation }) => {
             <TouchableOpacity 
               style={styles.changeButton}
               onPress={() => navigation.navigate('UserAddressList', { 
+                userAddresses: userData?.userAddresses || [],
                 onAddressSelect: handleAddressUpdate 
               })}
             >
@@ -243,13 +361,43 @@ const PaymentScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
           <View style={styles.addressCard}>
-            {deliveryAddress?.label && (
-              <Text style={styles.addressLabel}>{deliveryAddress.label}</Text>
+            {selectedAddress?.label && (
+              <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
             )}
-            <Text style={styles.addressStreet}>{deliveryAddress?.streetLineOne}</Text>
+            <Text style={styles.addressStreet}>{selectedAddress?.streetLineOne}</Text>
             <Text style={styles.addressCity}>
-              {deliveryAddress?.city}, {deliveryAddress?.state}
+              {selectedAddress?.city}, {selectedAddress?.state}
             </Text>
+
+            <View style={styles.addressDeliveryInstructions}>
+              <TextInput
+                style={styles.addressDeliveryInstructionsText}
+                value={selectedAddress?.deliveryInstructions}
+                onChangeText={(value) => handleAddressUpdate({ ...selectedAddress, deliveryInstructions: value })}
+                placeholder="Any special drop off instructions?"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={9}
+                maxLength={300}
+              />
+            </View>
+          </View>
+          
+          
+        </View>
+
+        {/* Delivery Method Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitle}>Delivery Method</Text>
+            </View>
+          </View>
+          <View style={styles.deliveryMethodCard}>
+            <DeliveryMethodSelector
+              selectedDeliveryMethod={selectedDeliveryMethod}
+              onDeliveryMethodSelect={handleDeliveryMethodUpdate}
+            />
           </View>
         </View>
 
@@ -277,7 +425,7 @@ const PaymentScreen = ({ route, navigation }) => {
                       <View style={styles.truckImageContainer}>
                         {items[0]?.foodTruckData?.coverImageUrl && (
                           <Image 
-                            source={{ uri: items[0].foodTruckData.coverImageUrl }} 
+                            source={{ uri: items[0].foodTruckData.logoUrl }} 
                             style={styles.truckHeaderImage} 
                           />
                         )}
@@ -368,7 +516,7 @@ const PaymentScreen = ({ route, navigation }) => {
             <View style={styles.paymentMethodRow}>
               <CreditCardIcon 
                 brand={defaultPaymentMethod?.userPaymentDisplay?.brand || 'unknown'}
-                size={32}
+                size={64}
                 style={styles.paymentMethodIcon}
               />
               <View style={styles.paymentMethodDetails}>
@@ -380,45 +528,54 @@ const PaymentScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Order Now Button */}
-        <TouchableOpacity
-          style={[styles.orderButton, (!defaultPaymentMethod?.stripePaymentMethodId || loading) && styles.disabledButton]}
-          onPress={handleCardPayment}
-          disabled={!defaultPaymentMethod?.stripePaymentMethodId || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FECD15" />
-          ) : (
-            <Text style={styles.orderButtonText}>Order Now</Text>
+        <View style={styles.orderButtonContainer}>
+          {/* Order Now Button */}
+          <TouchableOpacity
+            style={[styles.orderButton, (!defaultPaymentMethod?.stripePaymentMethodId || loading) && styles.disabledButton]}
+            onPress={handleCardPayment}
+            disabled={!defaultPaymentMethod?.stripePaymentMethodId || loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FECD15" />
+            ) : (
+              <Text style={styles.orderButtonText}>Order Now</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Apple Pay Button (iOS only and when supported) */}
+          {Platform.OS === 'ios' && isPlatformPaySupported && (
+            <TouchableOpacity
+              style={styles.applePayButton}
+              onPress={handleApplePay}
+            >
+              <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
 
-      {/* Apple Pay Button (iOS only and when supported) */}
-      {Platform.OS === 'ios' && isPlatformPaySupported && (
-        <TouchableOpacity
-          style={styles.applePayButton}
-          onPress={handleApplePay}
-        >
-          <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Google Pay Button (Android only) */}
-      {Platform.OS === 'android' && (
-        <TouchableOpacity
-          style={styles.googlePayButton}
-          onPress={handleGooglePay}
-        >
-          <Text style={styles.payButtonText}>Pay with Google Pay</Text>
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+          {/* Google Pay Button (Android only) */}
+          {Platform.OS === 'android' && (
+            <TouchableOpacity
+              style={styles.googlePayButton}
+              onPress={handleGooglePay}
+            >
+              <Text style={styles.payButtonText}>Pay with Google Pay</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </ScrollView>
 
       {/* Payment Method Manager Modal */}
       <PaymentMethodManager
         visible={showPaymentManager}
         onClose={() => setShowPaymentManager(false)}
         onPaymentMethodAdded={handlePaymentMethodUpdate}
+        onDefaultPaymentMethodChanged={handlePaymentMethodUpdate}
+      />
+
+      {/* Success Animation */}
+      <OrderSuccessAnimation
+        visible={showSuccessAnimation}
+        onComplete={handleSuccessAnimationComplete}
       />
     </View>
   );
@@ -472,6 +629,26 @@ const styles = StyleSheet.create({
   },
   section: {
     marginVertical: 24,
+  },
+  addressDeliveryInstructions: {
+    marginTop: 12,
+  },
+  addressDeliveryInstructionsText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Cairo',
+    minHeight: 96,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   paymentDetailsSection: {
     marginHorizontal: 24,
@@ -587,6 +764,19 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: 'Cairo',
   },
+  // Delivery Method Card Styles
+  deliveryMethodCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 200,
+  },
   // Truck Panel Styles
   truckPanel: {
     backgroundColor: 'transparent',
@@ -619,15 +809,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   truckImageContainer: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#f0f0f0',
   },
   truckHeaderImage: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     borderRadius: 8,
   },
   truckInfo: {
@@ -778,6 +968,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#132a13',
     fontFamily: 'Cairo',
+  },
+  orderButtonContainer: {
+    marginHorizontal: 24,
+    marginBottom: 24,
   },
   // Order Button Styles
   orderButton: {

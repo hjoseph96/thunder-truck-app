@@ -178,12 +178,10 @@ const AddAddressForm = ({ navigation }) => {
 
       const result = await addUserAddress(addressData);
       
-      debugger;
       if (result) {
         // Parse the latlong coordinates from the response
         const coordinates = parseLatLong(result.latlong);
         
-        debugger;
         if (coordinates) {
           // Set the marker coordinates and show confirmation
           setSubmittedAddressMarker(coordinates);
@@ -208,7 +206,6 @@ const AddAddressForm = ({ navigation }) => {
             }));
           }
           
-          debugger;
           // Show confirmation dialog
           setShowConfirmation(true);
         } else {

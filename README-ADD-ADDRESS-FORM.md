@@ -37,7 +37,7 @@ The `AddAddressForm` component allows users to add new delivery addresses during
 ### Mutation
 Uses the `addUserAddress` mutation with the following structure:
 ```graphql
-mutation adddUserAddress($input: AddUserAddressInput!) {
+mutation addUserAddress($input: AddUserAddressInput!) {
   addUserAddress(input: $input) {
     address {
       id

@@ -13,14 +13,17 @@ import { MaterialIcons } from '@expo/vector-icons';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const UserAddressList = ({ navigation, route }) => {
-  const { userAddresses } = route.params || { userAddresses: [] };
+  const { userAddresses = [], onAddressSelect } = route.params || {};
 
   const renderAddressItem = ({ item: address }) => (
     <TouchableOpacity 
       style={styles.addressItem}
       onPress={() => {
-        // Navigate back to CheckoutForm with selected address
-        navigation.navigate('CheckoutForm', { selectedAddress: address });
+        // Call the callback if provided, otherwise navigate back
+        if (onAddressSelect) {
+          onAddressSelect(address);
+        }
+        navigation.goBack();
       }}
     >
       <View style={styles.addressItemContent}>

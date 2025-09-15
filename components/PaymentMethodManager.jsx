@@ -19,7 +19,7 @@ import {
 import { createEphemeralKey, createSetupIntent, markDefaultPaymentMethod, fetchPaymentMethods } from '../lib/payment-service';
 import CreditCardIcon from './CreditCardIcon';
 
-const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded }) => {
+const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaultPaymentMethodChanged }) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -173,6 +173,8 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded }) => {
         
         // Reload user data to get updated payment methods
         await loadUserData();
+
+        onDefaultPaymentMethodChanged?.();
       } else {
         Alert.alert('Error', result.message || 'Failed to set default payment method');
       }
