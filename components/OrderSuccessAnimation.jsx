@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,20 +10,57 @@ import {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const OrderSuccessAnimation = ({ visible, onComplete }) => {
-  const truckPosition = useRef(new Animated.Value(-200)).current;
-  const truckScale = useRef(new Animated.Value(0.5)).current;
-  const truckRotation = useRef(new Animated.Value(0)).current;
-  const trailOpacity = useRef(new Animated.Value(0)).current;
-  const confettiOpacity = useRef(new Animated.Value(0)).current;
-  const confettiRotation = useRef(new Animated.Value(0)).current;
+  // Use useState to initialize animation values only once
+  const [animationValues] = useState(() => ({
+    truckPosition: new Animated.Value(-200),
+    truckScale: new Animated.Value(0.5),
+    truckRotation: new Animated.Value(0),
+    trailOpacity: new Animated.Value(0),
+    confettiOpacity: new Animated.Value(0),
+    confettiRotation: new Animated.Value(0),
+  }));
+
+  const {
+    truckPosition,
+    truckScale,
+    truckRotation,
+    trailOpacity,
+    confettiOpacity,
+    confettiRotation,
+  } = animationValues;
 
   useEffect(() => {
+    console.log('OrderSuccessAnimation useEffect triggered, visible:', visible);
     if (visible) {
+      console.log('Starting animation...');
       startAnimation();
+    } else {
+      console.log('Resetting animation values...');
+      // Reset animation values when not visible
+      truckPosition.setValue(-200);
+      truckScale.setValue(0.5);
+      truckRotation.setValue(0);
+      trailOpacity.setValue(0);
+      confettiOpacity.setValue(0);
+      confettiRotation.setValue(0);
     }
   }, [visible]);
 
+  // Cleanup effect
+//   useEffect(() => {
+//     return () => {
+//       // Stop any running animations
+//     //   truckPosition.stopAnimation();
+//     //   truckScale.stopAnimation();
+//     //   truckRotation.stopAnimation();
+//     //   trailOpacity.stopAnimation();
+//     //   confettiOpacity.stopAnimation();
+//     //   confettiRotation.stopAnimation();
+//     // };
+//   }, []);
+
   const startAnimation = () => {
+    console.log('startAnimation called');
     // Reset all animations
     truckPosition.setValue(-200);
     truckScale.setValue(0.5);
@@ -110,8 +147,14 @@ const OrderSuccessAnimation = ({ visible, onComplete }) => {
     outputRange: ['0deg', '720deg'],
   });
 
-  if (!visible) return null;
+  console.log('OrderSuccessAnimation render, visible:', visible);
 
+  if (!visible) {
+    console.log('OrderSuccessAnimation not visible, returning null');
+    return null;
+  }
+
+  console.log('OrderSuccessAnimation rendering animation container');
   return (
     <View style={styles.container}>
       {/* Confetti */}
@@ -185,6 +228,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1000,
     pointerEvents: 'none',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent background for debugging
   },
   confetti: {
     position: 'absolute',

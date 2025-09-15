@@ -24,7 +24,7 @@ import { fetchUser } from '../lib/user-service';
 import CreditCardIcon from './CreditCardIcon';
 import PaymentMethodManager from './PaymentMethodManager';
 import DeliveryMethodSelector from './DeliveryMethodSelector';
-import OrderSuccessAnimation from './OrderSuccessAnimation';
+import OrderSuccessModal from './OrderSuccessModal';
 
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -99,14 +99,13 @@ const PaymentScreen = ({ route, navigation }) => {
 
       // Step 2: Confirm payment with Stripe using saved payment method
       const result = await confirmPayment(paymentIntentData.clientSecret, {
-          paymentMethodType: 'Card',
-          paymentMethodData: {
+            paymentMethodType: 'Card',
+            paymentMethodData: {
             paymentMethodId: defaultPaymentMethod.stripePaymentMethodId,
-          },
+              },
       });
 
       if (result.paymentIntent.status === 'Succeeded') {
-          Alert.alert('Success', 'Payment successful!');
           // Navigate to success screen or update UI
           handlePaymentSuccess(result.paymentIntent);
        } else {
@@ -220,9 +219,6 @@ const PaymentScreen = ({ route, navigation }) => {
     if (paymentIntent) {
       setPaymentIntent(paymentIntent);
     }
-    
-    // Navigate back to previous screen or to success screen
-    navigation.goBack();
   };
 
   const setPaymentIntent = async (paymentIntent) => {
@@ -542,27 +538,27 @@ const PaymentScreen = ({ route, navigation }) => {
             )}
           </TouchableOpacity>
 
-          {/* Apple Pay Button (iOS only and when supported) */}
-          {Platform.OS === 'ios' && isPlatformPaySupported && (
-            <TouchableOpacity
-              style={styles.applePayButton}
-              onPress={handleApplePay}
-            >
-              <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
-            </TouchableOpacity>
-          )}
+      {/* Apple Pay Button (iOS only and when supported) */}
+      {Platform.OS === 'ios' && isPlatformPaySupported && (
+        <TouchableOpacity
+          style={styles.applePayButton}
+          onPress={handleApplePay}
+        >
+          <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
+        </TouchableOpacity>
+      )}
 
-          {/* Google Pay Button (Android only) */}
-          {Platform.OS === 'android' && (
-            <TouchableOpacity
-              style={styles.googlePayButton}
-              onPress={handleGooglePay}
-            >
-              <Text style={styles.payButtonText}>Pay with Google Pay</Text>
-            </TouchableOpacity>
-          )}
+      {/* Google Pay Button (Android only) */}
+      {Platform.OS === 'android' && (
+        <TouchableOpacity
+          style={styles.googlePayButton}
+          onPress={handleGooglePay}
+        >
+          <Text style={styles.payButtonText}>Pay with Google Pay</Text>
+        </TouchableOpacity>
+      )}
         </View>
-      </ScrollView>
+    </ScrollView>
 
       {/* Payment Method Manager Modal */}
       <PaymentMethodManager
@@ -572,8 +568,8 @@ const PaymentScreen = ({ route, navigation }) => {
         onDefaultPaymentMethodChanged={handlePaymentMethodUpdate}
       />
 
-      {/* Success Animation */}
-      <OrderSuccessAnimation
+      {/* Success Modal */}
+      <OrderSuccessModal
         visible={showSuccessAnimation}
         onComplete={handleSuccessAnimationComplete}
       />

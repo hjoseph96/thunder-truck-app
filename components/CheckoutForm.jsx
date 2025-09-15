@@ -182,6 +182,7 @@ const CheckoutForm = ({ route, navigation }) => {
   };
 
   const calculateDeliveryFee = () => {
+    // For now, let's assume a flat delivery fee of $2.99 per order & calculate based on the number of food trucks
     return (cartsData.length > 0 ? 2.99 * cartsData.length : 0).toFixed(2);
   };
 
@@ -196,11 +197,11 @@ const CheckoutForm = ({ route, navigation }) => {
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
+
     // For multiple carts, we might want to calculate delivery fees differently
-    // For now, let's assume a flat delivery fee or calculate based on the number of food trucks
-    const deliveryFee = cartsData.length > 0 ? 5.00 : 0; // $5 per order for now
+    const deliveryFee = calculateDeliveryFee();
     const promotionDiscount = 0; // TODO: Calculate from promotions
-    return subtotal + deliveryFee - promotionDiscount;
+    return subtotal + parseFloat(deliveryFee) - parseFloat(promotionDiscount);
   };
 
   if (loading) {
