@@ -14,10 +14,9 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { 
   fetchUser, 
   addPaymentMethod, 
-  setDefaultPaymentMethod, 
   removePaymentMethod 
 } from '../lib/user-service';
-import { createEphemeralKey, createSetupIntent } from '../lib/payment-service';
+import { createEphemeralKey, createSetupIntent, markDefaultPaymentMethod, fetchPaymentMethods } from '../lib/payment-service';
 import CreditCardIcon from './CreditCardIcon';
 
 const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded }) => {
@@ -36,12 +35,28 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded }) => {
   const loadUserData = async () => {
     try {
       setLoading(true);
+      // Fetch payment methods directly instead of entire user data
+      const paymentMethods = await fetchPaymentMethods();
+      
+      
+      // Find the default payment method
+      const defaultPaymentMethod = paymentMethods.find(pm => pm.isDefault);
+      setDefaultPaymentMethod(defaultPaymentMethod);
+
+      if (defaultPaymentMethod && paymentMethods.length > 1) {
+        // Remove default from the list and add it to the beginning
+        const otherMethods = paymentMethods.filter(
+          pm => pm.id !== defaultPaymentMethod.id
+        );
+
+        setPaymentMethods(otherMethods);
+      }
+      
+      // Still need user data for Stripe customer ID when adding new methods
       const user = await fetchUser();
       setUserData(user);
-      setPaymentMethods(user.userPaymentMethods || []);
-      setDefaultPaymentMethod(user.defaultUserPaymentMethod);
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('Error loading payment methods:', error);
       Alert.alert('Error', 'Failed to load payment methods');
     } finally {
       setLoading(false);
@@ -151,13 +166,15 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded }) => {
   const handleSetDefault = async (paymentMethodId) => {
     try {
       setLoading(true);
-      const success = await setDefaultPaymentMethod(paymentMethodId);
+      const result = await markDefaultPaymentMethod(paymentMethodId);
       
-      if (success) {
-        Alert.alert('Success', 'Default payment method updated');
-        loadUserData(); // Reload to get updated data
+      if (result.success) {
+        console.log('Successfully marked payment method as default:', result.message);
+        
+        // Reload user data to get updated payment methods
+        await loadUserData();
       } else {
-        Alert.alert('Error', 'Failed to set default payment method');
+        Alert.alert('Error', result.message || 'Failed to set default payment method');
       }
     } catch (error) {
       console.error('Error setting default payment method:', error);
@@ -201,52 +218,60 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded }) => {
 
   // Removed getCardBrandIcon - now using CreditCardIcon component
 
-  const renderPaymentMethod = (paymentMethod, isDefault = false) => (
-    <View key={paymentMethod.id} style={styles.paymentMethodCard}>
-      <View style={styles.paymentMethodContent}>
-        <View style={styles.paymentMethodLeft}>
-          <CreditCardIcon 
-            brand={paymentMethod.userPaymentDisplay.brand}
-            size={100}
-            style={styles.cardIcon}
-          />
-          <View style={styles.paymentMethodDetails}>
-            <Text style={styles.cardBrand}>
-              {paymentMethod.userPaymentDisplay.brand.toUpperCase()}
-            </Text>
-            <Text style={styles.cardNumber}>
-              •••• •••• •••• {paymentMethod.userPaymentDisplay.lastFour}
-            </Text>
-            <Text style={styles.cardExpiry}>
-              Expires {paymentMethod.userPaymentDisplay.expMonth}/{paymentMethod.userPaymentDisplay.expYear}
-            </Text>
-            {isDefault && (
-              <Text style={styles.defaultBadge}>DEFAULT</Text>
+  const renderPaymentMethod = (paymentMethod, isInDefaultPanel = false) => {
+    const isDefault = paymentMethod.isDefault;
+    const cardStyle = isInDefaultPanel ? styles.defaultPaymentMethodCard : styles.paymentMethodCard;
+    
+    return (
+      <View key={paymentMethod.id} style={cardStyle}>
+        <View style={styles.paymentMethodContent}>
+          <View style={styles.paymentMethodLeft}>
+            <CreditCardIcon 
+              brand={paymentMethod.userPaymentDisplay.brand}
+              size={100}
+              style={styles.cardIcon}
+            />
+            <View style={styles.paymentMethodDetails}>
+              <Text style={styles.cardBrand}>
+                {paymentMethod.userPaymentDisplay.brand.toUpperCase()}
+              </Text>
+              <Text style={styles.cardNumber}>
+                •••• •••• •••• {paymentMethod.userPaymentDisplay.lastFour}
+              </Text>
+              <Text style={styles.cardExpiry}>
+                Expires {paymentMethod.userPaymentDisplay.expMonth}/{paymentMethod.userPaymentDisplay.expYear}
+              </Text>
+              {isDefault && (
+                <Text style={styles.defaultBadge}>DEFAULT</Text>
+              )}
+            </View>
+          </View>
+          
+          <View style={styles.paymentMethodActions}>
+            {!isDefault && (
+              <>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleSetDefault(paymentMethod.id)}
+                  disabled={loading}
+                >
+                  <MaterialIcons name="star-border" size={20} color="#FECD15" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleRemovePaymentMethod(paymentMethod.id)}
+                  disabled={loading}
+                >
+                  <MaterialIcons name="delete-outline" size={20} color="#ff4444" />
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
-        
-        <View style={styles.paymentMethodActions}>
-          {!isDefault && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleSetDefault(paymentMethod.id)}
-              disabled={loading}
-            >
-              <MaterialIcons name="star-border" size={20} color="#FECD15" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleRemovePaymentMethod(paymentMethod.id)}
-            disabled={loading}
-          >
-            <MaterialIcons name="delete-outline" size={20} color="#ff4444" />
-          </TouchableOpacity>
-        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (!visible) return null;
 
@@ -289,17 +314,22 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded }) => {
           {!loading && (
             <>
               {defaultPaymentMethod && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Default Payment Method</Text>
-                  {renderPaymentMethod(defaultPaymentMethod, true)}
+                <View style={styles.defaultSection}>
+                  <View style={styles.defaultSectionHeader}>
+                    <MaterialIcons name="star" size={20} color="#FECD15" />
+                    <Text style={styles.defaultSectionTitle}>Default Payment Method</Text>
+                  </View>
+                  <View style={styles.defaultPanel}>
+                    {renderPaymentMethod(defaultPaymentMethod, true)}
+                  </View>
                 </View>
               )}
 
               {paymentMethods.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Other Payment Methods</Text>
+                  <Text style={styles.sectionTitle}>Payment Methods</Text>
                   {paymentMethods.map((paymentMethod) => 
-                    renderPaymentMethod(paymentMethod, false)
+                    renderPaymentMethod(paymentMethod)
                   )}
                 </View>
               )}
@@ -397,6 +427,37 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontFamily: 'Cairo',
   },
+  defaultSection: {
+    marginBottom: 24,
+  },
+  defaultSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  defaultSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#132a13',
+    marginLeft: 8,
+    fontFamily: 'Cairo',
+  },
+  defaultPanel: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    borderTopWidth: 4,
+    borderTopColor: '#FECD15',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    overflow: 'hidden',
+  },
   paymentMethodCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -406,6 +467,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  defaultPaymentMethodCard: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    marginBottom: 0,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   paymentMethodContent: {
     flexDirection: 'row',

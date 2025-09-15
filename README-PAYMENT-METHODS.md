@@ -36,7 +36,6 @@ Updated checkout section that integrates with PaymentMethodManager.
 Extended user service with payment method operations.
 
 **Functions:**
-- `addPaymentMethod(paymentMethodId)` - Add a new payment method
 - `setDefaultPaymentMethod(paymentMethodId)` - Set default payment method
 - `removePaymentMethod(paymentMethodId)` - Remove a payment method
 
@@ -52,24 +51,6 @@ Service for direct Stripe API operations.
 - `getCustomerPaymentMethods(customerId)` - Get all customer payment methods
 
 ## GraphQL Mutations
-
-### Add Payment Method
-```graphql
-mutation addPaymentMethod($input: AddPaymentMethodInput!) {
-  addPaymentMethod(input: $input) {
-    paymentMethod {
-      id
-      userPaymentDisplay {
-        brand
-        lastFour
-        expMonth
-        expYear
-      }
-    }
-    errors
-  }
-}
-```
 
 ### Set Default Payment Method
 ```graphql

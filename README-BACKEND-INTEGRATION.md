@@ -211,8 +211,6 @@ const handleAddPaymentMethodDirect = async () => {
     }
 
     // Save payment method to your backend
-    const response = await addPaymentMethod(paymentMethod.id);
-    console.log('Payment method saved:', response);
   } catch (error) {
     console.error('Error creating payment method:', error);
   }

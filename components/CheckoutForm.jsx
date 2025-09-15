@@ -181,6 +181,10 @@ const CheckoutForm = ({ route, navigation }) => {
     return grouped;
   };
 
+  const calculateDeliveryFee = () => {
+    return (cartsData.length > 0 ? 2.99 * cartsData.length : 0).toFixed(2);
+  };
+
   const calculateSubtotal = () => {
     if (!cartsData || cartsData.length === 0) return 0;
     
@@ -209,6 +213,16 @@ const CheckoutForm = ({ route, navigation }) => {
   }
 
   const groupedItems = groupCartItemsByFoodTruck();
+
+  const paymentScreenParams = {
+    selectedAddress: selectedAddress,
+    userData: userData,
+    groupedItems: groupedItems,
+    orderTotal: calculateTotal(),
+    orderDeliveryFee: calculateDeliveryFee(),
+    orderSubtotal: calculateSubtotal(),
+    orderDiscountTotal: 8.00,
+  };
 
   return (
     <View style={styles.container}>
@@ -293,7 +307,7 @@ const CheckoutForm = ({ route, navigation }) => {
             <View style={styles.fareRow}>
               <Text style={styles.fareLabel}>Delivery Fee:</Text>
               <Text style={styles.fareValue}>
-                ${(cartsData.length > 0 ? 2.99 * cartsData.length : 0).toFixed(2)}
+                ${calculateDeliveryFee()}
               </Text>
             </View>
             <View style={[styles.fareRow, styles.totalRow]}>
@@ -313,7 +327,7 @@ const CheckoutForm = ({ route, navigation }) => {
       <View style={styles.bottomNav}>
         <TouchableOpacity 
           style={styles.nextButton}
-          onPress={() => navigation.navigate('PaymentScreen')}
+          onPress={() => navigation.navigate('PaymentScreen', paymentScreenParams)}
         >
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
