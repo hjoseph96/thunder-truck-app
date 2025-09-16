@@ -58,6 +58,14 @@
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "This app uses location to show your position on the map and provide location-based services."
+        }
+      ]
+    ]
   }
 }
