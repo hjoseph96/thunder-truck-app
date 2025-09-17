@@ -23,7 +23,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
   });
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  
+
   // Animation values
   const [confettiAnim] = useState(new Animated.Value(0));
   const [partyConeAnim] = useState(new Animated.Value(0));
@@ -32,8 +32,9 @@ export default function OnboardingModal({ visible, onClose, userData }) {
     {
       id: 'welcome',
       title: 'Welcome to ThunderTruck! 🚚',
-      subtitle: 'We\'re excited to have you on board! To personalize your experience, we\'d love to know a bit more about you.',
-      buttonText: 'Let\'s Get Started',
+      subtitle:
+        "We're excited to have you on board! To personalize your experience, we'd love to know a bit more about you.",
+      buttonText: "Let's Get Started",
       showProgress: false,
     },
     {
@@ -56,8 +57,8 @@ export default function OnboardingModal({ visible, onClose, userData }) {
     },
     {
       id: 'email',
-      title: 'What\'s your email? 📧',
-      subtitle: 'We\'ll use this to send you order updates and special offers.',
+      title: "What's your email? 📧",
+      subtitle: "We'll use this to send you order updates and special offers.",
       placeholder: 'Enter your email address',
       field: 'email',
       buttonText: 'Complete Setup',
@@ -88,7 +89,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      
+
       const result = await setCustomerDetails({
         userId: userData.id,
         firstName: formData.firstName,
@@ -100,7 +101,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
         // Show success animation
         setShowSuccess(true);
         startSuccessAnimation();
-        
+
         // Close modal after 2 seconds and pass success flag
         setTimeout(() => {
           onClose(true); // Pass true to indicate successful completion
@@ -149,7 +150,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
   };
 
   const updateFormData = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -222,7 +223,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
         >
           <Text style={styles.confettiText}>🎉</Text>
         </Animated.View>
-        
+
         <Animated.View
           style={[
             styles.partyCone,
@@ -246,9 +247,14 @@ export default function OnboardingModal({ visible, onClose, userData }) {
         >
           <Text style={styles.partyConeText}>🎊</Text>
         </Animated.View>
-        
+
         <Text style={styles.successText}>Welcome aboard! 🚚</Text>
         <Text style={styles.successSubtext}>Your profile is all set up!</Text>
+
+        {/* Manual dismiss button */}
+        <TouchableOpacity style={styles.dismissButton} onPress={() => onClose(true)}>
+          <Text style={styles.dismissButtonText}>Continue</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -264,32 +270,22 @@ export default function OnboardingModal({ visible, onClose, userData }) {
       <View style={styles.stepContent}>
         <Text style={styles.stepTitle}>{step.title}</Text>
         <Text style={styles.stepSubtitle}>{step.subtitle}</Text>
-        
+
         {renderInput()}
-        
+
         <TouchableOpacity
-          style={[
-            styles.nextButton,
-            !isStepValid() && styles.nextButtonDisabled,
-          ]}
+          style={[styles.nextButton, !isStepValid() && styles.nextButtonDisabled]}
           onPress={handleNext}
           disabled={!isStepValid() || loading}
         >
-          <Text style={styles.nextButtonText}>
-            {loading ? 'Setting up...' : step.buttonText}
-          </Text>
+          <Text style={styles.nextButtonText}>{loading ? 'Setting up...' : step.buttonText}</Text>
         </TouchableOpacity>
       </View>
     );
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent={true}
-      statusBarTranslucent={true}
-    >
+    <Modal visible={visible} animationType="fade" transparent={true} statusBarTranslucent={true}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           {renderProgressBar()}
@@ -427,6 +423,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+    fontFamily: 'Cairo',
+    marginBottom: 24,
+  },
+  dismissButton: {
+    backgroundColor: '#F9B319',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  dismissButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
     fontFamily: 'Cairo',
   },
 });
