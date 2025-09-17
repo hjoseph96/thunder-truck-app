@@ -23,6 +23,27 @@ const Map = forwardRef(({
       if (mapRef.current) {
         mapRef.current.postMessage(message);
       }
+    },
+    // Forward courier tracking methods to MapWebview
+    addCourier: (id, name, location, route) => {
+      if (mapRef.current) {
+        return mapRef.current.addCourier(id, name, location, route);
+      }
+    },
+    updateCourierLocation: (id, location) => {
+      if (mapRef.current) {
+        mapRef.current.updateCourierLocation(id, location);
+      }
+    },
+    updateCourierRoute: (id, route) => {
+      if (mapRef.current) {
+        mapRef.current.updateCourierRoute(id, route);
+      }
+    },
+    removeCourier: (id) => {
+      if (mapRef.current) {
+        mapRef.current.removeCourier(id);
+      }
     }
   }));
 
