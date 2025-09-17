@@ -7,12 +7,14 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  Modal,
+  Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path } from 'react-native-svg';
 import * as Location from 'expo-location';
 import Map from './Map';
+import { decode } from '@mapbox/polyline';
+import { calculatePolylineDistance, getCoordinateAtDistance } from '../lib/animation-utils';
 
 export default function MapPage({ navigation }) {
   const [searchText, setSearchText] = useState('');
@@ -22,41 +24,51 @@ export default function MapPage({ navigation }) {
   const [markerMovedToUserLocation, setMarkerMovedToUserLocation] = useState(false); // Track if marker has been moved to user location
   const mapRef = useRef(null); // Ref for the Map component
 
+  // Courier tracking demo state
+  const [showDemoPanel, setShowDemoPanel] = useState(false);
+  const [demoActive, setDemoActive] = useState(false);
+  const [courierCount, setCourierCount] = useState(0);
+  const [animationRefs, setAnimationRefs] = useState(() => new Map());
+
   // Check location permission and get user location on component mount
   useEffect(() => {
     const initializeLocation = async () => {
       try {
         console.log('MapPage: Initializing location...');
-        
+
         // Check if we have location permission
         const { status } = await Location.getForegroundPermissionsAsync();
-        
+
         if (status === 'granted') {
           console.log('MapPage: Location permission granted, getting current location...');
           setLocationPermissionGranted(true);
-          
+
           // Get the user's current location
           const location = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
             timeInterval: 5000,
             distanceInterval: 10,
           });
-          
+
           if (location) {
             console.log('MapPage: User location obtained:', location.coords);
-            
+
             // Set the user location state
             const newUserLocation = {
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
-              accuracy: location.coords.accuracy
+              accuracy: location.coords.accuracy,
             };
             setUserLocation(newUserLocation);
-            
+
             // Move the user marker to the actual user location
             console.log('MapPage: Moving user marker to actual user location:', newUserLocation);
             if (webViewReady && !markerMovedToUserLocation) {
-              moveUserMarkerToCoordinates(location.coords.latitude, location.coords.longitude, false);
+              moveUserMarkerToCoordinates(
+                location.coords.latitude,
+                location.coords.longitude,
+                false,
+              );
               setMarkerMovedToUserLocation(true);
             } else if (!webViewReady) {
               console.log('MapPage: WebView not ready yet, will move marker when ready');
@@ -69,41 +81,53 @@ export default function MapPage({ navigation }) {
             setUserLocation({
               latitude: 40.7081, // Williamsburg, Brooklyn coordinates
               longitude: -73.9571,
-              accuracy: null
+              accuracy: null,
             });
           }
         } else {
           console.log('MapPage: Location permission not granted, requesting permission...');
-          
+
           // Request location permission
           const permissionGranted = await requestLocationPermission();
-          
+
           if (permissionGranted) {
-            console.log('MapPage: Location permission granted after request, getting current location...');
+            console.log(
+              'MapPage: Location permission granted after request, getting current location...',
+            );
             setLocationPermissionGranted(true);
-            
+
             // Get the user's current location
             const location = await Location.getCurrentPositionAsync({
               accuracy: Location.Accuracy.Balanced,
               timeInterval: 5000,
               distanceInterval: 10,
             });
-            
+
             if (location) {
-              console.log('MapPage: User location obtained after permission request:', location.coords);
-              
+              console.log(
+                'MapPage: User location obtained after permission request:',
+                location.coords,
+              );
+
               // Set the user location state
               const newUserLocation = {
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
-                accuracy: location.coords.accuracy
+                accuracy: location.coords.accuracy,
               };
               setUserLocation(newUserLocation);
-              
+
               // Move the user marker to the actual user location
-              console.log('MapPage: Moving user marker to actual user location after permission request:', newUserLocation);
+              console.log(
+                'MapPage: Moving user marker to actual user location after permission request:',
+                newUserLocation,
+              );
               if (webViewReady && !markerMovedToUserLocation) {
-                moveUserMarkerToCoordinates(location.coords.latitude, location.coords.longitude, false);
+                moveUserMarkerToCoordinates(
+                  location.coords.latitude,
+                  location.coords.longitude,
+                  false,
+                );
                 setMarkerMovedToUserLocation(true);
               } else if (!webViewReady) {
                 console.log('MapPage: WebView not ready yet, will move marker when ready');
@@ -111,22 +135,26 @@ export default function MapPage({ navigation }) {
                 console.log('MapPage: Marker already moved to user location');
               }
             } else {
-              console.log('MapPage: Could not get user location after permission request, defaulting to Williamsburg');
+              console.log(
+                'MapPage: Could not get user location after permission request, defaulting to Williamsburg',
+              );
               // Default to Williamsburg coordinates
               setUserLocation({
                 latitude: 40.7081, // Williamsburg, Brooklyn coordinates
                 longitude: -73.9571,
-                accuracy: null
+                accuracy: null,
               });
             }
           } else {
-            console.log('MapPage: Location permission denied after request, defaulting to Williamsburg');
+            console.log(
+              'MapPage: Location permission denied after request, defaulting to Williamsburg',
+            );
             setLocationPermissionGranted(false);
             // Default to Williamsburg coordinates
             setUserLocation({
               latitude: 40.7081, // Williamsburg, Brooklyn coordinates
               longitude: -73.9571,
-              accuracy: null
+              accuracy: null,
             });
           }
         }
@@ -136,13 +164,13 @@ export default function MapPage({ navigation }) {
         setUserLocation({
           latitude: 40.7081, // Williamsburg, Brooklyn coordinates
           longitude: -73.9571,
-          accuracy: null
+          accuracy: null,
         });
       }
     };
-    
+
     initializeLocation();
-    
+
     // Fallback: Set webViewReady to true after 15 seconds regardless
     const fallbackTimer = setTimeout(() => {
       if (!webViewReady) {
@@ -150,7 +178,7 @@ export default function MapPage({ navigation }) {
         setWebViewReady(true);
       }
     }, 15000);
-    
+
     return () => {
       clearTimeout(fallbackTimer);
     };
@@ -160,12 +188,13 @@ export default function MapPage({ navigation }) {
   useEffect(() => {
     if (webViewReady && userLocation && locationPermissionGranted && !markerMovedToUserLocation) {
       console.log('MapPage: WebView ready, moving user marker to actual location:', userLocation);
-      
+
       // Check if this is the user's actual location (not Williamsburg default)
-      const isWilliamsburg = userLocation.latitude === 40.7081 && userLocation.longitude === -73.9571;
-      
+      const isWilliamsburg =
+        userLocation.latitude === 40.7081 && userLocation.longitude === -73.9571;
+
       if (!isWilliamsburg) {
-        console.log('MapPage: Moving marker to user\'s actual location');
+        console.log("MapPage: Moving marker to user's actual location");
         moveUserMarkerToCoordinates(userLocation.latitude, userLocation.longitude, false);
         setMarkerMovedToUserLocation(true);
       } else {
@@ -188,32 +217,32 @@ export default function MapPage({ navigation }) {
   const handleGPSButtonPress = async () => {
     try {
       console.log('GPS button pressed - getting current location...');
-      
+
       // Get the user's current location (permission already checked during initialization)
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 5000,
         distanceInterval: 10,
       });
-      
+
       if (location) {
         console.log('GPS button pressed - location obtained:', location.coords);
-        
+
         // Set the user location state - this will trigger the Map component to update
         const newUserLocation = {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          accuracy: location.coords.accuracy
+          accuracy: location.coords.accuracy,
         };
         setUserLocation(newUserLocation);
-        
+
         console.log('GPS button pressed - user location state updated:', newUserLocation);
       } else {
         console.log('GPS button pressed - could not get location');
         Alert.alert(
           'Location Error',
           'Unable to get your current location. Please check your GPS settings and try again.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       }
     } catch (error) {
@@ -221,7 +250,7 @@ export default function MapPage({ navigation }) {
       Alert.alert(
         'Location Error',
         'Unable to get your current location. Please check your GPS settings and try again.',
-      [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
     }
   };
@@ -233,31 +262,31 @@ export default function MapPage({ navigation }) {
       Alert.alert(
         'Permission Required',
         'Location permission is required to move the marker. Please grant location access.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
       return;
     }
 
     console.log('Moving user marker to coordinates:', { latitude, longitude });
-    
+
     // Only update state if explicitly requested (prevents infinite loops during initialization)
     if (updateState) {
       const newLocation = {
         latitude,
         longitude,
-        accuracy: userLocation?.accuracy || null
+        accuracy: userLocation?.accuracy || null,
       };
-      
+
       setUserLocation(newLocation);
     }
-    
+
     // Send message to WebView to move the marker
     if (webViewReady) {
       const message = {
         type: 'moveUserMarker',
-        coordinates: { latitude, longitude }
+        coordinates: { latitude, longitude },
       };
-      
+
       // Use the Map component's ref to send message
       if (mapRef.current) {
         mapRef.current.postMessage(JSON.stringify(message));
@@ -272,27 +301,27 @@ export default function MapPage({ navigation }) {
       Alert.alert(
         'Permission Required',
         'Location permission is required to move the marker. Please grant location access.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
       return;
     }
 
     try {
       console.log('Moving user marker to current GPS location...');
-      
+
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 5000,
         distanceInterval: 10,
       });
-      
+
       if (location) {
         const newLocation = {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          accuracy: location.coords.accuracy
+          accuracy: location.coords.accuracy,
         };
-        
+
         setUserLocation(newLocation);
         console.log('User marker moved to current GPS location:', newLocation);
       }
@@ -301,7 +330,7 @@ export default function MapPage({ navigation }) {
       Alert.alert(
         'Location Error',
         'Unable to get your current location. Please check your GPS settings and try again.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
     }
   };
@@ -313,33 +342,33 @@ export default function MapPage({ navigation }) {
       Alert.alert(
         'Permission Required',
         'Location permission is required to move the marker. Please grant location access.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
       return;
     }
 
     try {
       console.log('Moving user marker to address:', address);
-      
+
       // Use reverse geocoding to get coordinates from address
       const geocodeResult = await Location.geocodeAsync(address);
-      
+
       if (geocodeResult && geocodeResult.length > 0) {
         const { latitude, longitude } = geocodeResult[0];
-        
+
         const newLocation = {
           latitude,
           longitude,
-          accuracy: null // Geocoded addresses don't have accuracy
+          accuracy: null, // Geocoded addresses don't have accuracy
         };
-        
+
         setUserLocation(newLocation);
         console.log('User marker moved to address coordinates:', newLocation);
       } else {
         Alert.alert(
           'Address Not Found',
           'Could not find the specified address. Please check the address and try again.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       }
     } catch (error) {
@@ -347,7 +376,7 @@ export default function MapPage({ navigation }) {
       Alert.alert(
         'Geocoding Error',
         'Unable to find the specified address. Please check the address and try again.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
       );
     }
   };
@@ -359,20 +388,223 @@ export default function MapPage({ navigation }) {
     }
 
     console.log('Updating marker position to:', newCoordinates);
-    setUserLocation(prevLocation => ({
+    setUserLocation((prevLocation) => ({
       ...prevLocation,
       latitude: newCoordinates.latitude,
-      longitude: newCoordinates.longitude
+      longitude: newCoordinates.longitude,
     }));
+  };
+
+  // Courier tracking demo constants and functions
+  // Demo polylines (same as CourierTrackingDemo)
+  const DEFAULT_POLYLINE =
+    '__dwFvudaMeE}Bw@bFu@tUSjG]xDk@~H{@pKQjCIBgB~Ic@jCUlAMjAK~@?JFh@zEdNyArAeE~CmIjGiDrCoOjMaGjF{KdLeJ`JaAtAk@tA_AjDIb@yAnO_@vEeDjy@YvGMlDGd@_@vLA`@IlBEZErAItBG~@Bd@oB`f@Y|Gs@xOIp@mC`ZOJgBzSoAzM{@vJcAdIgCdQZf@~DjB~DnB~JbEnAvGnE_Bb@?z@T|MfEbCgPBK`E{AJA`FqBP?zYhG^RbCf\\ZdExE|m@qBZUJi@Jl@nB|@`Cp@vAbChEfBpCxEpGxCzDhH`KbCxDVb@T?f@T\\ZZd@F@z@tBAb@M^xBxDl@z@bAjBnBjDfCbF`AlBbBhCrAjBx@bB`AfD~@hDp@xBx@rB\\l@`BxDhC~ExBlDdDrEfBdCzBzBn@\\b@\\f@T|B~AlC~A\\HdAJv@^d@?d@BlAt@xBxB|@n@zCxAjE|AxBz@t@d@fI`DlAb@vCtA`DjBbBhAhBrAlD~CjBbBpBrAj@p@x@bB\\j@x@|@rAt@bA\\tBRz@Hn@Rl@d@P\\Lf@JzAClAClAFfCRjBX`Ap@vArEjIpAnAfClEb@l@ZZp@h@`@h@`@tAn@|BtAtApCvC~BxATTHV?r@Ad@DV^j@FV?`@Qb@OLUB}@@SLKTM|@_@~@EXEbAENMPo@Vq@FSLO\\IfACHTl@Hl@Ax@If@Ul@c@d@YNaBPo@h@@TG^_@WOd@INK^sCpICTe@tAML_@pA_@fA[~@g@~AaFmDgA~CTZdExCQ`@AL}EfN{DfLIDqA`EeC|GOl@EZm@bBCQDYKa@uJ|Kx]rn@aI`@nBvw@j@nTfB~r@rG|mAyMzA?ZX~EwMxAGeA';
+  const BIKE_ROUTE_POLYLINE =
+    'gj_wFfhrbMuDnHlBpBvSga@nLiU_FgFdKiShC{E@KgBsBvAkCGm@{Qef@hHy@iDco@RCU_DIOGE}@}PwMxAGeA';
+
+  // Decode polylines to coordinates
+  const DEFAULT_ROUTE_COORDINATES = decode(DEFAULT_POLYLINE).map((coord) => ({
+    latitude: coord[0],
+    longitude: coord[1],
+  }));
+
+  const BIKE_ROUTE_COORDINATES = decode(BIKE_ROUTE_POLYLINE).map((coord) => ({
+    latitude: coord[0],
+    longitude: coord[1],
+  }));
+
+  // Demo routes using the realistic paths
+  const DEMO_ROUTES = [
+    {
+      name: 'Main Route',
+      coordinates: DEFAULT_ROUTE_COORDINATES,
+      color: '#219ebc',
+    },
+    {
+      name: 'Bike Route',
+      coordinates: BIKE_ROUTE_COORDINATES,
+      color: '#007cff',
+    },
+  ];
+
+  // Demo courier data with assigned routes
+  const demoCouriers = [
+    { id: 'courier-1', name: 'Alex (Bike)', emoji: '🚴', routeIndex: 1 }, // Bike route
+    { id: 'courier-2', name: 'Sam (Scooter)', emoji: '🛵', routeIndex: 0 }, // Main route
+    { id: 'courier-3', name: 'Jordan (Car)', emoji: '🚗', routeIndex: 1 }, // Bike route
+  ];
+
+  // Courier tracking demo functions
+  const addDemoCourier = () => {
+    try {
+      if (courierCount >= (demoCouriers?.length || 0)) {
+        Alert.alert('Demo Limit', 'Maximum 3 demo couriers allowed');
+        return;
+      }
+
+      if (!demoCouriers || !DEMO_ROUTES) {
+        Alert.alert('Demo Error', 'Demo dependencies not loaded');
+        return;
+      }
+
+      const courier = demoCouriers[courierCount];
+      const route = DEMO_ROUTES[courier.routeIndex];
+      const startLocation = route.coordinates[0];
+
+      // Add courier through map ref
+      if (mapRef.current) {
+        mapRef.current.addCourier(courier.id, courier.name, startLocation, route.coordinates);
+
+        setCourierCount((prev) => prev + 1);
+        console.log(`Added demo courier: ${courier.name} on ${route.name}`);
+      }
+    } catch (error) {
+      console.error('Error adding demo courier:', error);
+      Alert.alert('Demo Error', 'Failed to add courier');
+    }
+  };
+
+  const clearDemoCouriers = () => {
+    try {
+      // Stop all animations
+      animationRefs.forEach((animatedValue) => {
+        animatedValue.stopAnimation();
+      });
+      setAnimationRefs(new Map());
+
+      // Remove couriers from map
+      if (demoCouriers) {
+        demoCouriers.forEach((courier) => {
+          if (mapRef.current) {
+            mapRef.current.removeCourier(courier.id);
+          }
+        });
+      }
+      setCourierCount(0);
+      setDemoActive(false);
+      console.log('Cleared all demo couriers and stopped animations');
+    } catch (error) {
+      console.error('Error clearing demo couriers:', error);
+    }
+  };
+
+  const simulateCourierMovement = () => {
+    try {
+      if (courierCount === 0) {
+        Alert.alert('No Couriers', 'Add some couriers first!');
+        return;
+      }
+
+      if (!demoCouriers) {
+        Alert.alert('Demo Error', 'Demo dependencies not loaded');
+        return;
+      }
+
+      setDemoActive(true);
+
+      // Simulate movement for each active courier
+      demoCouriers.slice(0, courierCount).forEach((courier, index) => {
+        simulateSingleCourierMovement(courier.id, index * 2000); // Stagger start times
+      });
+    } catch (error) {
+      console.error('Error simulating courier movement:', error);
+      Alert.alert('Demo Error', 'Failed to start simulation');
+    }
+  };
+
+  const simulateSingleCourierMovement = (courierId, delay = 0) => {
+    try {
+      // Find the courier and its route
+      const courier = demoCouriers?.find((c) => c.id === courierId);
+      if (!courier || !DEMO_ROUTES) return;
+
+      const route = DEMO_ROUTES[courier.routeIndex];
+      const routeCoordinates = route.coordinates;
+
+      if (!calculatePolylineDistance || !getCoordinateAtDistance) {
+        console.warn('Animation utilities not available');
+        return;
+      }
+
+      setTimeout(() => {
+        try {
+          // Calculate total distance of the route
+          const totalDistance = calculatePolylineDistance(routeCoordinates);
+          console.log(`${courier.name} route distance: ${(totalDistance / 1000).toFixed(2)}km`);
+
+          // Create animated value for distance traveled (0 to totalDistance)
+          const animatedDistance = new Animated.Value(0);
+
+          // Store animation reference for cleanup
+          setAnimationRefs((prev) => new Map(prev.set(courierId, animatedDistance)));
+
+          // Animation duration (20 seconds for full route)
+          const animationDuration = 20000;
+
+          // Start smooth animation based on distance
+          Animated.timing(animatedDistance, {
+            toValue: totalDistance,
+            duration: animationDuration,
+            useNativeDriver: false, // We need to access the value
+          }).start(() => {
+            // Animation completed
+            console.log(`${courier.name} completed route`);
+          });
+
+          // Listen to animation value changes and update courier position
+          const listenerId = animatedDistance.addListener(({ value }) => {
+            try {
+              // Get coordinate at current distance traveled
+              const currentPosition = getCoordinateAtDistance(routeCoordinates, value);
+
+              const location = {
+                latitude: currentPosition.latitude,
+                longitude: currentPosition.longitude,
+                timestamp: Date.now(),
+              };
+
+              if (mapRef.current) {
+                mapRef.current.updateCourierLocation(courierId, location);
+              }
+            } catch (error) {
+              console.error('Error updating courier position:', error);
+            }
+          });
+
+          // Clean up after animation completes
+          setTimeout(() => {
+            animatedDistance.removeListener(listenerId);
+            setAnimationRefs((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(courierId);
+              return newMap;
+            });
+          }, animationDuration + 1000);
+        } catch (error) {
+          console.error('Error in animation setup:', error);
+        }
+      }, delay);
+    } catch (error) {
+      console.error('Error in simulateSingleCourierMovement:', error);
+    }
   };
 
   const SearchBar = () => (
     <View style={styles.searchContainer}>
       <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.searchIcon}>
-        <Path d="M7.33335 12.0001C9.91068 12.0001 12 9.91074 12 7.33342C12 4.75609 9.91068 2.66675 7.33335 2.66675C4.75602 2.66675 2.66669 4.75609 2.66669 7.33342C2.66669 9.91074 4.75602 12.0001 7.33335 12.0001Z" stroke="#EE6C4D" strokeWidth="1.33333"/>
-        <Path d="M13.3334 13.3335L11.3334 11.3335" stroke="#EE6C4D" strokeWidth="1.33333" strokeLinecap="round"/>
+        <Path
+          d="M7.33335 12.0001C9.91068 12.0001 12 9.91074 12 7.33342C12 4.75609 9.91068 2.66675 7.33335 2.66675C4.75602 2.66675 2.66669 4.75609 2.66669 7.33342C2.66669 9.91074 4.75602 12.0001 7.33335 12.0001Z"
+          stroke="#EE6C4D"
+          strokeWidth="1.33333"
+        />
+        <Path
+          d="M13.3334 13.3335L11.3334 11.3335"
+          stroke="#EE6C4D"
+          strokeWidth="1.33333"
+          strokeLinecap="round"
+        />
       </Svg>
-      
+
       <TextInput
         style={styles.searchInput}
         placeholder="Search"
@@ -382,8 +614,14 @@ export default function MapPage({ navigation }) {
       />
 
       <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.micIcon}>
-        <Path d="M8 9.33325C9.10667 9.33325 10 8.43992 10 7.33325V3.33325C10 2.22659 9.10667 1.33325 8 1.33325C6.89333 1.33325 6 2.22659 6 3.33325V7.33325C6 8.43992 6.89333 9.33325 8 9.33325Z" fill="#EE6C4D"/>
-        <Path d="M11.3333 7.33325C11.3333 9.17325 9.83998 10.6666 7.99998 10.6666C6.15998 10.6666 4.66665 9.17325 4.66665 7.33325H3.33331C3.33331 9.68659 5.07331 11.6199 7.33331 11.9466V13.9999H8.66665V11.9466C10.9266 11.6199 12.6666 9.68659 12.6666 7.33325H11.3333Z" fill="#EE6C4D"/>
+        <Path
+          d="M8 9.33325C9.10667 9.33325 10 8.43992 10 7.33325V3.33325C10 2.22659 9.10667 1.33325 8 1.33325C6.89333 1.33325 6 2.22659 6 3.33325V7.33325C6 8.43992 6.89333 9.33325 8 9.33325Z"
+          fill="#EE6C4D"
+        />
+        <Path
+          d="M11.3333 7.33325C11.3333 9.17325 9.83998 10.6666 7.99998 10.6666C6.15998 10.6666 4.66665 9.17325 4.66665 7.33325H3.33331C3.33331 9.68659 5.07331 11.6199 7.33331 11.9466V13.9999H8.66665V11.9466C10.9266 11.6199 12.6666 9.68659 12.6666 7.33325H11.3333Z"
+          fill="#EE6C4D"
+        />
       </Svg>
     </View>
   );
@@ -391,17 +629,28 @@ export default function MapPage({ navigation }) {
   const LocationBar = () => (
     <View style={styles.locationBar}>
       <Svg width="24" height="24" viewBox="0 0 24 24" style={styles.locationPin}>
-        <Path d="M12 1.5C9.81273 1.50248 7.71575 2.37247 6.16911 3.91911C4.62247 5.46575 3.75248 7.56273 3.75 9.75C3.75 16.8094 11.25 22.1409 11.5697 22.3641C11.6958 22.4524 11.846 22.4998 12 22.4998C12.154 22.4998 12.3042 22.4524 12.4303 22.3641C12.75 22.1409 20.25 16.8094 20.25 9.75C20.2475 7.56273 19.3775 5.46575 17.8309 3.91911C16.2843 2.37247 14.1873 1.50248 12 1.5ZM12 6.75C12.5933 6.75 13.1734 6.92595 13.6667 7.25559C14.1601 7.58524 14.5446 8.05377 14.7716 8.60195C14.9987 9.15013 15.0581 9.75333 14.9424 10.3353C14.8266 10.9172 14.5409 11.4518 14.1213 11.8713C13.7018 12.2909 13.1672 12.5766 12.5853 12.6924C12.0033 12.8081 11.4001 12.7487 10.8519 12.5216C10.3038 12.2946 9.83524 11.9101 9.50559 11.4167C9.17595 10.9234 9 10.3433 9 9.75C9 8.95435 9.31607 8.19129 9.87868 7.62868C10.4413 7.06607 11.2044 6.75 12 6.75Z" fill="#EE6C4D"/>
+        <Path
+          d="M12 1.5C9.81273 1.50248 7.71575 2.37247 6.16911 3.91911C4.62247 5.46575 3.75248 7.56273 3.75 9.75C3.75 16.8094 11.25 22.1409 11.5697 22.3641C11.6958 22.4524 11.846 22.4998 12 22.4998C12.154 22.4998 12.3042 22.4524 12.4303 22.3641C12.75 22.1409 20.25 16.8094 20.25 9.75C20.2475 7.56273 19.3775 5.46575 17.8309 3.91911C16.2843 2.37247 14.1873 1.50248 12 1.5ZM12 6.75C12.5933 6.75 13.1734 6.92595 13.6667 7.25559C14.1601 7.58524 14.5446 8.05377 14.7716 8.60195C14.9987 9.15013 15.0581 9.75333 14.9424 10.3353C14.8266 10.9172 14.5409 11.4518 14.1213 11.8713C13.7018 12.2909 13.1672 12.5766 12.5853 12.6924C12.0033 12.8081 11.4001 12.7487 10.8519 12.5216C10.3038 12.2946 9.83524 11.9101 9.50559 11.4167C9.17595 10.9234 9 10.3433 9 9.75C9 8.95435 9.31607 8.19129 9.87868 7.62868C10.4413 7.06607 11.2044 6.75 12 6.75Z"
+          fill="#EE6C4D"
+        />
       </Svg>
-      
+
       <View style={styles.locationText}>
         <Text style={styles.locationTitle}>Office</Text>
         <Text style={styles.locationSubtitle}>H-11, First Floor, Sector 63, Noida, Uttar...</Text>
       </View>
 
       <Svg width="24" height="24" viewBox="0 0 24 24" style={styles.currentLocationIcon}>
-        <Path d="M12 8.25C11.0054 8.25 10.0516 8.64509 9.34835 9.34835C8.64509 10.0516 8.25 11.0054 8.25 12C8.25 12.9946 8.64509 13.9484 9.34835 14.6517C10.0516 15.3549 11.0054 15.75 12 15.75C12.9946 15.75 13.9484 15.3549 14.6517 14.6517C15.3549 13.9484 15.75 12.9946 15.75 12C15.75 11.0054 15.3549 10.0516 14.6517 9.34835C13.9484 8.64509 12.9946 8.25 12 8.25Z" fill="#EE6C4D"/>
-        <Path fillRule="evenodd" clipRule="evenodd" d="M12 1.25C12.1989 1.25 12.3897 1.32902 12.5303 1.46967C12.671 1.61032 12.75 1.80109 12.75 2V3.282C14.8038 3.45905 16.7293 4.35539 18.1869 5.81306C19.6446 7.27073 20.541 9.19616 20.718 11.25H22C22.1989 11.25 22.3897 11.329 22.5303 11.4697C22.671 11.6103 22.75 11.8011 22.75 12C22.75 12.1989 22.671 12.3897 22.5303 12.5303C22.3897 12.671 22.1989 12.75 22 12.75H20.718C20.541 14.8038 19.6446 16.7293 18.1869 18.1869C16.7293 19.6446 14.8038 20.541 12.75 20.718V22C12.75 22.1989 12.671 22.3897 12.5303 22.5303C12.3897 22.671 12.1989 22.75 12 22.75C11.8011 22.75 11.6103 22.671 11.4697 22.5303C11.329 22.3897 11.25 22.1989 11.25 22V20.718C9.19616 20.541 7.27073 19.6446 5.81306 18.1869C4.35539 16.7293 3.45905 14.8038 3.282 12.75H2C1.80109 12.75 1.61032 12.671 1.46967 12.5303C1.32902 12.3897 1.25 12.1989 1.25 12C1.25 11.8011 1.32902 11.6103 1.46967 11.4697C1.61032 11.329 1.80109 11.25 2 11.25H3.282C3.45905 9.19616 4.35539 7.27073 5.81306 5.81306C7.27073 4.35539 9.19616 3.45905 11.25 3.282V2C11.25 1.80109 11.329 1.61032 11.4697 1.46967C11.6103 1.32902 11.8011 1.25 12 1.25ZM4.75 12C4.75 12.9521 4.93753 13.8948 5.30187 14.7745C5.66622 15.6541 6.20025 16.4533 6.87348 17.1265C7.5467 17.7997 8.34593 18.3338 9.22554 18.6981C10.1052 19.0625 11.0479 19.25 12 19.25C12.9521 19.25 13.8948 19.0625 14.7745 18.6981C15.6541 18.3338 16.4533 17.7997 17.1265 17.1265C17.7997 16.4533 18.3338 15.6541 18.6981 14.7745C19.0625 13.8948 19.25 12.9521 19.25 12C19.25 10.0772 18.4862 8.23311 17.1265 6.87348C15.7669 5.51384 13.9228 4.75 12 4.75C10.0772 4.75 8.23311 5.51384 6.87348 6.87348C5.51384 8.23311 4.75 10.0772 4.75 12Z" fill="#EE6C4D"/>
+        <Path
+          d="M12 8.25C11.0054 8.25 10.0516 8.64509 9.34835 9.34835C8.64509 10.0516 8.25 11.0054 8.25 12C8.25 12.9946 8.64509 13.9484 9.34835 14.6517C10.0516 15.3549 11.0054 15.75 12 15.75C12.9946 15.75 13.9484 15.3549 14.6517 14.6517C15.3549 13.9484 15.75 12.9946 15.75 12C15.75 11.0054 15.3549 10.0516 14.6517 9.34835C13.9484 8.64509 12.9946 8.25 12 8.25Z"
+          fill="#EE6C4D"
+        />
+        <Path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M12 1.25C12.1989 1.25 12.3897 1.32902 12.5303 1.46967C12.671 1.61032 12.75 1.80109 12.75 2V3.282C14.8038 3.45905 16.7293 4.35539 18.1869 5.81306C19.6446 7.27073 20.541 9.19616 20.718 11.25H22C22.1989 11.25 22.3897 11.329 22.5303 11.4697C22.671 11.6103 22.75 11.8011 22.75 12C22.75 12.1989 22.671 12.3897 22.5303 12.5303C22.3897 12.671 22.1989 12.75 22 12.75H20.718C20.541 14.8038 19.6446 16.7293 18.1869 18.1869C16.7293 19.6446 14.8038 20.541 12.75 20.718V22C12.75 22.1989 12.671 22.3897 12.5303 22.5303C12.3897 22.671 12.1989 22.75 12 22.75C11.8011 22.75 11.6103 22.671 11.4697 22.5303C11.329 22.3897 11.25 22.1989 11.25 22V20.718C9.19616 20.541 7.27073 19.6446 5.81306 18.1869C4.35539 16.7293 3.45905 14.8038 3.282 12.75H2C1.80109 12.75 1.61032 12.671 1.46967 12.5303C1.32902 12.3897 1.25 12.1989 1.25 12C1.25 11.8011 1.32902 11.6103 1.46967 11.4697C1.61032 11.329 1.80109 11.25 2 11.25H3.282C3.45905 9.19616 4.35539 7.27073 5.81306 5.81306C7.27073 4.35539 9.19616 3.45905 11.25 3.282V2C11.25 1.80109 11.329 1.61032 11.4697 1.46967C11.6103 1.32902 11.8011 1.25 12 1.25ZM4.75 12C4.75 12.9521 4.93753 13.8948 5.30187 14.7745C5.66622 15.6541 6.20025 16.4533 6.87348 17.1265C7.5467 17.7997 8.34593 18.3338 9.22554 18.6981C10.1052 19.0625 11.0479 19.25 12 19.25C12.9521 19.25 13.8948 19.0625 14.7745 18.6981C15.6541 18.3338 16.4533 17.7997 17.1265 17.1265C17.7997 16.4533 18.3338 15.6541 18.6981 14.7745C19.0625 13.8948 19.25 12.9521 19.25 12C19.25 10.0772 18.4862 8.23311 17.1265 6.87348C15.7669 5.51384 13.9228 4.75 12 4.75C10.0772 4.75 8.23311 5.51384 6.87348 6.87348C5.51384 8.23311 4.75 10.0772 4.75 12Z"
+          fill="#EE6C4D"
+        />
       </Svg>
     </View>
   );
@@ -410,56 +659,125 @@ export default function MapPage({ navigation }) {
     <View style={styles.bottomNav}>
       <TouchableOpacity style={styles.navItem}>
         <Svg width="32" height="32" viewBox="0 0 32 32">
-          <Path d="M16 28.0001L14.0667 26.2668C11.8222 24.2446 9.96669 22.5001 8.50002 21.0334C7.03335 19.5668 5.86669 18.2499 5.00002 17.0828C4.13335 15.9166 3.52802 14.8446 3.18402 13.8668C2.84002 12.889 2.66758 11.889 2.66669 10.8668C2.66669 8.77789 3.36669 7.03345 4.76669 5.63345C6.16669 4.23345 7.91113 3.53345 10 3.53345C11.1556 3.53345 12.2556 3.77789 13.3 4.26678C14.3445 4.75567 15.2445 5.44456 16 6.33345C16.7556 5.44456 17.6556 4.75567 18.7 4.26678C19.7445 3.77789 20.8445 3.53345 22 3.53345C24.0889 3.53345 25.8334 4.23345 27.2334 5.63345C28.6334 7.03345 29.3334 8.77789 29.3334 10.8668C29.3334 11.889 29.1614 12.889 28.8174 13.8668C28.4734 14.8446 27.8676 15.9166 27 17.0828C26.1334 18.2499 24.9667 19.5668 23.5 21.0334C22.0334 22.5001 20.1778 24.2446 17.9334 26.2668L16 28.0001ZM16 24.4001C18.1334 22.489 19.8889 20.8503 21.2667 19.4841C22.6445 18.1179 23.7334 16.929 24.5334 15.9174C25.3334 14.9059 25.8889 14.0054 26.2 13.2161C26.5111 12.4268 26.6667 11.6437 26.6667 10.8668C26.6667 9.53345 26.2222 8.42234 25.3334 7.53345C24.4445 6.64456 23.3334 6.20011 22 6.20011C20.9556 6.20011 19.9889 6.49434 18.1 7.08278C18.2111 7.67122 17.6 8.42145 17.2667 9.33345H14.7334C14.4 8.42234 13.7889 7.67256 12.9 7.08411C12.0111 6.49567 11.0445 6.201 10 6.20011C8.66669 6.20011 7.55558 6.64456 6.66669 7.53345C5.7778 8.42234 5.33335 9.53409 5.33335 10.8668C5.33335 11.6446 5.48891 12.4281 5.80002 13.2174C6.11113 14.0068 6.66669 14.9068 7.46669 15.9174C8.26669 16.9281 9.35558 18.117 10.7334 19.4841C12.1111 20.8512 13.8667 22.4899 16 24.4001Z" fill="#fecd15"/>
+          <Path
+            d="M16 28.0001L14.0667 26.2668C11.8222 24.2446 9.96669 22.5001 8.50002 21.0334C7.03335 19.5668 5.86669 18.2499 5.00002 17.0828C4.13335 15.9166 3.52802 14.8446 3.18402 13.8668C2.84002 12.889 2.66758 11.889 2.66669 10.8668C2.66669 8.77789 3.36669 7.03345 4.76669 5.63345C6.16669 4.23345 7.91113 3.53345 10 3.53345C11.1556 3.53345 12.2556 3.77789 13.3 4.26678C14.3445 4.75567 15.2445 5.44456 16 6.33345C16.7556 5.44456 17.6556 4.75567 18.7 4.26678C19.7445 3.77789 20.8445 3.53345 22 3.53345C24.0889 3.53345 25.8334 4.23345 27.2334 5.63345C28.6334 7.03345 29.3334 8.77789 29.3334 10.8668C29.3334 11.889 29.1614 12.889 28.8174 13.8668C28.4734 14.8446 27.8676 15.9166 27 17.0828C26.1334 18.2499 24.9667 19.5668 23.5 21.0334C22.0334 22.5001 20.1778 24.2446 17.9334 26.2668L16 28.0001ZM16 24.4001C18.1334 22.489 19.8889 20.8503 21.2667 19.4841C22.6445 18.1179 23.7334 16.929 24.5334 15.9174C25.3334 14.9059 25.8889 14.0054 26.2 13.2161C26.5111 12.4268 26.6667 11.6437 26.6667 10.8668C26.6667 9.53345 26.2222 8.42234 25.3334 7.53345C24.4445 6.64456 23.3334 6.20011 22 6.20011C20.9556 6.20011 19.9889 6.49434 18.1 7.08278C18.2111 7.67122 17.6 8.42145 17.2667 9.33345H14.7334C14.4 8.42234 13.7889 7.67256 12.9 7.08411C12.0111 6.49567 11.0445 6.201 10 6.20011C8.66669 6.20011 7.55558 6.64456 6.66669 7.53345C5.7778 8.42234 5.33335 9.53409 5.33335 10.8668C5.33335 11.6446 5.48891 12.4281 5.80002 13.2174C6.11113 14.0068 6.66669 14.9068 7.46669 15.9174C8.26669 16.9281 9.35558 18.117 10.7334 19.4841C12.1111 20.8512 13.8667 22.4899 16 24.4001Z"
+            fill="#fecd15"
+          />
         </Svg>
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.navItem}>
         <Svg width="32" height="32" viewBox="0 0 32 32">
-          <Path d="M16 2.66675C8.64002 2.66675 2.66669 8.64008 2.66669 16.0001C2.66669 23.3601 8.64002 29.3334 16 29.3334C23.36 29.3334 29.3334 23.3601 29.3334 16.0001C29.3334 8.64008 23.36 2.66675 16 2.66675ZM16 26.6667C10.12 26.6667 5.33335 21.8801 5.33335 16.0001C5.33335 10.1201 10.12 5.33341 16 5.33341C21.88 5.33341 26.6667 10.1201 26.6667 16.0001C26.6667 21.8801 21.88 26.6667 16 26.6667ZM8.66669 23.3334L18.68 18.6801L23.3334 8.66675L13.32 13.3201L8.66669 23.3334ZM16 14.5334C16.8134 14.5334 17.4667 15.1867 17.4667 16.0001C17.4667 16.8134 16.8134 17.4667 16 17.4667C15.1867 17.4667 14.5334 16.8134 14.5334 16.0001C14.5334 15.1867 15.1867 14.5334 16 14.5334Z" fill="#fecd15"/>
+          <Path
+            d="M16 2.66675C8.64002 2.66675 2.66669 8.64008 2.66669 16.0001C2.66669 23.3601 8.64002 29.3334 16 29.3334C23.36 29.3334 29.3334 23.3601 29.3334 16.0001C29.3334 8.64008 23.36 2.66675 16 2.66675ZM16 26.6667C10.12 26.6667 5.33335 21.8801 5.33335 16.0001C5.33335 10.1201 10.12 5.33341 16 5.33341C21.88 5.33341 26.6667 10.1201 26.6667 16.0001C26.6667 21.8801 21.88 26.6667 16 26.6667ZM8.66669 23.3334L18.68 18.6801L23.3334 8.66675L13.32 13.3201L8.66669 23.3334ZM16 14.5334C16.8134 14.5334 17.4667 15.1867 17.4667 16.0001C17.4667 16.8134 16.8134 17.4667 16 17.4667C15.1867 17.4667 14.5334 16.8134 14.5334 16.0001C14.5334 15.1867 15.1867 14.5334 16 14.5334Z"
+            fill="#fecd15"
+          />
         </Svg>
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.navItem}>
         <Svg width="32" height="32" viewBox="0 0 32 32">
-          <Path d="M28.707 19.293L26 16.586V13C25.9969 10.5218 25.075 8.13285 23.4126 6.29498C21.7502 4.45712 19.4654 3.30093 17 3.05V1H15V3.05C12.5346 3.30093 10.2498 4.45712 8.58737 6.29498C6.92498 8.13285 6.0031 10.5218 6 13V16.586L3.293 19.293C3.10545 19.4805 3.00006 19.7348 3 20V23C3 23.2652 3.10536 23.5196 3.29289 23.7071C3.48043 23.8946 3.73478 24 4 24H11V24.777C10.9782 26.0456 11.4254 27.2777 12.2558 28.237C13.0862 29.1964 14.2414 29.8156 15.5 29.976C16.1952 30.0449 16.8971 29.9676 17.5606 29.749C18.2241 29.5304 18.8345 29.1753 19.3525 28.7066C19.8706 28.2379 20.2848 27.666 20.5685 27.0277C20.8522 26.3893 20.9992 25.6986 21 25V24H28C28.2652 24 28.5196 23.8946 28.7071 23.7071C28.8946 23.5196 29 23.2652 29 23V20C28.9999 19.7348 28.8946 19.4805 28.707 19.293ZM19 25C19 25.7956 18.6839 26.5587 18.1213 27.1213C17.5587 27.6839 16.7956 28 16 28C15.2044 28 14.4413 27.6839 13.8787 27.1213C13.3161 26.5587 13 25.7956 13 25V24H19V25ZM27 22H5V20.414L7.707 17.707C7.89455 17.5195 7.99994 17.2652 8 17V13C8 10.8783 8.84285 8.84344 10.3431 7.34315C11.8434 5.84285 13.8783 5 16 5C18.1217 5 20.1566 5.84285 21.6569 7.34315C23.1571 8.84344 24 10.8783 24 13V17C24.0001 17.2652 24.1054 17.5195 24.293 17.707L27 20.414V22Z" fill="#fecd15"/>
+          <Path
+            d="M28.707 19.293L26 16.586V13C25.9969 10.5218 25.075 8.13285 23.4126 6.29498C21.7502 4.45712 19.4654 3.30093 17 3.05V1H15V3.05C12.5346 3.30093 10.2498 4.45712 8.58737 6.29498C6.92498 8.13285 6.0031 10.5218 6 13V16.586L3.293 19.293C3.10545 19.4805 3.00006 19.7348 3 20V23C3 23.2652 3.10536 23.5196 3.29289 23.7071C3.48043 23.8946 3.73478 24 4 24H11V24.777C10.9782 26.0456 11.4254 27.2777 12.2558 28.237C13.0862 29.1964 14.2414 29.8156 15.5 29.976C16.1952 30.0449 16.8971 29.9676 17.5606 29.749C18.2241 29.5304 18.8345 29.1753 19.3525 28.7066C19.8706 28.2379 20.2848 27.666 20.5685 27.0277C20.8522 26.3893 20.9992 25.6986 21 25V24H28C28.2652 24 28.5196 23.8946 28.7071 23.7071C28.8946 23.5196 29 23.2652 29 23V20C28.9999 19.7348 28.8946 19.4805 28.707 19.293ZM19 25C19 25.7956 18.6839 26.5587 18.1213 27.1213C17.5587 27.6839 16.7956 28 16 28C15.2044 28 14.4413 27.6839 13.8787 27.1213C13.3161 26.5587 13 25.7956 13 25V24H19V25ZM27 22H5V20.414L7.707 17.707C7.89455 17.5195 7.99994 17.2652 8 17V13C8 10.8783 8.84285 8.84344 10.3431 7.34315C11.8434 5.84285 13.8783 5 16 5C18.1217 5 20.1566 5.84285 21.6569 7.34315C23.1571 8.84344 24 10.8783 24 13V17C24.0001 17.2652 24.1054 17.5195 24.293 17.707L27 20.414V22Z"
+            fill="#fecd15"
+          />
         </Svg>
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.navItem}>
         <Svg width="32" height="32" viewBox="0 0 32 32">
-          <Path d="M5.33331 29.3333C5.33331 26.5043 6.45712 23.7912 8.45751 21.7908C10.4579 19.7904 13.171 18.6666 16 18.6666C18.829 18.6666 21.5421 19.7904 23.5425 21.7908C25.5428 23.7912 26.6666 26.5043 26.6666 29.3333H24C24 27.2115 23.1571 25.1767 21.6568 23.6764C20.1565 22.1761 18.1217 21.3333 16 21.3333C13.8782 21.3333 11.8434 22.1761 10.3431 23.6764C8.84283 25.1767 7.99998 27.2115 7.99998 29.3333H5.33331ZM16 17.3333C11.58 17.3333 7.99998 13.7533 7.99998 9.33325C7.99998 4.91325 11.58 1.33325 16 1.33325C20.42 1.33325 24 4.91325 24 9.33325C24 13.7533 20.42 17.3333 16 17.3333ZM16 14.6666C18.9466 14.6666 21.3333 12.2799 21.3333 9.33325C21.3333 6.38659 18.9466 3.99992 16 3.99992C13.0533 3.99992 10.6666 6.38659 10.6666 9.33325C10.6666 12.2799 13.0533 14.6666 16 14.6666Z" fill="#fecd15"/>
+          <Path
+            d="M5.33331 29.3333C5.33331 26.5043 6.45712 23.7912 8.45751 21.7908C10.4579 19.7904 13.171 18.6666 16 18.6666C18.829 18.6666 21.5421 19.7904 23.5425 21.7908C25.5428 23.7912 26.6666 26.5043 26.6666 29.3333H24C24 27.2115 23.1571 25.1767 21.6568 23.6764C20.1565 22.1761 18.1217 21.3333 16 21.3333C13.8782 21.3333 11.8434 22.1761 10.3431 23.6764C8.84283 25.1767 7.99998 27.2115 7.99998 29.3333H5.33331ZM16 17.3333C11.58 17.3333 7.99998 13.7533 7.99998 9.33325C7.99998 4.91325 11.58 1.33325 16 1.33325C20.42 1.33325 24 4.91325 24 9.33325C24 13.7533 20.42 17.3333 16 17.3333ZM16 14.6666C18.9466 14.6666 21.3333 12.2799 21.3333 9.33325C21.3333 6.38659 18.9466 3.99992 16 3.99992C13.0533 3.99992 10.6666 6.38659 10.6666 9.33325C10.6666 12.2799 13.0533 14.6666 16 14.6666Z"
+            fill="#fecd15"
+          />
         </Svg>
       </TouchableOpacity>
     </View>
   );
 
+  // Demo UI components
+  const DemoFloatingButton = () => {
+    return (
+      <TouchableOpacity
+        style={styles.demoFloatingButton}
+        onPress={() => setShowDemoPanel(!showDemoPanel)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.demoFloatingButtonText}>🚴</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const DemoControlPanel = () => {
+    if (!showDemoPanel) return null;
+
+    return (
+      <View style={styles.demoControlPanel}>
+        <Text style={styles.demoTitle}>Courier Tracking Demo</Text>
+
+        <View style={styles.demoButtonRow}>
+          <TouchableOpacity
+            style={[styles.demoButton, styles.demoAddButton]}
+            onPress={addDemoCourier}
+            disabled={courierCount >= (demoCouriers?.length || 0)}
+          >
+            <Text style={styles.demoButtonText}>Add ({courierCount}/3)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.demoButton, styles.demoStartButton]}
+            onPress={simulateCourierMovement}
+            disabled={courierCount === 0 || demoActive}
+          >
+            <Text style={styles.demoButtonText}>{demoActive ? 'Running...' : 'Start'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.demoButton, styles.demoClearButton]}
+          onPress={clearDemoCouriers}
+          disabled={courierCount === 0}
+        >
+          <Text style={styles.demoButtonText}>Clear All</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.demoInstructions}>Test courier tracking with realistic routes</Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header with Back Button */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
           <Svg width="24" height="24" viewBox="0 0 24 24">
-            <Path d="M19 12H5M12 19L5 12L12 5" stroke="#2D1E2F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <Path
+              d="M19 12H5M12 19L5 12L12 5"
+              stroke="#2D1E2F"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </Svg>
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Map</Text>
         <View style={styles.headerSpacer} />
       </View>
-      
+
       {/* Search Bar */}
       <SearchBar />
-      
+
       {/* Location Bar */}
       <LocationBar />
-      
+
       {/* Map Component */}
       <Map
         ref={mapRef}
@@ -472,7 +790,7 @@ export default function MapPage({ navigation }) {
           try {
             const data = JSON.parse(event.nativeEvent.data);
             console.log('✅ Map message received:', data);
-            
+
             switch (data.type) {
               case 'mapLoaded':
                 console.log('🗺️ Mapbox map loaded successfully');
@@ -531,7 +849,12 @@ export default function MapPage({ navigation }) {
                 break;
             }
           } catch (error) {
-            console.error('❌ Error parsing map message:', error, 'Raw data:', event.nativeEvent.data);
+            console.error(
+              '❌ Error parsing map message:',
+              error,
+              'Raw data:',
+              event.nativeEvent.data,
+            );
           }
         }}
         onLoadStart={() => {
@@ -563,7 +886,11 @@ export default function MapPage({ navigation }) {
           );
         }}
       />
-      
+
+      {/* Demo Components */}
+      <DemoFloatingButton />
+      <DemoControlPanel />
+
       {/* Bottom Navigation */}
       <BottomNavigation />
     </SafeAreaView>
@@ -943,5 +1270,83 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'Inter',
     marginLeft: 5,
+  },
+  // Demo styles
+  demoFloatingButton: {
+    position: 'absolute',
+    top: 120,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#ff6b35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  demoFloatingButtonText: {
+    fontSize: 24,
+    color: '#fff',
+  },
+  demoControlPanel: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 15,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  demoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 15,
+    color: '#333',
+  },
+  demoButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  demoButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  demoAddButton: {
+    backgroundColor: '#007cff',
+  },
+  demoStartButton: {
+    backgroundColor: '#ff6b35',
+  },
+  demoClearButton: {
+    backgroundColor: '#ff4444',
+    marginBottom: 10,
+  },
+  demoButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  demoInstructions: {
+    fontSize: 10,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 14,
   },
 });
