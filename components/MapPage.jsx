@@ -12,7 +12,8 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path } from 'react-native-svg';
 import * as Location from 'expo-location';
-import Map from './Map';
+// import Map from './Map';
+import { default as MapComponent } from './Map';
 import { decode } from '@mapbox/polyline';
 import { calculatePolylineDistance, getCoordinateAtDistance } from '../lib/animation-utils';
 
@@ -779,7 +780,7 @@ export default function MapPage({ navigation }) {
       <LocationBar />
 
       {/* Map Component */}
-      <Map
+      <MapComponent
         ref={mapRef}
         webViewReady={webViewReady}
         setWebViewReady={setWebViewReady}
