@@ -12,11 +12,9 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path } from 'react-native-svg';
 import * as Location from 'expo-location';
-// import Map from './Map';
-import { default as MapComponent } from './Map';
+import MapWebview from './MapWebview';
 import { decode } from '@mapbox/polyline';
 import { calculatePolylineDistance, getCoordinateAtDistance } from '../lib/animation-utils';
-
 export default function MapPage({ navigation }) {
   const [searchText, setSearchText] = useState('');
   const [webViewReady, setWebViewReady] = useState(false);
@@ -714,7 +712,7 @@ export default function MapPage({ navigation }) {
 
     return (
       <View style={styles.demoControlPanel}>
-        <Text style={styles.demoTitle}>Courier Tracking Demo</Text>
+        <Text style={styles.demoTitle}>Dynamic Polylines</Text>
 
         <View style={styles.demoButtonRow}>
           <TouchableOpacity
@@ -732,17 +730,22 @@ export default function MapPage({ navigation }) {
           >
             <Text style={styles.demoButtonText}>{demoActive ? 'Running...' : 'Start'}</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.demoButton, styles.demoClearButton]}
+            onPress={clearDemoCouriers}
+            disabled={courierCount === 0}
+          >
+            <Text style={styles.demoButtonText}>Clear</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.demoButton, styles.demoClearButton]}
-          onPress={clearDemoCouriers}
-          disabled={courierCount === 0}
+          style={[styles.demoButton, styles.demoWebSocketButton, styles.demoWebSocketFullWidth]}
+          onPress={() => navigation.navigate('WebSocketTestScreen')}
         >
-          <Text style={styles.demoButtonText}>Clear All</Text>
+          <Text style={styles.demoButtonText}>WebSocket Test</Text>
         </TouchableOpacity>
-
-        <Text style={styles.demoInstructions}>Test courier tracking with realistic routes</Text>
       </View>
     );
   };
@@ -780,111 +783,20 @@ export default function MapPage({ navigation }) {
       <LocationBar />
 
       {/* Map Component */}
-      <MapComponent
+      <MapWebview
         ref={mapRef}
         webViewReady={webViewReady}
         setWebViewReady={setWebViewReady}
         userLocation={userLocation}
         locationPermissionGranted={locationPermissionGranted}
         onGPSButtonPress={handleGPSButtonPress}
-        onMessage={(event) => {
-          try {
-            const data = JSON.parse(event.nativeEvent.data);
-            console.log('✅ Map message received:', data);
+        onCourierUpdate={(event, data) => {
+          console.log('🚴 Courier tracking event:', event, data);
 
-            switch (data.type) {
-              case 'mapLoaded':
-                console.log('🗺️ Mapbox map loaded successfully');
-                setWebViewReady(true);
-                break;
-              case 'mapError':
-                console.error('❌ Map error:', data.error);
-                Alert.alert('Map Error', `Failed to load map: ${data.error}`);
-                break;
-              case 'webViewReady':
-                console.log('🌐 WebView is ready');
-                setWebViewReady(true);
-                break;
-              case 'debug':
-                console.log('🐛 Debug message:', data.message);
-                break;
-              case 'mapClick':
-                console.log('👆 Map clicked at:', data.coordinates);
-                break;
-              case 'userLocation':
-                console.log('📍 User location:', data.coordinates);
-                break;
-              case 'userLocationMarkerAdded':
-                console.log('📍 User location marker added at:', data.coordinates);
-                break;
-              case 'centerMapOnUserLocation':
-                console.log('🎯 GPS button message received - centering map on user location');
-                break;
-              case 'gpsButtonPressed':
-                console.log('🎯 GPS button pressed in WebView, triggering GPS button handler');
-                handleGPSButtonPress();
-                break;
-              case 'userLocationUpdate':
-                console.log('🔄 User location update received:', data.coordinates);
-                break;
-              case 'userLocationObtained':
-                console.log('📍 User location obtained from WebView:', data.coordinates);
-                break;
-              case 'moveBlueDot':
-                console.log('🎯 Move blue dot request received:', data.coordinates);
-                break;
-              case 'markerMoved':
-                console.log('📍 Marker moved to:', data.coordinates);
-                updateMarkerPosition(data.coordinates);
-                break;
-              case 'markerMoveError':
-                console.error('❌ Error moving marker:', data.error);
-                Alert.alert('Marker Error', `Failed to move marker: ${data.error}`);
-                break;
-              case 'test':
-                console.log('🧪 Test message received:', data.message);
-                Alert.alert('Test Message', `WebView received: ${data.message}`);
-                break;
-              default:
-                console.log('❓ Unknown message type:', data.type);
-                break;
-            }
-          } catch (error) {
-            console.error(
-              '❌ Error parsing map message:',
-              error,
-              'Raw data:',
-              event.nativeEvent.data,
-            );
+          // Update courier count for demo
+          if (event === 'courierAdded' || event === 'courierRemoved') {
+            // Count will be updated by the demo functions
           }
-        }}
-        onLoadStart={() => {
-          console.log('🌐 WebView started loading');
-        }}
-        onLoadEnd={() => {
-          console.log('🌐 WebView finished loading');
-        }}
-        onLoadProgress={({ nativeEvent }) => {
-          console.log('🌐 WebView loading progress:', nativeEvent.progress);
-        }}
-        onError={(syntheticEvent) => {
-          const { nativeEvent } = syntheticEvent;
-          console.error('❌ WebView error:', nativeEvent);
-          Alert.alert('WebView Error', `Failed to load WebView: ${nativeEvent.description}`);
-        }}
-        onHttpError={(syntheticEvent) => {
-          const { nativeEvent } = syntheticEvent;
-          console.error('❌ WebView HTTP error:', nativeEvent);
-          Alert.alert('WebView HTTP Error', `HTTP Error: ${nativeEvent.statusCode}`);
-        }}
-        renderError={(errorName) => {
-          console.error('❌ WebView render error:', errorName);
-          return (
-            <View style={styles.webViewError}>
-              <Text style={styles.webViewErrorText}>Failed to load map</Text>
-              <Text style={styles.webViewErrorText}>{errorName}</Text>
-            </View>
-          );
         }}
       />
 
@@ -1301,7 +1213,7 @@ const styles = StyleSheet.create({
     right: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 15,
-    padding: 20,
+    padding: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -1313,7 +1225,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 12,
     color: '#333',
   },
   demoButtonRow: {
@@ -1348,6 +1260,87 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#666',
     textAlign: 'center',
+    lineHeight: 14,
+  },
+  demoLegend: {
+    marginVertical: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 6,
+  },
+  demoLegendTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 6,
+  },
+  demoLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  demoLegendLine: {
+    width: 20,
+    height: 3,
+    marginRight: 8,
+    borderRadius: 1.5,
+  },
+  demoLegendDashed: {
+    backgroundColor: '#ff6b35',
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: '#ff6b35',
+  },
+  demoLegendSolid: {
+    backgroundColor: '#00ff88',
+  },
+  demoLegendText: {
+    fontSize: 10,
+    color: '#555',
+  },
+  demoSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 15,
+    color: '#007cff',
+  },
+  demoWebSocketButton: {
+    backgroundColor: '#9C27B0',
+  },
+  demoWebSocketFullWidth: {
+    width: '100%',
+    marginTop: 8,
+  },
+  demoLegendMarker: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#007cff',
+    marginRight: 8,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  demoFeatures: {
+    marginVertical: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 124, 255, 0.05)',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007cff',
+  },
+  demoFeaturesTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#007cff',
+    marginBottom: 4,
+  },
+  demoFeatureItem: {
+    fontSize: 10,
+    color: '#333',
+    marginBottom: 2,
     lineHeight: 14,
   },
 });
