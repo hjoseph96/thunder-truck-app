@@ -2,9 +2,9 @@ import React, { forwardRef, useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { decode } from '@mapbox/polyline';
-import Svg, { Path, G, Rect, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
-// import { getCoordinateAtProgress } from '../lib/animation-utils';
+import { getRemainingRouteCoordinates } from '../lib/animation-utils';
 
 // Default map center (Williamsburg, Brooklyn)
 const DEFAULT_CENTER = {
@@ -122,7 +122,7 @@ const FoodTruckIcon = ({ size = 30 }) => {
 
 // Reusable SVG Marker Component with fallback
 const SvgMarker = ({ type, size = 30, fallbackColor = '#007cff' }) => {
-  const [hasError, setHasError] = useState(false);
+  const [hasError] = useState(false);
 
   // Fallback to a colored circle if SVG fails to load
   if (hasError) {
@@ -193,6 +193,25 @@ const createMarker = (type, coordinate, title, description, size = 30) => {
     children: <SvgMarker type={type} size={config.size} fallbackColor={config.fallbackColor} />,
   };
 };
+
+// Dynamic polyline component with memoization for performance
+const DynamicPolyline = React.memo(({ polylineData }) => {
+  if (!polylineData.coordinates || polylineData.coordinates.length < 2) {
+    return null;
+  }
+
+  return (
+    <Polyline
+      key={`dynamic-${polylineData.courierId}`}
+      coordinates={polylineData.coordinates}
+      strokeColor="#00ff88"
+      strokeWidth={4}
+      lineCap="round"
+      lineJoin="round"
+      // Solid line for remaining routes
+    />
+  );
+});
 
 // Courier marker component
 const CourierMarker = ({ courier }) => {
@@ -309,16 +328,34 @@ const MapWebview = forwardRef(
     const mapRef = useRef(null);
     const [mapReady, setMapReady] = useState(false);
     const [courierStates, setCourierStates] = useState(new Map());
-    const [animatedRoutes, setAnimatedRoutes] = useState([]);
-    const [bikeAnimationState, setBikeAnimationState] = useState({
-      isAnimating: false,
-      currentIndex: 0,
-      bikeMarker: null,
-      totalCoordinates: 0,
-      isCompleted: false,
-      shouldLoop: false,
-      progress: 0,
-    });
+    const [dynamicPolylines, setDynamicPolylines] = useState(new Map());
+
+    // Utility function to update dynamic polylines for all couriers
+    const updateDynamicPolylines = () => {
+      const newDynamicPolylines = new Map();
+
+      courierTrackingManager.couriers.forEach((courier, courierId) => {
+        if (courier.route && courier.route.length > 1) {
+          const remainingCoordinates = getRemainingRouteCoordinates(
+            courier.route,
+            courier.animationState.currentProgress
+          );
+
+          // Only create polyline if there are at least 2 coordinates for a valid line
+          if (remainingCoordinates.length > 1) {
+            newDynamicPolylines.set(courierId, {
+              coordinates: remainingCoordinates,
+              courierId: courierId,
+              courierName: courier.name,
+              progress: courier.animationState.currentProgress,
+              lastUpdated: Date.now(),
+            });
+          }
+        }
+      });
+
+      setDynamicPolylines(newDynamicPolylines);
+    };
 
     // Effect to handle courier tracking updates
     useEffect(() => {
@@ -329,6 +366,8 @@ const MapWebview = forwardRef(
           case 'courierRouteUpdated':
             // Update local courier states
             setCourierStates(new Map(courierTrackingManager.couriers));
+            // Update dynamic polylines
+            updateDynamicPolylines();
             if (onCourierUpdate) {
               onCourierUpdate(event, data);
             }
@@ -336,6 +375,17 @@ const MapWebview = forwardRef(
           case 'animationFrame':
             // Update courier positions during animation
             setCourierStates(new Map(courierTrackingManager.couriers));
+            // Update dynamic polylines in real-time
+            updateDynamicPolylines();
+            break;
+          case 'courierRemoved':
+            // Update states and remove dynamic polyline
+            setCourierStates(new Map(courierTrackingManager.couriers));
+            setDynamicPolylines(prev => {
+              const updated = new Map(prev);
+              updated.delete(data.courierId);
+              return updated;
+            });
             break;
         }
       });
@@ -474,7 +524,7 @@ const MapWebview = forwardRef(
             )}
           />
 
-          {/* Render courier routes */}
+          {/* Render courier routes (full routes as dashed lines) */}
           {Array.from(courierStates.values()).map((courier) => {
             if (!courier.route || courier.route.length < 2) return null;
 
@@ -486,10 +536,18 @@ const MapWebview = forwardRef(
                 strokeWidth={3}
                 lineCap="round"
                 lineJoin="round"
-                strokePattern={[5, 5]} // Dashed line for courier routes
+                strokePattern={[5, 5]} // Dashed line for full courier routes
               />
             );
           })}
+
+          {/* Render dynamic remaining route polylines */}
+          {Array.from(dynamicPolylines.values()).map((polylineData) => (
+            <DynamicPolyline
+              key={`dynamic-${polylineData.courierId}`}
+              polylineData={polylineData}
+            />
+          ))}
 
           {/* Render animated courier markers */}
           {Array.from(courierStates.values()).map((courier) => (
