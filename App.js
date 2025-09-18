@@ -17,6 +17,7 @@ import PaymentScreen from './components/PaymentScreen';
 import CheckoutForm from './components/CheckoutForm';
 import AddAddressForm from './components/AddAddressForm';
 import UserAddressList from './components/UserAddressList';
+import WebSocketTestScreen from './components/WebSocketTestScreen';
 import { STRIPE_CONFIG } from './config/stripe-config';
 
 const Stack = createStackNavigator();
@@ -138,6 +139,13 @@ export default function App() {
             component={UserAddressList}
             options={{
               title: 'Select Address'
+            }}
+          />
+          <Stack.Screen
+            name="WebSocketTest"
+            component={WebSocketTestScreen}
+            options={{
+              title: 'WebSocket Test'
             }}
           />
         </Stack.Navigator>
