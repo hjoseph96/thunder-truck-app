@@ -4,22 +4,25 @@
 export const API_CONFIG = {
   // Development - local Rails server
   development: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'https://api.thundertruck.app',
     graphqlEndpoint: '/graphql',
-    timeout: 10000, // 10 seconds
+    websocketURL: 'wss://api.thundertruck.app/cable',
+    timeout: 20000, // 20 seconds
   },
-  
+
   // Staging environment
   staging: {
     baseURL: 'https://your-staging-api.com',
     graphqlEndpoint: '/graphql',
+    websocketURL: 'wss://your-staging-api.com/cable',
     timeout: 15000, // 15 seconds
   },
-  
+
   // Production environment
   production: {
     baseURL: 'https://api.thundertruck.app',
     graphqlEndpoint: '/graphql',
+    websocketURL: 'wss://api.thundertruck.app/cable',
     timeout: 20000, // 20 seconds
   },
 };
