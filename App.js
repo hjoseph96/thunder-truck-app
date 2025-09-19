@@ -18,6 +18,7 @@ import CheckoutForm from './components/CheckoutForm';
 import AddAddressForm from './components/AddAddressForm';
 import UserAddressList from './components/UserAddressList';
 import WebSocketTestScreen from './components/WebSocketTestScreen';
+import EnhancedCourierDemo from './components/EnhancedCourierDemo';
 import { STRIPE_CONFIG } from './config/stripe-config';
 
 const Stack = createStackNavigator();
@@ -146,6 +147,13 @@ export default function App() {
             component={WebSocketTestScreen}
             options={{
               title: 'WebSocket Test'
+            }}
+          />
+          <Stack.Screen
+            name="EnhancedCourierDemo"
+            component={EnhancedCourierDemo}
+            options={{
+              title: 'Enhanced Courier Demo'
             }}
           />
         </Stack.Navigator>

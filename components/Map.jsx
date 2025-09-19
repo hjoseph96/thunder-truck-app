@@ -24,10 +24,10 @@ const Map = forwardRef(({
         mapRef.current.postMessage(message);
       }
     },
-    // Forward courier tracking methods to MapWebview
-    addCourier: (id, name, location, route) => {
+    // Forward enhanced courier tracking methods to MapWebview
+    addCourier: (id, name, location, route, destination) => {
       if (mapRef.current) {
-        return mapRef.current.addCourier(id, name, location, route);
+        return mapRef.current.addCourier(id, name, location, route, destination);
       }
     },
     updateCourierLocation: (id, location) => {
@@ -43,6 +43,32 @@ const Map = forwardRef(({
     removeCourier: (id) => {
       if (mapRef.current) {
         mapRef.current.removeCourier(id);
+      }
+    },
+    // Forward new enhanced methods
+    setCourierDestination: (id, destination) => {
+      if (mapRef.current) {
+        mapRef.current.setCourierDestination(id, destination);
+      }
+    },
+    requestRouteOptimization: (id) => {
+      if (mapRef.current) {
+        mapRef.current.requestRouteOptimization(id);
+      }
+    },
+    getPerformanceMetrics: () => {
+      if (mapRef.current) {
+        return mapRef.current.getPerformanceMetrics();
+      }
+    },
+    enableGracefulDegradation: () => {
+      if (mapRef.current) {
+        mapRef.current.enableGracefulDegradation();
+      }
+    },
+    disableGracefulDegradation: () => {
+      if (mapRef.current) {
+        mapRef.current.disableGracefulDegradation();
       }
     }
   }));
