@@ -4,7 +4,7 @@
 export const API_CONFIG = {
   // Development - local Rails server
   development: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'https://api.thundertruck.app',
     graphqlEndpoint: '/graphql',
     timeout: 10000, // 10 seconds
   },

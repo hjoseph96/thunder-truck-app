@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { setCustomerDetails } from '../lib/customer-service';
+import SpokenLanguagesSelector from './SpokenLanguagesSelector';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
     firstName: '',
     lastName: '',
     email: '',
+    spokenLanguages: [],
   });
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -60,6 +62,14 @@ export default function OnboardingModal({ visible, onClose, userData }) {
       subtitle: 'We\'ll use this to send you order updates and special offers.',
       placeholder: 'Enter your email address',
       field: 'email',
+      buttonText: 'Next',
+      showProgress: true,
+    },
+    {
+      id: 'spokenLanguages',
+      title: 'What languages do you speak? 🗣️',
+      subtitle: 'This helps us provide you with the best experience in your preferred languages.',
+      field: 'spokenLanguages',
       buttonText: 'Complete Setup',
       showProgress: true,
     },
@@ -72,6 +82,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
         firstName: userData.firstName || '',
         lastName: userData.lastName || '',
         email: userData.email || '',
+        spokenLanguages: userData.spokenLanguages || [],
       });
     }
   }, [userData]);
@@ -94,6 +105,7 @@ export default function OnboardingModal({ visible, onClose, userData }) {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
+        spokenLanguages: formData.spokenLanguages,
       });
 
       if (result.success) {
@@ -158,6 +170,9 @@ export default function OnboardingModal({ visible, onClose, userData }) {
   const isStepValid = () => {
     const step = steps[currentStep];
     if (step.field) {
+      if (step.field === 'spokenLanguages') {
+        return formData[step.field].length > 0;
+      }
       return formData[step.field].trim().length > 0;
     }
     return true;
@@ -183,6 +198,17 @@ export default function OnboardingModal({ visible, onClose, userData }) {
   const renderInput = () => {
     const step = steps[currentStep];
     if (!step.field) return null;
+
+    if (step.field === 'spokenLanguages') {
+      return (
+        <View style={styles.inputContainer}>
+          <SpokenLanguagesSelector
+            selectedLanguages={formData.spokenLanguages}
+            onSelectionChange={(languages) => updateFormData('spokenLanguages', languages)}
+          />
+        </View>
+      );
+    }
 
     return (
       <View style={styles.inputContainer}>
