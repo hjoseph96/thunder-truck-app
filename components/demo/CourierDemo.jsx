@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { decode } from '@mapbox/polyline';
 import { courierTrackingManager } from '../../lib/courier-tracking-simplified';
-import { courierAnimationManager } from '../../lib/animation/CourierAnimationManager';
+import { courierAnimationManager } from '../../lib/courier-animation';
 
 // Demo routes using realistic paths
 const DEFAULT_POLYLINE =
