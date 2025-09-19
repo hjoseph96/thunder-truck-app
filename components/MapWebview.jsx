@@ -424,6 +424,7 @@ const MapWebview = forwardRef(
     const [mapReady, setMapReady] = useState(false);
     const [courierStates, setCourierStates] = useState(new Map());
     const [dynamicPolylines, setDynamicPolylines] = useState(new Map());
+    const [foodTrucks, setFoodTrucks] = useState([]);
 
     // Polyline cache for performance optimization
     const polylineCacheRef = useRef(new Map());
@@ -615,6 +616,17 @@ const MapWebview = forwardRef(
       postMessage: (message) => {
         // Handle any messages that need to be sent to the map
         console.log('MapWebview: Received message:', message);
+
+        try {
+          const parsedMessage = typeof message === 'string' ? JSON.parse(message) : message;
+
+          if (parsedMessage.type === 'addFoodTrucks') {
+            console.log('MapWebview: Adding food trucks:', parsedMessage.foodTrucks?.length);
+            setFoodTrucks(parsedMessage.foodTrucks || []);
+          }
+        } catch (error) {
+          console.error('MapWebview: Error parsing message:', error);
+        }
       },
       // Enhanced courier management with destination support
       addCourier: (id, name, location, route, destination = null) => {
@@ -716,6 +728,31 @@ const MapWebview = forwardRef(
               key={`dynamic-${polylineData.courierId}`}
               polylineData={polylineData}
             />
+          ))}
+
+          {/* Render food truck markers */}
+          {foodTrucks.map((truck) => (
+            <Marker
+              key={`foodtruck-${truck.id}`}
+              coordinate={{
+                latitude: truck.latitude,
+                longitude: truck.longitude,
+              }}
+              title={truck.name}
+              description={`Delivery: $${truck.deliveryFee}${truck.isSubscriber ? ' • Premium' : ''}`}
+              onPress={() => {
+                console.log('Food truck pressed:', truck.name);
+                // Navigate to FoodTruckViewer with the truck ID
+                if (onMessage) {
+                  onMessage({
+                    type: 'foodTruckPressed',
+                    foodTruck: truck,
+                  });
+                }
+              }}
+            >
+              <SvgMarker type="foodTruck" size={35} fallbackColor="#ff6b35" />
+            </Marker>
           ))}
 
           {/* Render animated courier markers */}

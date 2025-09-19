@@ -8,9 +8,12 @@ import { MapHeader } from './ui/MapHeader';
 import { SearchBar } from './ui/SearchBar';
 import { LocationBar } from './ui/LocationBar';
 import { BottomNavigation } from './ui/BottomNavigation';
+import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
 export default function MapPage({ navigation }) {
   const [searchText, setSearchText] = useState('');
   const [webViewReady, setWebViewReady] = useState(false);
+  const [foodTrucks, setFoodTrucks] = useState([]);
+  const [loadingFoodTrucks, setLoadingFoodTrucks] = useState(true);
   const mapRef = useRef(null);
 
   // Use location manager hook
@@ -22,6 +25,35 @@ export default function MapPage({ navigation }) {
     moveToCurrentLocation,
     updateUserLocation,
   } = useLocationManager();
+
+  // Load nearby food trucks when user location is available
+  React.useEffect(() => {
+    const loadFoodTrucks = async () => {
+      if (userLocation) {
+        try {
+          setLoadingFoodTrucks(true);
+          console.log('MapPage: Loading food trucks for location:', userLocation);
+
+          const result = await fetchNearbyFoodTrucks({
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+            radius: 10,
+            page: 1,
+          });
+
+          console.log('MapPage: Loaded food trucks:', result?.foodTrucks?.length || 0);
+          setFoodTrucks(result?.foodTrucks || []);
+        } catch (error) {
+          console.error('MapPage: Error loading food trucks:', error);
+          setFoodTrucks([]);
+        } finally {
+          setLoadingFoodTrucks(false);
+        }
+      }
+    };
+
+    loadFoodTrucks();
+  }, [userLocation]);
 
   // Move user marker to actual location once WebView is ready
   React.useEffect(() => {
@@ -41,6 +73,30 @@ export default function MapPage({ navigation }) {
       }
     }
   }, [webViewReady, userLocation, locationPermissionGranted, markerMovedToUserLocation]);
+
+  // Send food trucks to map when both webview and food trucks are ready
+  React.useEffect(() => {
+    if (webViewReady && foodTrucks.length > 0) {
+      console.log('MapPage: Sending food trucks to map:', foodTrucks.length);
+
+      const message = {
+        type: 'addFoodTrucks',
+        foodTrucks: foodTrucks.map((truck) => ({
+          id: truck.id,
+          name: truck.name,
+          latitude: truck.latitude || 40.7081 + (Math.random() - 0.5) * 0.02, // Mock coordinates if not available
+          longitude: truck.longitude || -73.9571 + (Math.random() - 0.5) * 0.02,
+          coverImageUrl: truck.coverImageUrl,
+          deliveryFee: truck.deliveryFee,
+          isSubscriber: truck.isSubscriber,
+        })),
+      };
+
+      if (mapRef.current) {
+        mapRef.current.postMessage(JSON.stringify(message));
+      }
+    }
+  }, [webViewReady, foodTrucks]);
 
   const handleGPSButtonPress = async () => {
     const location = await moveToCurrentLocation();
@@ -225,6 +281,15 @@ export default function MapPage({ navigation }) {
         onGPSButtonPress={handleGPSButtonPress}
         onCourierUpdate={(event, data) => {
           console.log('🚴 Courier tracking event:', event, data);
+        }}
+        onMessage={(message) => {
+          if (message.type === 'foodTruckPressed') {
+            console.log('Navigating to food truck:', message.foodTruck.name);
+            navigation.navigate('FoodTruckViewer', {
+              foodTruckId: message.foodTruck.id,
+              foodTruck: message.foodTruck,
+            });
+          }
         }}
       />
 
