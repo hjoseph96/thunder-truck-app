@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import Toast from 'react-native-toast-message';
 import LandingPage from './components/LandingPage';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
@@ -17,7 +18,10 @@ import PaymentScreen from './components/PaymentScreen';
 import CheckoutForm from './components/CheckoutForm';
 import AddAddressForm from './components/AddAddressForm';
 import UserAddressList from './components/UserAddressList';
+import EditUserName from './components/EditUserName';
+import EditUserPhoneNumber from './components/EditUserPhoneNumber';
 import { STRIPE_CONFIG } from './config/stripe-config';
+import { toastConfig } from './config/toast-config';
 
 const Stack = createStackNavigator();
 
@@ -140,8 +144,23 @@ export default function App() {
               title: 'Select Address'
             }}
           />
+          <Stack.Screen
+            name="EditUserName"
+            component={EditUserName}
+            options={{
+              title: 'Your Name'
+            }}
+          />
+          <Stack.Screen
+            name="EditUserPhoneNumber"
+            component={EditUserPhoneNumber}
+            options={{
+              title: 'Your Phone Number'
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
+      <Toast config={toastConfig} />
     </StripeProvider>
   );
 }

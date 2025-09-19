@@ -80,6 +80,7 @@ export default function BottomNavigation({ navigation, userData }) {
         visible={showProfile}
         onClose={handleProfileClose}
         userData={userData}
+        navigation={navigation}
       />
     </View>
   );

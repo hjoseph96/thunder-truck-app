@@ -13,7 +13,7 @@ import Svg, { Path } from 'react-native-svg';
 
 const { height: screenHeight } = Dimensions.get('window');
 
-export default function UserProfileView({ visible, onClose, userData }) {
+export default function UserProfileView({ visible, onClose, userData, navigation }) {
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return 'Not provided';
     
@@ -35,6 +35,16 @@ export default function UserProfileView({ visible, onClose, userData }) {
       return 'Not specified';
     }
     return languages.join(', ');
+  };
+
+  const handleNamePress = () => {
+    onClose(); // Close the profile modal first
+    navigation.navigate('EditUserName', { userData });
+  };
+
+  const handlePhonePress = () => {
+    onClose(); // Close the profile modal first
+    navigation.navigate('EditUserPhoneNumber', { userData });
   };
 
   return (
@@ -72,7 +82,7 @@ export default function UserProfileView({ visible, onClose, userData }) {
             {/* Settings List */}
             <View style={styles.settingsList}>
               {/* Name */}
-              <TouchableOpacity style={styles.settingItem}>
+              <TouchableOpacity style={styles.settingItem} onPress={handleNamePress}>
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Name</Text>
                   <Text style={styles.settingValue}>
@@ -88,7 +98,7 @@ export default function UserProfileView({ visible, onClose, userData }) {
               </TouchableOpacity>
 
               {/* Phone Number */}
-              <TouchableOpacity style={styles.settingItem}>
+              <TouchableOpacity style={styles.settingItem} onPress={handlePhonePress}>
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Phone Number</Text>
                   <Text style={styles.settingValue}>
