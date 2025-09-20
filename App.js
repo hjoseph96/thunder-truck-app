@@ -18,8 +18,11 @@ import PaymentScreen from './components/PaymentScreen';
 import CheckoutForm from './components/CheckoutForm';
 import AddAddressForm from './components/AddAddressForm';
 import UserAddressList from './components/UserAddressList';
+import WebSocketTestScreen from './components/WebSocketTestScreen';
+import EnhancedCourierDemo from './components/EnhancedCourierDemo';
 import EditUserName from './components/EditUserName';
 import EditUserPhoneNumber from './components/EditUserPhoneNumber';
+
 import { STRIPE_CONFIG } from './config/stripe-config';
 import { toastConfig } from './config/toast-config';
 
@@ -145,6 +148,18 @@ export default function App() {
             }}
           />
           <Stack.Screen
+            name="WebSocketTest"
+            component={WebSocketTestScreen}
+            options={{
+              title: 'WebSocket Test'
+            }}
+          />
+          <Stack.Screen
+            name="EnhancedCourierDemo"
+            component={EnhancedCourierDemo}
+            options={{
+             title: 'Enhanced Courier Demo' }}                                                                                                                c
+          />
             name="EditUserName"
             component={EditUserName}
             options={{
@@ -157,7 +172,7 @@ export default function App() {
             options={{
               title: 'Your Phone Number'
             }}
-          />
+          />c
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />
