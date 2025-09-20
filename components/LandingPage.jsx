@@ -8,7 +8,7 @@ export default function LandingPage({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Custom striped background */}
       <View style={styles.stripedBackground}>
         {Array.from({ length: 20 }).map((_, index) => (
@@ -19,14 +19,13 @@ export default function LandingPage({ navigation }) {
               {
                 left: index * 40 - 100,
                 backgroundColor: '#D4A574', // Light brown stripes
-              }
+              },
             ]}
           />
         ))}
       </View>
 
       <View style={styles.contentContainer}>
-        
         <Image
           source={require('../assets/images/thunder-truck-text-logo.png')}
           style={styles.textLogoImage}
@@ -38,7 +37,7 @@ export default function LandingPage({ navigation }) {
           style={styles.logoImage}
           resizeMode="cover"
         />
-        
+
         {/* Future navigation button - you can customize this */}
         <TouchableOpacity
           style={styles.navButton}
@@ -86,7 +85,7 @@ const styles = StyleSheet.create({
   },
   textLogoImage: {
     width: 250,
-    height: 250
+    height: 250,
   },
   logoImage: {
     width: 250,
@@ -128,4 +127,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

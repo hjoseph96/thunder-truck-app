@@ -23,6 +23,53 @@ const Map = forwardRef(({
       if (mapRef.current) {
         mapRef.current.postMessage(message);
       }
+    },
+    // Forward enhanced courier tracking methods to MapWebview
+    addCourier: (id, name, location, route, destination) => {
+      if (mapRef.current) {
+        return mapRef.current.addCourier(id, name, location, route, destination);
+      }
+    },
+    updateCourierLocation: (id, location) => {
+      if (mapRef.current) {
+        mapRef.current.updateCourierLocation(id, location);
+      }
+    },
+    updateCourierRoute: (id, route) => {
+      if (mapRef.current) {
+        mapRef.current.updateCourierRoute(id, route);
+      }
+    },
+    removeCourier: (id) => {
+      if (mapRef.current) {
+        mapRef.current.removeCourier(id);
+      }
+    },
+    // Forward new enhanced methods
+    setCourierDestination: (id, destination) => {
+      if (mapRef.current) {
+        mapRef.current.setCourierDestination(id, destination);
+      }
+    },
+    requestRouteOptimization: (id) => {
+      if (mapRef.current) {
+        mapRef.current.requestRouteOptimization(id);
+      }
+    },
+    getPerformanceMetrics: () => {
+      if (mapRef.current) {
+        return mapRef.current.getPerformanceMetrics();
+      }
+    },
+    enableGracefulDegradation: () => {
+      if (mapRef.current) {
+        mapRef.current.enableGracefulDegradation();
+      }
+    },
+    disableGracefulDegradation: () => {
+      if (mapRef.current) {
+        mapRef.current.disableGracefulDegradation();
+      }
     }
   }));
 
