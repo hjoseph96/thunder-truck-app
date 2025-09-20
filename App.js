@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import Toast from 'react-native-toast-message';
 import LandingPage from './components/LandingPage';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
@@ -19,7 +20,11 @@ import AddAddressForm from './components/AddAddressForm';
 import UserAddressList from './components/UserAddressList';
 import WebSocketTestScreen from './components/WebSocketTestScreen';
 import EnhancedCourierDemo from './components/EnhancedCourierDemo';
+import EditUserName from './components/EditUserName';
+import EditUserPhoneNumber from './components/EditUserPhoneNumber';
+
 import { STRIPE_CONFIG } from './config/stripe-config';
+import { toastConfig } from './config/toast-config';
 
 const Stack = createStackNavigator();
 
@@ -153,11 +158,24 @@ export default function App() {
             name="EnhancedCourierDemo"
             component={EnhancedCourierDemo}
             options={{
-              title: 'Enhanced Courier Demo'
+             title: 'Enhanced Courier Demo' }}                                                                                                                c
+          />
+            name="EditUserName"
+            component={EditUserName}
+            options={{
+              title: 'Your Name'
             }}
           />
+          <Stack.Screen
+            name="EditUserPhoneNumber"
+            component={EditUserPhoneNumber}
+            options={{
+              title: 'Your Phone Number'
+            }}
+          />c
         </Stack.Navigator>
       </NavigationContainer>
+      <Toast config={toastConfig} />
     </StripeProvider>
   );
 }

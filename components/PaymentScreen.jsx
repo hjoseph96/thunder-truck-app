@@ -271,7 +271,6 @@ const PaymentScreen = ({ route, navigation }) => {
       }).flat(),
       orderPayments: [{
         amountChargedCents: parseInt(orderTotal * 100),
-        userPaymentMethodId: defaultPaymentMethod.id,
         stripePaymentIntentId: paymentIntent.id,
       }],
       orderAddresses: [orderAddress],
@@ -299,7 +298,6 @@ const PaymentScreen = ({ route, navigation }) => {
 
       const orderPayments = [{
         amountChargedCents: parseInt(truckTotal * 100) + singleDeliveryFeeInCents,
-        userPaymentMethodId: defaultPaymentMethod.id,
         stripePaymentIntentId: paymentIntent.id,
       }]
 
