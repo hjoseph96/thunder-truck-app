@@ -234,10 +234,10 @@ export default function MapPage({ navigation }) {
         ) : (
           // Enhanced Demo Info
           <View style={styles.enhancedDemoInfo}>
-            <Text style={styles.demoSubtitle}>Real Mapbox API + Mock Backend</Text>
+            <Text style={styles.demoSubtitle}>Real Google Maps API + Mock Backend</Text>
             <Text style={styles.enhancedDemoText}>
-              • Real route fetching from Mapbox{'\n'}• Simulated backend responses{'\n'}• Realistic
-              GPS movement{'\n'}• Production data structures
+              • Real route fetching from Google Maps{'\n'}• Simulated backend responses{'\n'}•
+              Realistic GPS movement{'\n'}• Production data structures
             </Text>
             <TouchableOpacity
               style={[styles.demoButton, styles.demoEnhancedButton]}
