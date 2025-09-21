@@ -1,4 +1,4 @@
-// Enhanced Courier Demo with Real Mapbox API Integration
+// Enhanced Courier Demo with Real Google Maps API Integration
 // Uses real routing API calls with simulated backend responses
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -42,7 +42,7 @@ const EnhancedCourierDemo = () => {
     }
   }, []);
 
-  // Fallback routes for when Mapbox API is not available
+  // Fallback routes for when Google Maps API is not available
   const FALLBACK_POLYLINES = {
     williamsburg_to_times_square:
       'uwcwFx~pbMuHhBsGfBgHfCsGzB{HdDcGnCaGrC_GpC{FrC}FtC{FvCaGxCeGzCuGdDaH`DoHrDqH~DuHfEgIrE{IrFyJfG{JjGqKtHwKxHoLbJ_MfKgMhLiMjL}MvL}NxM}OzNgQhP',
@@ -130,12 +130,12 @@ const EnhancedCourierDemo = () => {
     }
   };
 
-  // Add courier with real Mapbox routing
+  // Add courier with real Google Maps routing
   const addRealisticCourier = async (courierData) => {
     if (!mapRef.current) return;
 
     try {
-      console.log(`🚀 Adding courier ${courierData.name} with real Mapbox routing...`);
+      console.log(`🚀 Adding courier ${courierData.name} with real Google Maps routing...`);
 
       // Create mock courier in backend service
       if (mockBackendEnabled) {
@@ -171,7 +171,7 @@ const EnhancedCourierDemo = () => {
         courierData.id,
         courierData.name,
         courierData.start,
-        null, // Let Map component fetch real Mapbox route
+        null, // Let Map component fetch real Google Maps route
         courierData.destination,
       );
 
@@ -183,8 +183,8 @@ const EnhancedCourierDemo = () => {
           `✅ Added ${courierData.name}: ${courierData.start.address} → ${courierData.destination.address}`,
         );
 
-        // Wait for Mapbox route to be fetched, then start simulation
-        console.log(`🗺️ Waiting for Mapbox route for ${courierData.name}...`);
+        // Wait for Google Maps route to be fetched, then start simulation
+        console.log(`🗺️ Waiting for Google Maps route for ${courierData.name}...`);
         waitForRouteAndStartSimulation(courierData.id, courierData.name);
       }
     } catch (error) {
@@ -193,7 +193,7 @@ const EnhancedCourierDemo = () => {
     }
   };
 
-  // Wait for Mapbox route to be ready, then start simulation
+  // Wait for Google Maps route to be ready, then start simulation
   const waitForRouteAndStartSimulation = (courierId, courierName) => {
     const maxWaitTime = 10000; // 10 seconds max wait
     const checkInterval = 500; // Check every 500ms
@@ -210,15 +210,17 @@ const EnhancedCourierDemo = () => {
       });
 
       if (courier && courier.route && courier.route.length > 0) {
-        console.log(`🗺️ Mapbox route ready for ${courierName}: ${courier.route.length} points`);
+        console.log(
+          `🗺️ Google Maps route ready for ${courierName}: ${courier.route.length} points`,
+        );
         startRealisticMovement(courierId);
         return;
       }
 
       waitTime += checkInterval;
       if (waitTime >= maxWaitTime) {
-        console.warn(`⚠️ Mapbox route timeout for ${courierName}, using fallback`);
-        // Use fallback route if Mapbox fails
+        console.warn(`⚠️ Google Maps route timeout for ${courierName}, using fallback`);
+        // Use fallback route if Google Maps fails
         const fallbackRoute = fallbackRoutes[courierId];
         if (fallbackRoute && courier) {
           courier.route = fallbackRoute;
