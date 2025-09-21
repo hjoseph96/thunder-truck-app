@@ -53,126 +53,128 @@ export default function App() {
             name="LandingPage"
             component={LandingPage}
             options={{
-              title: 'Welcome to ThunderTruck'
+              title: 'Welcome to ThunderTruck',
             }}
           />
           <Stack.Screen
             name="SignIn"
             component={SignIn}
             options={{
-              title: 'Sign In'
+              title: 'Sign In',
             }}
           />
           <Stack.Screen
             name="SignUp"
             component={SignUp}
             options={{
-              title: 'Sign Up'
+              title: 'Sign Up',
             }}
           />
           <Stack.Screen
             name="MarkdownViewer"
             component={MarkdownViewer}
             options={{
-              title: 'Document Viewer'
+              title: 'Document Viewer',
             }}
           />
           <Stack.Screen
             name="VerifyOTP"
             component={VerifyOTP}
             options={{
-              title: 'Verify OTP'
+              title: 'Verify OTP',
             }}
           />
           <Stack.Screen
             name="ExplorerHome"
             component={ExplorerHome}
             options={{
-              title: 'Explorer Home'
+              title: 'Explorer Home',
             }}
           />
           <Stack.Screen
             name="MapPage"
             component={MapPage}
             options={{
-              title: 'Map'
+              title: 'Map',
             }}
           />
           <Stack.Screen
             name="FoodTypeViewer"
             component={FoodTypeViewer}
             options={{
-              title: 'Food Type Viewer'
+              title: 'Food Type Viewer',
             }}
           />
           <Stack.Screen
             name="FoodTruckViewer"
             component={FoodTruckViewer}
             options={{
-              title: 'Food Truck Viewer'
+              title: 'Food Truck Viewer',
             }}
           />
           <Stack.Screen
             name="MenuItemViewer"
             component={MenuItemViewer}
             options={{
-              title: 'Menu Item Viewer'
+              title: 'Menu Item Viewer',
             }}
           />
           <Stack.Screen
             name="PaymentScreen"
             component={PaymentScreen}
             options={{
-              title: 'Payment'
+              title: 'Payment',
             }}
           />
           <Stack.Screen
             name="CheckoutForm"
             component={CheckoutForm}
             options={{
-              title: 'Checkout'
+              title: 'Checkout',
             }}
           />
           <Stack.Screen
             name="AddAddressForm"
             component={AddAddressForm}
             options={{
-              title: 'Add Address'
+              title: 'Add Address',
             }}
           />
           <Stack.Screen
             name="UserAddressList"
             component={UserAddressList}
             options={{
-              title: 'Select Address'
+              title: 'Select Address',
             }}
           />
           <Stack.Screen
             name="WebSocketTest"
             component={WebSocketTestScreen}
             options={{
-              title: 'WebSocket Test'
+              title: 'WebSocket Test',
             }}
           />
           <Stack.Screen
             name="EnhancedCourierDemo"
             component={EnhancedCourierDemo}
             options={{
-             title: 'Enhanced Courier Demo' }}                                                                                                                c
+              title: 'Enhanced Courier Demo',
+            }}
           />
+          <Stack.Screen
             name="EditUserName"
             component={EditUserName}
             options={{
-              title: 'Your Name'
+              title: 'Your Name',
             }}
           />
           <Stack.Screen
             name="EditUserPhoneNumber"
             component={EditUserPhoneNumber}
             options={{
-              title: 'Your Phone Number'
+              title: 'Your Phone Number',
             }}
-          />c
+          />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />
