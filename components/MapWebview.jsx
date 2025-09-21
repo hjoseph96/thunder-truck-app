@@ -13,25 +13,6 @@ const DEFAULT_CENTER = {
   zoom: 14,
 };
 
-// Default polyline from the utility
-const DEFAULT_POLYLINE =
-  '__dwFvudaMeE}Bw@bFu@tUSjG]xDk@~H{@pKQjCIBgB~Ic@jCUlAMjAK~@?JFh@zEdNyArAeE~CmIjGiDrCoOjMaGjF{KdLeJ`JaAtAk@tA_AjDIb@yAnO_@vEeDjy@YvGMlDGd@_@vLA`@IlBEZErAItBG~@Bd@oB`f@Y|Gs@xOIp@mC`ZOJgBzSoAzM{@vJcAdIgCdQZf@~DjB~DnB~JbEnAvGnE_Bb@?z@T|MfEbCgPBK`E{AJA`FqBP?zYhG^RbCf\\ZdExE|m@qBZUJi@Jl@nB|@`Cp@vAbChEfBpCxEpGxCzDhH`KbCxDVb@T?f@T\\ZZd@F@z@tBAb@M^xBxDl@z@bAjBnBjDfCbF`AlBbBhCrAjBx@bB`AfD~@hDp@xBx@rB\\l@`BxDhC~ExBlDdDrEfBdCzBzBn@\\b@\\f@T|B~AlC~A\\HdAJv@^d@?d@BlAt@xBxB|@n@zCxAjE|AxBz@t@d@fI`DlAb@vCtA`DjBbBhAhBrAlD~CjBbBpBrAj@p@x@bB\\j@x@|@rAt@bA\\tBRz@Hn@Rl@d@P\\Lf@JzAClAClAFfCRjBX`Ap@vArEjIpAnAfClEb@l@ZZp@h@`@h@`@tAn@|BtAtApCvC~BxATTHV?r@Ad@DV^j@FV?`@Qb@OLUB}@@SLKTM|@_@~@EXEbAENMPo@Vq@FSLO\\IfACHTl@Hl@Ax@If@Ul@c@d@YNaBPo@h@@TG^_@WOd@INK^sCpICTe@tAML_@pA_@fA[~@g@~AaFmDgA~CTZdExCQ`@AL}EfN{DfLIDqA`EeC|GOl@EZm@bBCQDYKa@uJ|Kx]rn@aI`@nBvw@j@nTfB~r@rG|mAyMzA?ZX~EwMxAGeA';
-
-// New bike route polyline
-const BIKE_ROUTE_POLYLINE =
-  'gj_wFfhrbMuDnHlBpBvSga@nLiU_FgFdKiShC{E@KgBsBvAkCGm@{Qef@hHy@iDco@RCU_DIOGE}@}PwMxAGeA';
-
-// Decode polylines directly to coordinates
-const DEFAULT_ROUTE_COORDINATES = decode(DEFAULT_POLYLINE).map((coord) => ({
-  latitude: coord[0],
-  longitude: coord[1],
-}));
-
-const BIKE_ROUTE_COORDINATES = decode(BIKE_ROUTE_POLYLINE).map((coord) => ({
-  latitude: coord[0],
-  longitude: coord[1],
-}));
-
 // Food Truck SVG Component
 const FoodTruckIcon = ({ size = 30 }) => {
   return (
@@ -716,12 +697,6 @@ const MapWebview = forwardRef(
           showsPointsOfInterest={true}
           mapType="standard"
         >
-          {/* Static demo routes disabled - using dynamic courier routes instead */}
-
-          {/* Static markers disabled - using dynamic courier markers instead */}
-
-          {/* Static courier routes disabled - using only dynamic remaining routes */}
-
           {/* Render dynamic remaining route polylines */}
           {Array.from(dynamicPolylines.values()).map((polylineData) => (
             <DynamicPolyline

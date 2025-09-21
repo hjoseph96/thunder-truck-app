@@ -18,8 +18,7 @@ import PaymentScreen from './components/PaymentScreen';
 import CheckoutForm from './components/CheckoutForm';
 import AddAddressForm from './components/AddAddressForm';
 import UserAddressList from './components/UserAddressList';
-import WebSocketTestScreen from './components/WebSocketTestScreen';
-import EnhancedCourierDemo from './components/EnhancedCourierDemo';
+
 import EditUserName from './components/EditUserName';
 import EditUserPhoneNumber from './components/EditUserPhoneNumber';
 
@@ -147,20 +146,7 @@ export default function App() {
               title: 'Select Address',
             }}
           />
-          <Stack.Screen
-            name="WebSocketTest"
-            component={WebSocketTestScreen}
-            options={{
-              title: 'WebSocket Test',
-            }}
-          />
-          <Stack.Screen
-            name="EnhancedCourierDemo"
-            component={EnhancedCourierDemo}
-            options={{
-              title: 'Enhanced Courier Demo',
-            }}
-          />
+
           <Stack.Screen
             name="EditUserName"
             component={EditUserName}

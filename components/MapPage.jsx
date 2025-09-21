@@ -1,9 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, TouchableOpacity, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import MapWebview from './MapWebview';
 import { useLocationManager } from '../lib/hooks/useLocationManager';
-import { CourierDemo } from './demo/CourierDemo';
+import { webSocketService, WEBSOCKET_EVENTS } from '../lib/websocket-service';
+import { updateCourierPosition } from '../lib/courier-mutations';
+import { getStoredToken } from '../lib/token-manager';
+import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
+
 import { MapHeader } from './ui/MapHeader';
 import { SearchBar } from './ui/SearchBar';
 import { LocationBar } from './ui/LocationBar';
@@ -14,7 +18,21 @@ export default function MapPage({ navigation }) {
   const [webViewReady, setWebViewReady] = useState(false);
   const [foodTrucks, setFoodTrucks] = useState([]);
   const [loadingFoodTrucks, setLoadingFoodTrucks] = useState(true);
+  const [demoActive, setDemoActive] = useState(false);
+  const [demoInterval, setDemoInterval] = useState(null);
+  const [demoRoute, setDemoRoute] = useState(null);
+  const [demoProgress, setDemoProgress] = useState(0);
+  const [demoCourierId, setDemoCourierId] = useState(null);
+  const [courierAdded, setCourierAdded] = useState(false);
   const mapRef = useRef(null);
+
+  // Use refs to store current state values for interval access
+  const demoStateRef = useRef({
+    route: null,
+    progress: 0,
+    active: false,
+    courierId: null,
+  });
 
   // Use location manager hook
   const {
@@ -159,102 +177,341 @@ export default function MapPage({ navigation }) {
     }
   };
 
+  // Demo functionality
+  const toggleDemo = async () => {
+    if (demoActive) {
+      stopDemo();
+    } else {
+      await startDemo();
+    }
+  };
+
+  const startDemo = async () => {
+    try {
+      console.log('🚴 Starting courier demo...');
+
+      // Check if we have an authentication token
+      const token = await getStoredToken();
+      if (!token) {
+        throw new Error('No authentication token found. Please sign in first.');
+      }
+      console.log('🔑 Authentication token found');
+
+      // Connect to WebSocket if not connected
+      if (!webSocketService.isConnected()) {
+        console.log('📡 Connecting to WebSocket...');
+        await webSocketService.connect();
+
+        // Wait for connection to be established and subscribed
+        console.log('⏳ Waiting for WebSocket connection to stabilize...');
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        while (!webSocketService.isConnected() && attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          attempts++;
+          console.log(`⏳ Connection attempt ${attempts}/${maxAttempts}...`);
+        }
+
+        if (!webSocketService.isConnected()) {
+          throw new Error('Failed to establish WebSocket connection after 10 seconds');
+        }
+
+        // Additional wait for subscription to be confirmed
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log('✅ WebSocket connected and ready');
+      }
+
+      // Get courier ID and location directly from WebSocket response
+      console.log('📡 Requesting courier position to get ID and location...');
+
+      let actualCourierId = null;
+      let initialLocation = null;
+
+      // Set up a promise to capture the first courier response
+      const courierResponsePromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(
+            new Error(
+              'No courier responded to position request. Please ensure a courier is available.',
+            ),
+          );
+        }, 10000);
+
+        const unsubscribe = webSocketService.subscribe('courier_location_update', (data) => {
+          if (!actualCourierId) {
+            actualCourierId = data.courier_id;
+            initialLocation = {
+              latitude: data.latitude || data.courierLatitude,
+              longitude: data.longitude || data.courierLongitude,
+              timestamp: Date.now(),
+            };
+            console.log('✅ Got courier ID and location:', actualCourierId, initialLocation);
+            clearTimeout(timeout);
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+      // Request courier location
+      webSocketService.getCourierLocation().catch(() => {
+        // Ignore errors as we handle response through our promise
+      });
+
+      // Wait for courier response
+      await courierResponsePromise;
+
+      console.log('✅ Using real courier ID from WebSocket:', actualCourierId);
+
+      // Create a realistic demo destination (nearby restaurant or landmark)
+      const demoDestination = {
+        latitude: initialLocation.latitude + 0.01, // ~1km north
+        longitude: initialLocation.longitude + 0.01, // ~1km east
+      };
+
+      // Get real route from Google Maps API
+      console.log('🗺️ Fetching real route from Google Maps...');
+      console.log('📍 From:', initialLocation);
+      console.log('📍 To:', demoDestination);
+
+      const routeData = await googleMapsRoutingService.fetchRoute(
+        initialLocation,
+        demoDestination,
+        { profile: 'driving' }, // Use driving mode for food delivery
+      );
+
+      if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
+        throw new Error('Failed to get route from Google Maps API');
+      }
+
+      const route = routeData.coordinates;
+      console.log(
+        `✅ Got real route with ${route.length} waypoints (${(routeData.distance / 1000).toFixed(2)}km)`,
+      );
+
+      setDemoRoute(route);
+      setDemoProgress(0);
+      setDemoActive(true);
+
+      // Update refs for interval access
+      demoStateRef.current = {
+        route: route,
+        progress: 0,
+        active: true,
+        courierId: actualCourierId,
+      };
+
+      console.log('📍 Demo route set in state:', route.length, 'waypoints');
+      console.log('📍 Demo active:', true);
+      console.log('📍 Demo state ref updated:', demoStateRef.current);
+
+      // Add route to courier and map for visualization
+      console.log('📍 Adding demo route to map with destination:', demoDestination);
+      console.log('📍 Using real courier ID:', actualCourierId);
+
+      if (mapRef.current) {
+        // Update the existing courier with route and destination
+        if (mapRef.current.updateCourierRoute) {
+          console.log('📍 Updating courier route for:', actualCourierId);
+          mapRef.current.updateCourierRoute(actualCourierId, route);
+        }
+      }
+
+      // Start interval to update position every 3 seconds
+      const interval = setInterval(async () => {
+        try {
+          await updateDemoPosition();
+        } catch (error) {
+          console.error('❌ Error updating demo position:', error);
+        }
+      }, 3000);
+
+      setDemoInterval(interval);
+      console.log('✅ Demo started successfully');
+      console.log('🕐 Demo interval started - will update position every 3 seconds');
+    } catch (error) {
+      console.error('❌ Failed to start demo:', error);
+
+      // Provide more specific error messages
+      if (error.message.includes('WebSocket not connected')) {
+        console.error('📡 WebSocket connection failed. Please check:');
+        console.error('- Internet connection');
+        console.error('- Authentication token validity');
+        console.error('- Server availability at:', 'wss://api.thundertruck.app/cable');
+      } else if (error.message.includes('Timeout waiting for courier position')) {
+        console.error('⏱️ Timeout getting courier position. Backend may not have active couriers.');
+      }
+
+      setDemoActive(false);
+
+      // Try to disconnect and clean up
+      try {
+        webSocketService.disconnect();
+      } catch (cleanupError) {
+        console.error('Error during cleanup:', cleanupError);
+      }
+    }
+  };
+
+  const updateDemoPosition = async () => {
+    const currentState = demoStateRef.current;
+
+    console.log('🔍 updateDemoPosition called - checking route state:');
+    console.log(
+      '🔍 ref route:',
+      currentState.route ? `${currentState.route.length} waypoints` : 'null/undefined',
+    );
+    console.log('🔍 ref active:', currentState.active);
+    console.log('🔍 ref courierId:', currentState.courierId);
+    console.log('🔍 ref progress:', currentState.progress);
+
+    if (!currentState.route || currentState.route.length === 0 || !currentState.active) {
+      console.log('⚠️ No demo route available for position update');
+      return;
+    }
+
+    const newProgress = Math.min(currentState.progress + 0.05, 1); // Move 5% along route each update (smoother)
+
+    // Update both state and ref
+    setDemoProgress(newProgress);
+    demoStateRef.current.progress = newProgress;
+
+    // Calculate current position along the real route
+    const route = currentState.route;
+    const totalSegments = route.length - 1;
+    const currentSegmentFloat = newProgress * totalSegments;
+    const segmentIndex = Math.floor(currentSegmentFloat);
+    const segmentProgress = currentSegmentFloat - segmentIndex;
+
+    // Get current and next waypoints
+    const startPoint = route[segmentIndex];
+    const endPoint = route[Math.min(segmentIndex + 1, route.length - 1)];
+
+    // Interpolate between waypoints for smooth movement
+    const currentPosition = {
+      latitude: startPoint.latitude + (endPoint.latitude - startPoint.latitude) * segmentProgress,
+      longitude:
+        startPoint.longitude + (endPoint.longitude - startPoint.longitude) * segmentProgress,
+    };
+
+    console.log(
+      `📍 Following real route - Progress: ${(newProgress * 100).toFixed(1)}% (waypoint ${segmentIndex + 1}/${route.length})`,
+    );
+    console.log(`📍 Position:`, currentPosition);
+
+    // Call real GraphQL mutation
+    const result = await updateCourierPosition(currentPosition.latitude, currentPosition.longitude);
+
+    if (result.success) {
+      console.log('✅ Position updated successfully');
+    } else {
+      console.error('❌ Failed to update position:', result.errors);
+    }
+
+    // Stop demo when route is complete
+    if (newProgress >= 1) {
+      console.log('🏁 Demo route completed');
+      stopDemo();
+    }
+  };
+
+  const stopDemo = () => {
+    console.log('🛑 Stopping courier demo...');
+
+    if (demoInterval) {
+      clearInterval(demoInterval);
+      setDemoInterval(null);
+    }
+
+    setDemoActive(false);
+    setDemoRoute(null);
+    setDemoProgress(0);
+    setDemoCourierId(null);
+    setCourierAdded(false);
+
+    // Clear the ref as well
+    demoStateRef.current = {
+      route: null,
+      progress: 0,
+      active: false,
+      courierId: null,
+    };
+
+    console.log('✅ Demo stopped');
+  };
+
+  // Subscribe to WebSocket courier updates
+  React.useEffect(() => {
+    const unsubscribe = webSocketService.subscribe(
+      WEBSOCKET_EVENTS.COURIER_LOCATION_UPDATE,
+      (data) => {
+        console.log('📡 Received courier update:', data);
+
+        // Set demo courier ID from the first response (this will be our chosen courier)
+        if (!demoCourierId) {
+          console.log('📍 Setting demo courier ID to first responder:', data.courier_id);
+          setDemoCourierId(data.courier_id);
+        }
+
+        // Only process updates for our chosen demo courier - reject all others
+        if (data.courier_id === demoCourierId) {
+          console.log('✅ Processing update for chosen courier:', data.courier_id);
+        } else {
+          console.log(
+            '❌ Rejecting update from unwanted courier:',
+            data.courier_id,
+            '(only accepting:',
+            demoCourierId,
+            ')',
+          );
+          return;
+        }
+
+        // Add courier to map and tracking system if not already there
+        if (mapRef.current && data.latitude && data.longitude) {
+          const location = {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            timestamp: Date.now(),
+          };
+
+          // Add courier to tracking system first if not already added
+          if (!courierAdded && mapRef.current.addCourier) {
+            console.log('📍 Adding courier to map and tracking system:', data.courier_id);
+            mapRef.current.addCourier(data.courier_id, 'Demo Courier', location);
+            setCourierAdded(true);
+          }
+          // Update location if courier already exists
+          else if (courierAdded && mapRef.current.updateCourierLocation) {
+            mapRef.current.updateCourierLocation(data.courier_id, location);
+          }
+        }
+      },
+    );
+
+    return unsubscribe;
+  }, [demoCourierId, courierAdded]);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (demoInterval) {
+        clearInterval(demoInterval);
+      }
+    };
+  }, [demoInterval]);
+
   // Demo UI components
   const DemoFloatingButton = () => {
     return (
       <TouchableOpacity
-        style={styles.demoFloatingButton}
-        onPress={() => setShowDemoPanel(!showDemoPanel)}
+        style={[styles.demoFloatingButton, demoActive && styles.demoFloatingButtonActive]}
+        onPress={toggleDemo}
         activeOpacity={0.7}
       >
-        <Text style={styles.demoFloatingButtonText}>🚴</Text>
+        <Text style={styles.demoFloatingButtonText}>{demoActive ? '🛑' : '🚴'}</Text>
       </TouchableOpacity>
-    );
-  };
-
-  const DemoControlPanel = () => {
-    if (!showDemoPanel) return null;
-
-    return (
-      <View style={styles.demoControlPanel}>
-        <Text style={styles.demoTitle}>Courier Tracking Demo</Text>
-
-        {/* Demo Mode Toggle */}
-        <View style={styles.demoModeToggle}>
-          <TouchableOpacity
-            style={[styles.demoModeButton, demoMode === 'simple' && styles.demoModeActive]}
-            onPress={() => setDemoMode('simple')}
-          >
-            <Text style={[styles.demoModeText, demoMode === 'simple' && styles.demoModeActiveText]}>
-              Simple
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.demoModeButton, demoMode === 'enhanced' && styles.demoModeActive]}
-            onPress={() => setDemoMode('enhanced')}
-          >
-            <Text
-              style={[styles.demoModeText, demoMode === 'enhanced' && styles.demoModeActiveText]}
-            >
-              Enhanced
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {demoMode === 'simple' ? (
-          // Simple Demo Controls
-          <>
-            <Text style={styles.demoSubtitle}>Predefined Routes</Text>
-            <View style={styles.demoButtonRow}>
-              <TouchableOpacity
-                style={[styles.demoButton, styles.demoAddButton]}
-                onPress={addDemoCourier}
-                disabled={courierCount >= (demoCouriers?.length || 0)}
-              >
-                <Text style={styles.demoButtonText}>Add ({courierCount}/3)</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.demoButton, styles.demoStartButton]}
-                onPress={simulateCourierMovement}
-                disabled={courierCount === 0 || demoActive}
-              >
-                <Text style={styles.demoButtonText}>{demoActive ? 'Running...' : 'Start'}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.demoButton, styles.demoClearButton]}
-                onPress={clearDemoCouriers}
-                disabled={courierCount === 0}
-              >
-                <Text style={styles.demoButtonText}>Clear</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        ) : (
-          // Enhanced Demo Info
-          <View style={styles.enhancedDemoInfo}>
-            <Text style={styles.demoSubtitle}>Real Google Maps API + Mock Backend</Text>
-            <Text style={styles.enhancedDemoText}>
-              • Real route fetching from Google Maps{'\n'}• Simulated backend responses{'\n'}•
-              Realistic GPS movement{'\n'}• Production data structures
-            </Text>
-            <TouchableOpacity
-              style={[styles.demoButton, styles.demoEnhancedButton]}
-              onPress={() => navigation.navigate('EnhancedCourierDemo')}
-            >
-              <Text style={styles.demoButtonText}>Open Enhanced Demo</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={[styles.demoButton, styles.demoWebSocketButton, styles.demoWebSocketFullWidth]}
-          onPress={() => navigation.navigate('WebSocketTestScreen')}
-        >
-          <Text style={styles.demoButtonText}>WebSocket Test</Text>
-        </TouchableOpacity>
-      </View>
     );
   };
 
@@ -293,7 +550,7 @@ export default function MapPage({ navigation }) {
         }}
       />
 
-      <CourierDemo mapRef={mapRef} navigation={navigation} />
+      <DemoFloatingButton />
 
       <BottomNavigation activeTab="map" />
     </SafeAreaView>
@@ -542,7 +799,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#ff6b35',
+    backgroundColor: '#007cff',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -551,6 +808,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 1000,
+  },
+  demoFloatingButtonActive: {
+    backgroundColor: '#dc3545',
   },
   demoFloatingButtonText: {
     fontSize: 24,
