@@ -243,15 +243,15 @@ const PaymentScreen = ({ route, navigation }) => {
 
   const constructOrderData = (paymentIntent) => {
     const orderAddress = {
-      destinationType: selectedAddress.destinationType,
-      streetLineOne: selectedAddress.streetLineOne,
-      streetLineTwo: selectedAddress.streetLineTwo,
-      city: selectedAddress.city,
-      state: selectedAddress.state,
-      zipCode: selectedAddress.zipCode,
-      country: selectedAddress.country,
-      latlong: selectedAddress.latlong,
-      deliveryInstructions: selectedAddress.deliveryInstructions,
+      destinationType: deliveryAddress.destinationType,
+      streetLineOne: deliveryAddress.streetLineOne,
+      streetLineTwo: deliveryAddress.streetLineTwo,
+      city: deliveryAddress.city,
+      state: deliveryAddress.state,
+      zipCode: deliveryAddress.zipCode,
+      country: deliveryAddress.country,
+      latlong: deliveryAddress.latlong,
+      deliveryInstructions: deliveryAddress.deliveryInstructions,
     }
 
     const userOrderData = {
@@ -271,7 +271,7 @@ const PaymentScreen = ({ route, navigation }) => {
       }).flat(),
       orderPayments: [{
         amountChargedCents: parseInt(orderTotal * 100),
-        stripePaymentIntentId: paymentIntent.id,
+        stripePaymentIntentId: paymentIntent.id || paymentIntent.paymentIntentId,
       }],
       orderAddresses: [orderAddress],
     }
@@ -298,7 +298,7 @@ const PaymentScreen = ({ route, navigation }) => {
 
       const orderPayments = [{
         amountChargedCents: parseInt(truckTotal * 100) + singleDeliveryFeeInCents,
-        stripePaymentIntentId: paymentIntent.id,
+        stripePaymentIntentId: paymentIntent.id || paymentIntent.paymentIntentId,
       }]
 
       return {
@@ -355,19 +355,19 @@ const PaymentScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
           <View style={styles.addressCard}>
-            {selectedAddress?.label && (
-              <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
+            {deliveryAddress?.label && (
+              <Text style={styles.addressLabel}>{deliveryAddress.label}</Text>
             )}
-            <Text style={styles.addressStreet}>{selectedAddress?.streetLineOne}</Text>
+            <Text style={styles.addressStreet}>{deliveryAddress?.streetLineOne}</Text>
             <Text style={styles.addressCity}>
-              {selectedAddress?.city}, {selectedAddress?.state}
+              {deliveryAddress?.city}, {deliveryAddress?.state}
             </Text>
 
             <View style={styles.addressDeliveryInstructions}>
               <TextInput
                 style={styles.addressDeliveryInstructionsText}
-                value={selectedAddress?.deliveryInstructions}
-                onChangeText={(value) => handleAddressUpdate({ ...selectedAddress, deliveryInstructions: value })}
+                value={deliveryAddress?.deliveryInstructions}
+                onChangeText={(value) => handleAddressUpdate({ ...deliveryAddress, deliveryInstructions: value })}
                 placeholder="Any special drop off instructions?"
                 placeholderTextColor="#999"
                 multiline
