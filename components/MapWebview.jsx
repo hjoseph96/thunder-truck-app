@@ -181,10 +181,10 @@ const DynamicPolyline = React.memo(({ polylineData }) => {
     return null;
   }
 
-  // Get polyline styling based on courier type and status
+  // Get polyline styling based on courier type, status, and animation state
   const getPolylineStyle = () => {
     const baseStyle = {
-      strokeWidth: 4,
+      strokeWidth: polylineData.isAnimating ? 5 : 4, // Thicker line during animation
       lineCap: 'round',
       lineJoin: 'round',
     };
@@ -197,7 +197,18 @@ const DynamicPolyline = React.memo(({ polylineData }) => {
       walking: '#9d4edd', // Purple for walking
     };
 
-    // Status-based modifications
+    // Animation-based modifications
+    if (polylineData.isAnimating) {
+      return {
+        ...baseStyle,
+        strokeColor: typeColors[polylineData.courierType] || '#00ff88',
+        strokePattern: undefined, // Solid line during animation
+        // Add subtle glow effect during animation (platform dependent)
+        strokeOpacity: 0.9,
+      };
+    }
+
+    // Status-based modifications for non-animating polylines
     const statusModifications = {
       deviating: {
         strokeColor: '#ff4757', // Red for deviating couriers
@@ -233,81 +244,31 @@ const DynamicPolyline = React.memo(({ polylineData }) => {
   );
 });
 
-// Enhanced animated courier marker component
+// Enhanced courier marker component that moves along polyline
 const CourierMarker = React.memo(({ courier, position }) => {
-  const animatedRegionRef = useRef(null);
-  const [animatedRegion, setAnimatedRegion] = useState(null);
-  const lastPositionRef = useRef(null);
-
-  // Initialize AnimatedRegion when position is first available
-  useEffect(() => {
-    if (position && !animatedRegion) {
-      const newAnimatedRegion = new AnimatedRegion({
-        latitude: position.latitude,
-        longitude: position.longitude,
-        latitudeDelta: 0,
-        longitudeDelta: 0,
-      });
-      setAnimatedRegion(newAnimatedRegion);
-      animatedRegionRef.current = newAnimatedRegion;
-      lastPositionRef.current = position;
-    }
-  }, [position, animatedRegion]);
-
-  // Animate to new position when courier position updates
-  useEffect(() => {
-    if (position && animatedRegion && animatedRegionRef.current) {
-      // Check if position actually changed to avoid unnecessary animations
-      const lastPos = lastPositionRef.current;
-      if (
-        lastPos &&
-        Math.abs(lastPos.latitude - position.latitude) < 0.000001 &&
-        Math.abs(lastPos.longitude - position.longitude) < 0.000001
-      ) {
-        return; // Position hasn't changed significantly
-      }
-
-      const newCoordinate = {
-        latitude: position.latitude,
-        longitude: position.longitude,
-        latitudeDelta: 0,
-        longitudeDelta: 0,
-      };
-
-      // Match animation duration with backend update interval for smooth movement
-      const animationDuration = 900; // Slightly less than 1000ms update interval for moderate movement
-
-      animatedRegionRef.current
-        .timing(newCoordinate, {
-          duration: animationDuration,
-          useNativeDriver: false, // AnimatedRegion doesn't support native driver
-        })
-        .start();
-
-      lastPositionRef.current = position;
-    }
-  }, [position, animatedRegion]);
-
-  if (!position || !animatedRegion) return null;
+  if (!position) return null;
 
   return (
-    <Marker.Animated
+    <Marker
       ref={(ref) => {
         if (ref) {
           courier._markerRef = ref;
         }
       }}
       key={courier.id}
-      coordinate={animatedRegion}
+      coordinate={{
+        latitude: position.latitude,
+        longitude: position.longitude,
+      }}
       title={courier.name}
-      description={`Status: ${courier.status}`}
+      description={`Status: ${courier.status}${courier.animationState?.isPolylineAnimating ? ' (Moving along route)' : ''}`}
       anchor={{ x: 0.5, y: 0.5 }}
     >
       <View
         style={{
           width: 30,
           height: 30,
-          backgroundColor: '#007cff',
+          backgroundColor: courier.animationState?.isPolylineAnimating ? '#00ff88' : '#007cff',
           borderRadius: 15,
           borderWidth: 3,
           borderColor: 'white',
@@ -318,11 +279,13 @@ const CourierMarker = React.memo(({ courier, position }) => {
           shadowOpacity: 0.3,
           shadowRadius: 4,
           elevation: 4,
+          // Add subtle scale effect during animation
+          transform: [{ scale: courier.animationState?.isPolylineAnimating ? 1.1 : 1.0 }],
         }}
       >
         <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>🚴</Text>
       </View>
-    </Marker.Animated>
+    </Marker>
   );
 });
 
@@ -416,39 +379,31 @@ const MapWebview = forwardRef(
     const updateDynamicPolylines = useCallback(() => {
       const currentTime = Date.now();
 
-      // Throttle polyline updates to prevent too frequent redraws
-      if (currentTime - lastPolylineUpdateRef.current < 250) {
-        // Max 4 updates per second for moderate demo
+      // Throttle polyline updates for smooth 60fps animation
+      if (currentTime - lastPolylineUpdateRef.current < 16) {
+        // ~60fps for smooth polyline reduction
         return;
       }
       lastPolylineUpdateRef.current = currentTime;
 
       const newDynamicPolylines = new Map();
 
-      console.log(
-        `🔍 updateDynamicPolylines: Found ${courierTrackingManager.couriers.size} couriers`,
-      );
-
       courierTrackingManager.couriers.forEach((courier, courierId) => {
-        console.log(`🔍 Processing courier ${courier.name} (${courierId}):`, {
-          hasRoute: !!courier.route,
-          routeLength: courier.route?.length || 0,
-          currentProgress: courier.animationState.currentProgress.toFixed(4),
-          status: courier.status,
-        });
-
         if (courier.route && courier.route.length > 1) {
           const currentProgress = courier.animationState.currentProgress;
 
-          // Check if we need to update this polyline (avoid unnecessary recalculations)
-          const existingPolyline = dynamicPolylines.get(courierId);
-          const progressDiff = existingPolyline
-            ? Math.abs(currentProgress - existingPolyline.progress)
-            : 1;
+          // Always update during polyline animation for smooth reduction effect
+          const shouldUpdate =
+            courier.animationState.isPolylineAnimating ||
+            (() => {
+              const existingPolyline = dynamicPolylines.get(courierId);
+              const progressDiff = existingPolyline
+                ? Math.abs(currentProgress - existingPolyline.progress)
+                : 1;
+              return progressDiff > 0.001; // Smaller threshold for smoother updates
+            })();
 
-          // Only update if progress has changed significantly (performance optimization)
-          if (progressDiff > 0.005) {
-            // Increased threshold to reduce updates
+          if (shouldUpdate) {
             const remainingCoordinates = getRemainingRouteCoordinates(
               courier.route,
               currentProgress,
@@ -456,21 +411,7 @@ const MapWebview = forwardRef(
 
             // Only create polyline if there are at least 2 coordinates for a valid line
             if (remainingCoordinates.length > 1) {
-              console.log(`🛣️ ${courier.name} dynamic polyline:`, {
-                totalRoutePoints: courier.route.length,
-                remainingPoints: remainingCoordinates.length,
-                progress: currentProgress.toFixed(4),
-                firstPoint: {
-                  lat: remainingCoordinates[0].latitude.toFixed(6),
-                  lng: remainingCoordinates[0].longitude.toFixed(6),
-                },
-                lastPoint: {
-                  lat: remainingCoordinates[remainingCoordinates.length - 1].latitude.toFixed(6),
-                  lng: remainingCoordinates[remainingCoordinates.length - 1].longitude.toFixed(6),
-                },
-              });
-
-              // Enhanced polyline data with performance metadata
+              // Enhanced polyline data with animation state
               newDynamicPolylines.set(courierId, {
                 coordinates: remainingCoordinates,
                 courierId: courierId,
@@ -479,18 +420,23 @@ const MapWebview = forwardRef(
                 progress: currentProgress,
                 lastUpdated: currentTime,
                 status: courier.status,
+                isAnimating: courier.animationState.isPolylineAnimating,
                 // Performance optimization: cache coordinate count for quick validation
                 coordinateCount: remainingCoordinates.length,
                 // Add route metadata for enhanced display
                 routeMetadata: courier.routeMetadata,
               });
             }
-          } else if (existingPolyline) {
-            // Keep existing polyline if progress hasn't changed significantly
-            newDynamicPolylines.set(courierId, {
-              ...existingPolyline,
-              status: courier.status, // Update status even if coordinates don't change
-            });
+          } else {
+            // Keep existing polyline if no significant change
+            const existingPolyline = dynamicPolylines.get(courierId);
+            if (existingPolyline) {
+              newDynamicPolylines.set(courierId, {
+                ...existingPolyline,
+                status: courier.status, // Update status even if coordinates don't change
+                isAnimating: courier.animationState.isPolylineAnimating,
+              });
+            }
           }
         }
       });
@@ -501,7 +447,8 @@ const MapWebview = forwardRef(
         Array.from(newDynamicPolylines.keys()).some(
           (id) =>
             !dynamicPolylines.has(id) ||
-            newDynamicPolylines.get(id).lastUpdated !== dynamicPolylines.get(id)?.lastUpdated,
+            newDynamicPolylines.get(id).lastUpdated !== dynamicPolylines.get(id)?.lastUpdated ||
+            newDynamicPolylines.get(id).isAnimating !== dynamicPolylines.get(id)?.isAnimating,
         )
       ) {
         setDynamicPolylines(newDynamicPolylines);
