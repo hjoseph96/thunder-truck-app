@@ -21,6 +21,8 @@ import UserAddressList from './components/UserAddressList';
 
 import EditUserName from './components/EditUserName';
 import EditUserPhoneNumber from './components/EditUserPhoneNumber';
+import EditUserEmail from './components/EditUserEmail';
+import EditUserSpokenLanguages from './components/EditUserSpokenLanguages';
 
 import { STRIPE_CONFIG } from './config/stripe-config';
 import { toastConfig } from './config/toast-config';
@@ -159,6 +161,20 @@ export default function App() {
             component={EditUserPhoneNumber}
             options={{
               title: 'Your Phone Number',
+            }}
+          />
+          <Stack.Screen
+            name="EditUserEmail"
+            component={EditUserEmail}
+            options={{
+              title: 'Your Email',
+            }}
+          />
+          <Stack.Screen
+            name="EditUserSpokenLanguages"
+            component={EditUserSpokenLanguages}
+            options={{
+              title: 'Your Languages',
             }}
           />
         </Stack.Navigator>

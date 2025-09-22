@@ -47,6 +47,16 @@ export default function UserProfileView({ visible, onClose, userData, navigation
     navigation.navigate('EditUserPhoneNumber', { userData });
   };
 
+  const handleEmailPress = () => {
+    onClose(); // Close the profile modal first
+    navigation.navigate('EditUserEmail', { userData });
+  };
+
+  const handleLanguagesPress = () => {
+    onClose(); // Close the profile modal first
+    navigation.navigate('EditUserSpokenLanguages', { userData });
+  };
+
   return (
     <Modal
       visible={visible}
@@ -111,7 +121,7 @@ export default function UserProfileView({ visible, onClose, userData, navigation
               </TouchableOpacity>
 
               {/* Email */}
-              <TouchableOpacity style={styles.settingItem}>
+              <TouchableOpacity style={styles.settingItem} onPress={handleEmailPress}>
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Email</Text>
                   <Text style={styles.settingValue}>
@@ -124,11 +134,11 @@ export default function UserProfileView({ visible, onClose, userData, navigation
               </TouchableOpacity>
 
               {/* Language */}
-              <TouchableOpacity style={styles.settingItem}>
+              <TouchableOpacity style={styles.settingItem} onPress={handleLanguagesPress}>
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Language</Text>
                   <Text style={styles.settingValue}>
-                    {formatLanguages(userData?.spokenLanguages)}
+                    {formatLanguages(userData?.spokenLanguages.map(language => language.name))}
                   </Text>
                 </View>
                 <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
