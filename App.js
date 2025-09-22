@@ -23,6 +23,7 @@ import EditUserName from './components/EditUserName';
 import EditUserPhoneNumber from './components/EditUserPhoneNumber';
 import EditUserEmail from './components/EditUserEmail';
 import EditUserSpokenLanguages from './components/EditUserSpokenLanguages';
+import PaymentMethodManager from './components/PaymentMethodManager';
 
 import { STRIPE_CONFIG } from './config/stripe-config';
 import { toastConfig } from './config/toast-config';

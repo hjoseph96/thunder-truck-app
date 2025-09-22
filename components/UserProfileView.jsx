@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
   Image,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import PaymentMethodManager from './PaymentMethodManager';
 
 const { height: screenHeight } = Dimensions.get('window');
 
 export default function UserProfileView({ visible, onClose, userData, navigation }) {
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return 'Not provided';
     
@@ -55,6 +57,10 @@ export default function UserProfileView({ visible, onClose, userData, navigation
   const handleLanguagesPress = () => {
     onClose(); // Close the profile modal first
     navigation.navigate('EditUserSpokenLanguages', { userData });
+  };
+
+  const handlePaymentMethodsPress = () => {
+    setShowPaymentMethodModal(true);
   };
 
   return (
@@ -145,10 +151,29 @@ export default function UserProfileView({ visible, onClose, userData, navigation
                   <Path d="M6 4L10 8L6 12" stroke="#2D1E2F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </Svg>
               </TouchableOpacity>
+
+              {/* Payment Method */}
+              <TouchableOpacity style={styles.settingItem} onPress={handlePaymentMethodsPress}>
+                <View style={styles.settingContent}>
+                  <Text style={styles.settingLabel}>Payment Methods</Text>
+                  <Text style={styles.settingValue}>
+                    Manage your payment methods
+                  </Text>
+                </View>
+                <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
+                  <Path d="M6 4L10 8L6 12" stroke="#2D1E2F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </Svg>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
       </View>
+
+      {/* Payment Method Manager Modal */}
+      <PaymentMethodManager
+        visible={showPaymentMethodModal}
+        onClose={() => setShowPaymentMethodModal(false)}
+      />
     </Modal>
   );
 }
