@@ -1,8 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-export const LocationBar = ({ onGPSPress, locationText = 'Office', locationSubtext = 'H-11, First Floor, Sector 63, Noida, Uttar...' }) => {
+export const LocationBar = ({ navigation, onGPSPress, userData }) => {
+  const [selectedAddress, setSelectedAddress] = useState(null);
+
+  useEffect(() => {
+    const defaultAddress = userData?.userAddresses?.find(address => address.isDefault);
+    setSelectedAddress(defaultAddress);
+  }, []);
+
+  const updateSelectedAddress = (address) => {
+    setSelectedAddress(address);
+  };
+
+  const formatAddress = (address) => {
+    if (!address) return 'No address set';
+    
+    const parts = [
+      address.streetLineOne,
+      address.streetLineTwo,
+      address.city,
+      address.state,
+      address.zipCode
+    ].filter(Boolean);
+    
+    const fullAddress = parts.join(', ');
+    
+    // Truncate if too long (similar to the static data)
+    return fullAddress.length > 40 ? fullAddress.substring(0, 37) + '...' : fullAddress;
+  };
+
+
   return (
     <View style={styles.locationBar}>
       <Svg width="24" height="24" viewBox="0 0 24 24" style={styles.locationPin}>
@@ -12,12 +41,12 @@ export const LocationBar = ({ onGPSPress, locationText = 'Office', locationSubte
         />
       </Svg>
 
-      <View style={styles.locationText}>
-        <Text style={styles.locationTitle}>{locationText}</Text>
-        <Text style={styles.locationSubtitle}>{locationSubtext}</Text>
-      </View>
+      <TouchableOpacity onPress={() => navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, onAddressSelect: updateSelectedAddress })} activeOpacity={0.7}>
+        <Text style={styles.locationTitle}>{selectedAddress?.label || 'Delivery Address'}</Text>
+        <Text style={styles.locationSubtitle}>{formatAddress(selectedAddress) || 'No address set'}</Text>
+      </TouchableOpacity>
 
-      <TouchableOpacity onPress={onGPSPress} activeOpacity={0.7}>
+       <TouchableOpacity style={styles.currentLocationIcon} onPress={onGPSPress} activeOpacity={0.7}>
         <Svg width="24" height="24" viewBox="0 0 24 24" style={styles.currentLocationIcon}>
           <Path
             d="M12 8.25C11.0054 8.25 10.0516 8.64509 9.34835 9.34835C8.64509 10.0516 8.25 11.0054 8.25 12C8.25 12.9946 8.64509 13.9484 9.34835 14.6517C10.0516 15.3549 11.0054 15.75 12 15.75C12.9946 15.75 13.9484 15.3549 14.6517 14.6517C15.3549 13.9484 15.75 12.9946 15.75 12C15.75 11.0054 15.3549 10.0516 14.6517 9.34835C13.9484 8.64509 12.9946 8.25 12 8.25Z"
@@ -39,6 +68,7 @@ const styles = StyleSheet.create({
   locationBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginHorizontal: 12,
     marginBottom: 12,
     paddingVertical: 8,

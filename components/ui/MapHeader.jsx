@@ -13,7 +13,7 @@ export const MapHeader = ({ navigation, title = 'Map' }) => {
         <Svg width="24" height="24" viewBox="0 0 24 24">
           <Path
             d="M19 12H5M12 19L5 12L12 5"
-            stroke="#2D1E2F"
+            stroke="#FFF"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -30,7 +30,7 @@ export const MapHeader = ({ navigation, title = 'Map' }) => {
 const styles = StyleSheet.create({
   header: {
     height: 77,
-    backgroundColor: '#fecd15',
+    backgroundColor: '#2D1E2F',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2D1E2F',
+    color: '#fff',
     flex: 1,
     textAlign: 'center',
   },

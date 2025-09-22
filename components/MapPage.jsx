@@ -13,7 +13,7 @@ import { SearchBar } from './ui/SearchBar';
 import { LocationBar } from './ui/LocationBar';
 import { BottomNavigation } from './ui/BottomNavigation';
 import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
-export default function MapPage({ navigation }) {
+export default function MapPage({ route }) {
   const [searchText, setSearchText] = useState('');
   const [webViewReady, setWebViewReady] = useState(false);
   const [foodTrucks, setFoodTrucks] = useState([]);
@@ -24,6 +24,9 @@ export default function MapPage({ navigation }) {
   const [demoProgress, setDemoProgress] = useState(0);
   const [demoCourierId, setDemoCourierId] = useState(null);
   const [courierAdded, setCourierAdded] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [navigation, setNavigation] = useState(null);
+
   const mapRef = useRef(null);
 
   // Use refs to store current state values for interval access
@@ -71,6 +74,14 @@ export default function MapPage({ navigation }) {
     };
 
     loadFoodTrucks();
+
+    if (route.params.userData) {
+      setUserData(route.params.userData);
+    }
+
+    if (route.params.navigation) {
+      setNavigation(route.params.navigation);
+    }
   }, [userLocation]);
 
   // Move user marker to actual location once WebView is ready
@@ -527,7 +538,7 @@ export default function MapPage({ navigation }) {
         onSubmit={handleSearchSubmit}
       />
 
-      <LocationBar onGPSPress={handleGPSButtonPress} />
+      <LocationBar navigation={navigation} userData={userData} onGPSPress={handleGPSButtonPress} />
 
       <MapWebview
         ref={mapRef}
@@ -552,7 +563,7 @@ export default function MapPage({ navigation }) {
 
       <DemoFloatingButton />
 
-      <BottomNavigation activeTab="map" />
+      <BottomNavigation activeTab="map" userData={userData} />
     </SafeAreaView>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G, ClipPath, Rect, Defs } from 'react-native-svg';
 import Carousel from '@brandingbrand/react-native-snap-carousel';
+import { MaterialIcons } from '@expo/vector-icons';
 import FoodTypesHeader from './FoodTypesHeader';
 import OnboardingModal from './OnboardingModal';
 import BottomNavigation from './BottomNavigation';
@@ -28,6 +29,7 @@ export default function ExplorerHome({ navigation }) {
   const [foodTrucksError, setFoodTrucksError] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const carouselRef = useRef(null);
 
   const slideImages = [
@@ -48,7 +50,12 @@ export default function ExplorerHome({ navigation }) {
     try {
       const user = await getStoredUserData();
       setUserData(user);
-      
+
+      if (user?.userAddresses?.length > 0 && !selectedAddress) {
+        const defaultAddress = user.userAddresses.find(address => address.isDefault);
+        setSelectedAddress(defaultAddress);
+      }
+
       // Show onboarding if any required fields are missing
       if (!user || !user.email || !user.firstName || !user.lastName) {
         setShowOnboarding(true);
@@ -58,7 +65,26 @@ export default function ExplorerHome({ navigation }) {
     }
   };
 
+  const updateSelectedAddress = (address) => {
+    setSelectedAddress(address);
+  };
 
+  const formatAddress = (address) => {
+    if (!address) return 'No address set';
+    
+    const parts = [
+      address.streetLineOne,
+      address.streetLineTwo,
+      address.city,
+      address.state,
+      address.zipCode
+    ].filter(Boolean);
+    
+    const fullAddress = parts.join(', ');
+    
+    // Truncate if too long (similar to the static data)
+    return fullAddress.length > 40 ? fullAddress.substring(0, 37) + '...' : fullAddress;
+  };
 
   const loadNearbyFoodTrucks = async () => {
     try {
@@ -161,19 +187,18 @@ export default function ExplorerHome({ navigation }) {
 
       {/* Location Bar */}
       <View style={styles.locationBar}>
-        <View style={styles.locationContent}>
-          <Svg width="24" height="24" viewBox="0 0 24 24" style={styles.locationIcon}>
-            <Path d="M12 1.5C9.81273 1.50248 7.71575 2.37247 6.16911 3.91911C4.62247 5.46575 3.75248 7.56273 3.75 9.75C3.75 16.8094 11.25 22.1409 11.5697 22.3641C11.6958 22.4524 11.846 22.4998 12 22.4998C12.154 22.4998 12.3042 22.4524 12.4303 22.3641C12.75 22.1409 20.25 16.8094 20.25 9.75C20.2475 7.56273 19.3775 5.46575 17.8309 3.91911C16.2843 2.37247 14.1873 1.50248 12 1.5ZM12 6.75C12.5933 6.75 13.1734 6.92595 13.6667 7.25559C14.1601 7.58524 14.5446 8.05377 14.7716 8.60195C14.9987 9.15013 15.0581 9.75333 14.9424 10.3353C14.8266 10.9172 14.5409 11.4518 14.1213 11.8713C13.7018 12.2909 13.1672 12.5766 12.5853 12.6924C12.0033 12.8081 11.4001 12.7487 10.8519 12.5216C10.3038 12.2946 9.83524 11.9101 9.50559 11.4167C9.17595 10.9234 9 10.3433 9 9.75C9 8.95435 9.31607 8.19129 9.87868 7.62868C10.4413 7.06607 11.2044 6.75 12 6.75Z" fill="#2D1E2F"/>
-          </Svg>
+        <TouchableOpacity style={styles.locationContent} onPress={() => navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, onAddressSelect: updateSelectedAddress })}>
+          <MaterialIcons name="location-on" size={24} color="red" style={styles.locationIcon} />
+
           <View style={styles.locationText}>
-            <Text style={styles.locationTitle}>Office</Text>
-            <Text style={styles.locationAddress}>H-11, First Floor, Sector 63, Noida, Uttar...</Text>
+            <Text style={styles.locationTitle}>{selectedAddress?.label || 'Delivery Address'}</Text>
+            <Text style={styles.locationAddress}>{formatAddress(selectedAddress)}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.locationButtons}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('MapPage')}
+            onPress={() => navigation.navigate('MapPage', { navigation: navigation, userData: userData })}
             style={styles.currentLocationButton}
             activeOpacity={0.7}
           >
