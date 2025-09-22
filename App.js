@@ -24,6 +24,8 @@ import EditUserPhoneNumber from './components/EditUserPhoneNumber';
 import EditUserEmail from './components/EditUserEmail';
 import EditUserSpokenLanguages from './components/EditUserSpokenLanguages';
 import PaymentMethodManager from './components/PaymentMethodManager';
+import OrderIndexScreen from './components/OrderIndexScreen';
+import OrderDetailScreen from './components/OrderDetailScreen';
 
 import { STRIPE_CONFIG } from './config/stripe-config';
 import { toastConfig } from './config/toast-config';
@@ -176,6 +178,20 @@ export default function App() {
             component={EditUserSpokenLanguages}
             options={{
               title: 'Your Languages',
+            }}
+          />
+          <Stack.Screen
+            name="OrderIndex"
+            component={OrderIndexScreen}
+            options={{
+              title: 'Orders',
+            }}
+          />
+          <Stack.Screen
+            name="OrderDetail"
+            component={OrderDetailScreen}
+            options={{
+              title: 'Order Details',
             }}
           />
         </Stack.Navigator>

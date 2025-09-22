@@ -18,17 +18,17 @@ export default function UserProfileView({ visible, onClose, userData, navigation
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber) return 'Not provided';
-    
+
     // Remove all non-digit characters
     const cleaned = phoneNumber.replace(/\D/g, '');
-    
+
     // Format as 1+ (XXX)-XXX-XXXX
     if (cleaned.length === 10) {
       return `1+ (${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
     } else if (cleaned.length === 11 && cleaned[0] === '1') {
       return `1+ (${cleaned.slice(1, 4)})-${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
     }
-    
+
     return phoneNumber; // Return original if format doesn't match
   };
 
@@ -63,19 +63,15 @@ export default function UserProfileView({ visible, onClose, userData, navigation
     setShowPaymentMethodModal(true);
   };
 
+  const handleOrdersPress = () => {
+    onClose(); // Close the profile modal first
+    navigation.navigate('OrderIndex');
+  };
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity 
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <TouchableOpacity 
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity
           style={styles.modalContainer}
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
@@ -83,12 +79,15 @@ export default function UserProfileView({ visible, onClose, userData, navigation
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Your Profile</Text>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={onClose}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Svg width="24" height="24" viewBox="0 0 24 24">
-                <Path d="M18 6L6 18M6 6L18 18" stroke="#2D1E2F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <Path
+                  d="M18 6L6 18M6 6L18 18"
+                  stroke="#2D1E2F"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </Svg>
             </TouchableOpacity>
           </View>
@@ -105,7 +104,10 @@ export default function UserProfileView({ visible, onClose, userData, navigation
                 </View>
                 <TouchableOpacity style={styles.editButton}>
                   <Svg width="16" height="16" viewBox="0 0 16 16">
-                    <Path d="M11.3333 2.66667C11.5083 2.49167 11.7167 2.40417 11.9583 2.40417C12.2 2.40417 12.4083 2.49167 12.5833 2.66667C12.7583 2.84167 12.8458 3.05 12.8458 3.29167C12.8458 3.53333 12.7583 3.74167 12.5833 3.91667L4.25 12.25H2.66667V10.6667L11.3333 2.66667ZM11.3333 4.08333L3.66667 11.75H4.25V12.3333L11.3333 4.08333Z" fill="#2D1E2F"/>
+                    <Path
+                      d="M11.3333 2.66667C11.5083 2.49167 11.7167 2.40417 11.9583 2.40417C12.2 2.40417 12.4083 2.49167 12.5833 2.66667C12.7583 2.84167 12.8458 3.05 12.8458 3.29167C12.8458 3.53333 12.7583 3.74167 12.5833 3.91667L4.25 12.25H2.66667V10.6667L11.3333 2.66667ZM11.3333 4.08333L3.66667 11.75H4.25V12.3333L11.3333 4.08333Z"
+                      fill="#2D1E2F"
+                    />
                   </Svg>
                 </TouchableOpacity>
               </View>
@@ -118,14 +120,19 @@ export default function UserProfileView({ visible, onClose, userData, navigation
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Name</Text>
                   <Text style={styles.settingValue}>
-                    {userData?.firstName && userData?.lastName 
+                    {userData?.firstName && userData?.lastName
                       ? `${userData.firstName} ${userData.lastName}`
-                      : 'Not provided'
-                    }
+                      : 'Not provided'}
                   </Text>
                 </View>
                 <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
-                  <Path d="M6 4L10 8L6 12" stroke="#2D1E2F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <Path
+                    d="M6 4L10 8L6 12"
+                    stroke="#2D1E2F"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </Svg>
               </TouchableOpacity>
 
@@ -138,7 +145,13 @@ export default function UserProfileView({ visible, onClose, userData, navigation
                   </Text>
                 </View>
                 <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
-                  <Path d="M6 4L10 8L6 12" stroke="#2D1E2F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <Path
+                    d="M6 4L10 8L6 12"
+                    stroke="#2D1E2F"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </Svg>
               </TouchableOpacity>
 
@@ -146,12 +159,16 @@ export default function UserProfileView({ visible, onClose, userData, navigation
               <TouchableOpacity style={styles.settingItem} onPress={handleEmailPress}>
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Email</Text>
-                  <Text style={styles.settingValue}>
-                    {userData?.email || 'Not provided'}
-                  </Text>
+                  <Text style={styles.settingValue}>{userData?.email || 'Not provided'}</Text>
                 </View>
                 <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
-                  <Path d="M6 4L10 8L6 12" stroke="#2D1E2F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <Path
+                    d="M6 4L10 8L6 12"
+                    stroke="#2D1E2F"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </Svg>
               </TouchableOpacity>
 
@@ -160,11 +177,34 @@ export default function UserProfileView({ visible, onClose, userData, navigation
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Language</Text>
                   <Text style={styles.settingValue}>
-                    {formatLanguages(userData?.spokenLanguages.map(language => language.name))}
+                    {formatLanguages(userData?.spokenLanguages.map((language) => language.name))}
                   </Text>
                 </View>
                 <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
-                  <Path d="M6 4L10 8L6 12" stroke="#2D1E2F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <Path
+                    d="M6 4L10 8L6 12"
+                    stroke="#2D1E2F"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </TouchableOpacity>
+
+              {/* Orders */}
+              <TouchableOpacity style={styles.settingItem} onPress={handleOrdersPress}>
+                <View style={styles.settingContent}>
+                  <Text style={styles.settingLabel}>Orders</Text>
+                  <Text style={styles.settingValue}>View your order history</Text>
+                </View>
+                <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
+                  <Path
+                    d="M6 4L10 8L6 12"
+                    stroke="#2D1E2F"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </Svg>
               </TouchableOpacity>
 
@@ -172,12 +212,16 @@ export default function UserProfileView({ visible, onClose, userData, navigation
               <TouchableOpacity style={styles.settingItem} onPress={handlePaymentMethodsPress}>
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Payment Methods</Text>
-                  <Text style={styles.settingValue}>
-                    Manage your payment methods
-                  </Text>
+                  <Text style={styles.settingValue}>Manage your payment methods</Text>
                 </View>
                 <Svg width="16" height="16" viewBox="0 0 16 16" style={styles.caret}>
-                  <Path d="M6 4L10 8L6 12" stroke="#2D1E2F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <Path
+                    d="M6 4L10 8L6 12"
+                    stroke="#2D1E2F"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </Svg>
               </TouchableOpacity>
             </View>
