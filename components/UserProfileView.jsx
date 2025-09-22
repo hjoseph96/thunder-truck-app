@@ -70,11 +70,27 @@ export default function UserProfileView({ visible, onClose, userData, navigation
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+      <TouchableOpacity 
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity 
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Your Profile</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={onClose}
+            >
+              <Svg width="24" height="24" viewBox="0 0 24 24">
+                <Path d="M18 6L6 18M6 6L18 18" stroke="#2D1E2F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </Svg>
+            </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -166,8 +182,8 @@ export default function UserProfileView({ visible, onClose, userData, navigation
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
 
       {/* Payment Method Manager Modal */}
       <PaymentMethodManager
@@ -191,17 +207,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
     paddingVertical: 20,
     paddingHorizontal: 20,
-    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: '#2D1E2F',
     fontFamily: 'Poppins',
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
   },
   content: {
     flex: 1,
