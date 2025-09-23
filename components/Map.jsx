@@ -79,6 +79,11 @@ const Map = forwardRef(
           mapRef.current.disableGracefulDegradation();
         }
       },
+      resetMapView: () => {
+        if (mapRef.current) {
+          mapRef.current.resetMapView();
+        }
+      },
     }));
 
     return (

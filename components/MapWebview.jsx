@@ -373,6 +373,8 @@ const MapWebview = forwardRef(
     const [courierStates, setCourierStates] = useState(new Map());
     const [dynamicPolylines, setDynamicPolylines] = useState(new Map());
     const [foodTrucks, setFoodTrucks] = useState([]);
+    const [hasUserInteracted, setHasUserInteracted] = useState(false);
+    const [hasInitiallyFitted, setHasInitiallyFitted] = useState(false);
 
     // Polyline cache for performance optimization
     const polylineCacheRef = useRef(new Map());
@@ -544,7 +546,11 @@ const MapWebview = forwardRef(
     }, []);
 
     useEffect(() => {
-      if (mapReady && fitToElements) {
+      // Only fit to elements if:
+      // 1. Map is ready and fitToElements is enabled
+      // 2. User hasn't manually interacted with the map
+      // 3. We haven't already done the initial fitting, OR we have new truck/destination locations
+      if (mapReady && fitToElements && !hasUserInteracted) {
         const coordinates = [];
         if (truckLocation) {
           coordinates.push(truckLocation);
@@ -552,11 +558,16 @@ const MapWebview = forwardRef(
         if (destinationLocation) {
           coordinates.push(destinationLocation);
         }
-        if (courierLocation) {
+
+        // Only include courier location in initial fitting, not in updates
+        if (courierLocation && !hasInitiallyFitted) {
           coordinates.push(courierLocation);
         }
 
-        if (coordinates.length > 0) {
+        if (
+          coordinates.length > 0 &&
+          (!hasInitiallyFitted || truckLocation || destinationLocation)
+        ) {
           mapRef.current.fitToCoordinates(coordinates, {
             edgePadding: {
               top: 50,
@@ -566,9 +577,17 @@ const MapWebview = forwardRef(
             },
             animated: true,
           });
+          setHasInitiallyFitted(true);
         }
       }
-    }, [mapReady, fitToElements, truckLocation, destinationLocation, courierLocation]);
+    }, [
+      mapReady,
+      fitToElements,
+      truckLocation,
+      destinationLocation,
+      hasUserInteracted,
+      hasInitiallyFitted,
+    ]);
 
     // Expose methods to parent component
     React.useImperativeHandle(ref, () => ({
@@ -619,6 +638,36 @@ const MapWebview = forwardRef(
       disableGracefulDegradation: () => {
         courierTrackingManager.disableGracefulDegradation();
       },
+      // Method to reset map view and re-fit to elements
+      resetMapView: () => {
+        setHasUserInteracted(false);
+        setHasInitiallyFitted(false);
+
+        if (mapRef.current && fitToElements) {
+          const coordinates = [];
+          if (truckLocation) {
+            coordinates.push(truckLocation);
+          }
+          if (destinationLocation) {
+            coordinates.push(destinationLocation);
+          }
+          if (courierLocation) {
+            coordinates.push(courierLocation);
+          }
+
+          if (coordinates.length > 0) {
+            mapRef.current.fitToCoordinates(coordinates, {
+              edgePadding: {
+                top: 50,
+                right: 50,
+                bottom: 50,
+                left: 50,
+              },
+              animated: true,
+            });
+          }
+        }
+      },
     }));
 
     // Handle map load
@@ -631,10 +680,21 @@ const MapWebview = forwardRef(
       }
     };
 
+    // Handle user interactions with the map
+    const handleMapInteraction = () => {
+      if (!hasUserInteracted) {
+        setHasUserInteracted(true);
+        console.log('MapWebview: User interaction detected, disabling auto-fit');
+      }
+    };
+
     // Handle GPS button press
     const handleGPSButtonPress = () => {
       if (userLocation && mapRef.current) {
         console.log('MapWebview: Centering map on user location');
+
+        // Mark as user interaction since they're manually centering
+        setHasUserInteracted(true);
 
         mapRef.current.animateToRegion(
           {
@@ -665,6 +725,8 @@ const MapWebview = forwardRef(
             longitudeDelta: 0.01,
           }}
           onMapReady={handleMapLoad}
+          onPanDrag={handleMapInteraction}
+          onRegionChangeComplete={handleMapInteraction}
           showsUserLocation={userLocation && locationPermissionGranted}
           showsMyLocationButton={false}
           showsCompass={true}

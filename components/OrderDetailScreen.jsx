@@ -15,6 +15,9 @@ import Svg, { Path, Circle, Rect, Ellipse } from 'react-native-svg';
 import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
 import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
 import Map from './Map';
+import { webSocketService, WEBSOCKET_EVENTS } from '../lib/websocket-service';
+import { updateCourierPosition } from '../lib/courier-mutations';
+import { getStoredToken } from '../lib/token-manager';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -101,11 +104,14 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [demoInterval, setDemoInterval] = useState(null);
   const [demoRoute, setDemoRoute] = useState(null);
   const [demoProgress, setDemoProgress] = useState(0);
+  const [courierId, setCourierId] = useState(null);
 
   // Ref to hold state for interval
   const simulationStateRef = useRef({
     route: null,
     progress: 0,
+    active: false,
+    courierId: null,
   });
 
   // Animation values
@@ -113,7 +119,6 @@ export default function OrderDetailScreen({ route, navigation }) {
   const arrowRotation = useRef(new Animated.Value(0)).current;
 
   const VALID_STATUSES = ['pending', 'preparing', 'delivering', 'completed', 'cancelled'];
-  const COURIER_ID = 'order-courier';
 
   // Animation function for bottom sheet
   const toggleBottomSheet = () => {
@@ -144,10 +149,10 @@ export default function OrderDetailScreen({ route, navigation }) {
   };
 
   useEffect(() => {
-    if (courierLocation && mapRef.current) {
-      mapRef.current.updateCourierLocation(COURIER_ID, courierLocation);
+    if (courierLocation && mapRef.current && courierId) {
+      mapRef.current.updateCourierLocation(courierId, courierLocation);
     }
-  }, [courierLocation]);
+  }, [courierLocation, courierId]);
 
   useEffect(() => {
     const loadOrderDetails = async () => {
@@ -193,24 +198,53 @@ export default function OrderDetailScreen({ route, navigation }) {
     }
   }, [orderId]);
 
+  // WebSocket subscription for courier location updates
+  useEffect(() => {
+    if (!webSocketService.isConnected()) {
+      webSocketService.connect();
+    }
+
+    const unsubscribe = webSocketService.subscribe(
+      WEBSOCKET_EVENTS.COURIER_LOCATION_UPDATE,
+      (data) => {
+        if (
+          simulationStateRef.current.active &&
+          data.courier_id === simulationStateRef.current.courierId
+        ) {
+          const location = {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            timestamp: Date.now(),
+          };
+          setCourierLocation(location);
+        }
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   // Courier simulation logic
   const stopCourierSimulation = () => {
     if (demoInterval) {
       clearInterval(demoInterval);
       setDemoInterval(null);
     }
-    if (mapRef.current) {
-      mapRef.current.removeCourier(COURIER_ID);
+    if (mapRef.current && simulationStateRef.current.courierId) {
+      mapRef.current.removeCourier(simulationStateRef.current.courierId);
     }
     setDemoRoute(null);
     setDemoProgress(0);
     setCourierLocation(null);
-    simulationStateRef.current = { route: null, progress: 0 };
+    setCourierId(null);
+    simulationStateRef.current = { route: null, progress: 0, active: false, courierId: null };
   };
 
-  const updateCourierSimulation = () => {
+  const updateCourierSimulation = async () => {
     const currentState = simulationStateRef.current;
-    if (!currentState.route || currentState.route.length === 0) return;
+    if (!currentState.route || currentState.route.length === 0 || !currentState.active) return;
 
     const newProgress = Math.min(currentState.progress + 0.05, 1); // Move 5% each step
 
@@ -232,7 +266,7 @@ export default function OrderDetailScreen({ route, navigation }) {
         startPoint.longitude + (endPoint.longitude - startPoint.longitude) * segmentProgress,
     };
 
-    setCourierLocation(currentPosition);
+    await updateCourierPosition(currentPosition.latitude, currentPosition.longitude);
 
     if (newProgress >= 1) {
       stopCourierSimulation();
@@ -240,26 +274,57 @@ export default function OrderDetailScreen({ route, navigation }) {
   };
 
   const startCourierSimulation = async (origin, destination) => {
-    stopCourierSimulation(); // Stop any existing simulation
+    stopCourierSimulation();
 
     try {
+      const token = await getStoredToken();
+      if (!token) throw new Error('Authentication token not found.');
+
+      if (!webSocketService.isConnected()) {
+        await webSocketService.connect();
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for connection
+      }
+
+      let actualCourierId = null;
+      const courierResponsePromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timeout waiting for courier.')), 10000);
+
+        const unsubscribe = webSocketService.subscribe('courier_location_update', (data) => {
+          if (!actualCourierId) {
+            actualCourierId = data.courier_id;
+            setCourierId(actualCourierId);
+
+            // Set initial position of the courier to the truck's location
+            updateCourierPosition(origin.latitude, origin.longitude);
+            setCourierLocation(origin);
+
+            clearTimeout(timeout);
+            unsubscribe();
+            resolve(actualCourierId);
+          }
+        });
+      });
+
+      webSocketService.getCourierLocation().catch(() => {});
+      actualCourierId = await courierResponsePromise;
+
       const routeData = await googleMapsRoutingService.fetchRoute(origin, destination, {
         profile: 'driving',
       });
+      console.log('Route=>', routeData);
       if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
         throw new Error('Failed to get route from Google Maps API');
       }
 
       const route = routeData.coordinates;
       setDemoRoute(route);
-      setCourierLocation(origin);
-      simulationStateRef.current = { route, progress: 0 };
+      simulationStateRef.current = { route, progress: 0, active: true, courierId: actualCourierId };
 
       if (mapRef.current) {
-        mapRef.current.addCourier(COURIER_ID, 'Your Courier', origin, route, destination);
+        mapRef.current.addCourier(actualCourierId, 'Your Courier', origin, route, destination);
       }
 
-      const interval = setInterval(updateCourierSimulation, 2000); // Update every 2 seconds
+      const interval = setInterval(updateCourierSimulation, 3000);
       setDemoInterval(interval);
     } catch (error) {
       console.error('Failed to start courier simulation:', error);
@@ -332,7 +397,7 @@ export default function OrderDetailScreen({ route, navigation }) {
             courierLocation={courierLocation}
             routePolyline={demoRoute}
             locationPermissionGranted={true}
-            fitToElements={true}
+            fitToElements={truckLocation && destinationLocation}
             onMessage={() => {}}
             onLoadStart={() => console.log('Map loading started')}
             onLoadEnd={() => console.log('Map loading ended')}
