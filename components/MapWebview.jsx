@@ -361,6 +361,10 @@ const MapWebview = forwardRef(
       // New props for courier tracking
       couriers = [],
       onCourierUpdate,
+      truckLocation,
+      destinationLocation,
+      courierLocation,
+      fitToElements,
     },
     ref,
   ) => {
@@ -539,6 +543,33 @@ const MapWebview = forwardRef(
       return () => clearInterval(cleanupInterval);
     }, []);
 
+    useEffect(() => {
+      if (mapReady && fitToElements) {
+        const coordinates = [];
+        if (truckLocation) {
+          coordinates.push(truckLocation);
+        }
+        if (destinationLocation) {
+          coordinates.push(destinationLocation);
+        }
+        if (courierLocation) {
+          coordinates.push(courierLocation);
+        }
+
+        if (coordinates.length > 0) {
+          mapRef.current.fitToCoordinates(coordinates, {
+            edgePadding: {
+              top: 50,
+              right: 50,
+              bottom: 50,
+              left: 50,
+            },
+            animated: true,
+          });
+        }
+      }
+    }, [mapReady, fitToElements, truckLocation, destinationLocation, courierLocation]);
+
     // Expose methods to parent component
     React.useImperativeHandle(ref, () => ({
       postMessage: (message) => {
@@ -685,6 +716,14 @@ const MapWebview = forwardRef(
               position={courier.getCurrentAnimatedPosition()}
             />
           ))}
+
+          {truckLocation && (
+            <Marker coordinate={truckLocation} title="Food Truck">
+              <SvgMarker type="foodTruck" size={35} />
+            </Marker>
+          )}
+
+          {destinationLocation && <Marker coordinate={destinationLocation} title="Destination" />}
         </MapView>
 
         {/* GPS Button */}
