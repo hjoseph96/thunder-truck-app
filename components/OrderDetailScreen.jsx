@@ -113,6 +113,7 @@ export default function OrderDetailScreen({ route, navigation }) {
   const arrowRotation = useRef(new Animated.Value(0)).current;
 
   const VALID_STATUSES = ['pending', 'preparing', 'delivering', 'completed', 'cancelled'];
+  const COURIER_ID = 'order-courier';
 
   // Animation function for bottom sheet
   const toggleBottomSheet = () => {
@@ -141,6 +142,12 @@ export default function OrderDetailScreen({ route, navigation }) {
 
     setIsExpanded(!isExpanded);
   };
+
+  useEffect(() => {
+    if (courierLocation && mapRef.current) {
+      mapRef.current.updateCourierLocation(COURIER_ID, courierLocation);
+    }
+  }, [courierLocation]);
 
   useEffect(() => {
     const loadOrderDetails = async () => {
@@ -191,6 +198,9 @@ export default function OrderDetailScreen({ route, navigation }) {
     if (demoInterval) {
       clearInterval(demoInterval);
       setDemoInterval(null);
+    }
+    if (mapRef.current) {
+      mapRef.current.removeCourier(COURIER_ID);
     }
     setDemoRoute(null);
     setDemoProgress(0);
@@ -244,6 +254,10 @@ export default function OrderDetailScreen({ route, navigation }) {
       setDemoRoute(route);
       setCourierLocation(origin);
       simulationStateRef.current = { route, progress: 0 };
+
+      if (mapRef.current) {
+        mapRef.current.addCourier(COURIER_ID, 'Your Courier', origin, route, destination);
+      }
 
       const interval = setInterval(updateCourierSimulation, 2000); // Update every 2 seconds
       setDemoInterval(interval);
@@ -318,6 +332,7 @@ export default function OrderDetailScreen({ route, navigation }) {
             courierLocation={courierLocation}
             routePolyline={demoRoute}
             locationPermissionGranted={true}
+            fitToElements={true}
             onMessage={() => {}}
             onLoadStart={() => console.log('Map loading started')}
             onLoadEnd={() => console.log('Map loading ended')}
