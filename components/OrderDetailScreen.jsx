@@ -14,7 +14,7 @@ import {
 import Svg, { Path, Circle, Rect, Ellipse } from 'react-native-svg';
 import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
 import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
-import Map from './Map';
+import MapWebview from './MapWebview';
 import { webSocketService, WEBSOCKET_EVENTS } from '../lib/websocket-service';
 import { updateCourierPosition } from '../lib/courier-mutations';
 import { getStoredToken } from '../lib/token-manager';
@@ -32,7 +32,6 @@ const RatingComponent = ({ orderId }) => {
 
   const handleSubmitRating = async () => {
     try {
-      console.log('Submitting rating:', { orderId, rating });
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting rating:', error);
@@ -100,14 +99,50 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const mapRef = useRef(null);
 
-  // New state for simulation
+  // New state for simulation - matching MapPage pattern
+  const [demoActive, setDemoActive] = useState(false);
   const [demoInterval, setDemoInterval] = useState(null);
   const [demoRoute, setDemoRoute] = useState(null);
   const [demoProgress, setDemoProgress] = useState(0);
-  const [courierId, setCourierId] = useState(null);
+  const [demoCourierId, setDemoCourierId] = useState(null);
+  const [courierAdded, setCourierAdded] = useState(false);
 
-  // Ref to hold state for interval
-  const simulationStateRef = useRef({
+  // Route caching to avoid unnecessary API calls
+  const [cachedRoute, setCachedRoute] = useState(null);
+  const [lastRouteKey, setLastRouteKey] = useState(null);
+
+  // Route deviation detection
+  const checkRouteDeviation = (courierLocation, route) => {
+    if (!route || route.length === 0) return false;
+
+    const DEVIATION_THRESHOLD = 100; // meters
+
+    // Find minimum distance to any point on the route
+    let minDistance = Infinity;
+
+    for (const routePoint of route) {
+      // Haversine formula for distance
+      const toRadians = (degrees) => degrees * (Math.PI / 180);
+      const R = 6371000; // Earth's radius in meters
+      const lat1 = toRadians(courierLocation.latitude);
+      const lat2 = toRadians(routePoint.latitude);
+      const deltaLat = toRadians(routePoint.latitude - courierLocation.latitude);
+      const deltaLng = toRadians(routePoint.longitude - courierLocation.longitude);
+
+      const a =
+        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      minDistance = Math.min(minDistance, distance);
+    }
+
+    return minDistance > DEVIATION_THRESHOLD;
+  };
+
+  // Use refs to store current state values for interval access - matching MapPage
+  const demoStateRef = useRef({
     route: null,
     progress: 0,
     active: false,
@@ -147,12 +182,6 @@ export default function OrderDetailScreen({ route, navigation }) {
 
     setIsExpanded(!isExpanded);
   };
-
-  useEffect(() => {
-    if (courierLocation && mapRef.current && courierId) {
-      mapRef.current.updateCourierLocation(courierId, courierLocation);
-    }
-  }, [courierLocation, courierId]);
 
   useEffect(() => {
     const loadOrderDetails = async () => {
@@ -198,150 +227,328 @@ export default function OrderDetailScreen({ route, navigation }) {
     }
   }, [orderId]);
 
-  // WebSocket subscription for courier location updates
-  useEffect(() => {
-    if (!webSocketService.isConnected()) {
-      webSocketService.connect();
-    }
+  // Start demo function - adapted from MapPage
+  const startDemo = async () => {
+    try {
+      // Check if we have an authentication token
+      const token = await getStoredToken();
+      if (!token) {
+        throw new Error('No authentication token found. Please sign in first.');
+      }
 
-    const unsubscribe = webSocketService.subscribe(
-      WEBSOCKET_EVENTS.COURIER_LOCATION_UPDATE,
-      (data) => {
-        if (
-          simulationStateRef.current.active &&
-          data.courier_id === simulationStateRef.current.courierId
-        ) {
-          const location = {
-            latitude: data.latitude,
-            longitude: data.longitude,
-            timestamp: Date.now(),
-          };
-          setCourierLocation(location);
+      // Connect to WebSocket if not connected
+      if (!webSocketService.isConnected()) {
+        await webSocketService.connect();
+
+        // Wait for connection to be established and subscribed
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        while (!webSocketService.isConnected() && attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          attempts++;
         }
-      },
-    );
 
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+        if (!webSocketService.isConnected()) {
+          throw new Error('Failed to establish WebSocket connection after 10 seconds');
+        }
 
-  // Courier simulation logic
-  const stopCourierSimulation = () => {
-    if (demoInterval) {
-      clearInterval(demoInterval);
-      setDemoInterval(null);
+        // Additional wait for subscription to be confirmed
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      // Get courier ID and location directly from WebSocket response (like MapPage)
+      let actualCourierId = null;
+      let initialLocation = null;
+
+      // Set up a promise to capture the first courier response (exactly like MapPage)
+      const courierResponsePromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(
+            new Error(
+              'No courier responded to position request. Please ensure a courier is available.',
+            ),
+          );
+        }, 10000);
+
+        const unsubscribe = webSocketService.subscribe('courier_location_update', (data) => {
+          if (!actualCourierId) {
+            actualCourierId = data.courier_id;
+            initialLocation = {
+              latitude: data.latitude || data.courierLatitude,
+              longitude: data.longitude || data.courierLongitude,
+              timestamp: Date.now(),
+            };
+            clearTimeout(timeout);
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+      // Request courier location
+      webSocketService.getCourierLocation().catch(() => {
+        // Ignore errors as we handle response through our promise
+      });
+
+      // Wait for courier response
+      await courierResponsePromise;
+
+      // Set demo courier ID BEFORE anything else (like MapPage)
+      setDemoCourierId(actualCourierId);
+
+      // Get real route from Google Maps API from truck to delivery address (with caching)
+      const routeKey = `${truckLocation.latitude},${truckLocation.longitude}-${destinationLocation.latitude},${destinationLocation.longitude}`;
+
+      let route;
+      if (cachedRoute && lastRouteKey === routeKey) {
+        console.log('🗺️ Using cached route (avoiding Google API call)');
+        route = cachedRoute;
+      } else {
+        console.log('🗺️ Fetching new route from Google Maps...');
+        console.log('📍 From (truck):', truckLocation);
+        console.log('📍 To (delivery):', destinationLocation);
+
+        const routeData = await googleMapsRoutingService.fetchRoute(
+          truckLocation,
+          destinationLocation,
+          { profile: 'driving' }, // Use driving mode for food delivery
+        );
+
+        if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
+          throw new Error('Failed to get route from Google Maps API');
+        }
+
+        route = routeData.coordinates;
+
+        // Cache the route
+        setCachedRoute(route);
+        setLastRouteKey(routeKey);
+
+        console.log(
+          `✅ Got new route with ${route.length} waypoints (${(routeData.distance / 1000).toFixed(2)}km) - cached for reuse`,
+        );
+      }
+
+      // Set demo state BEFORE adding courier to prevent race conditions
+      setDemoRoute(route);
+      setDemoProgress(0);
+      setDemoActive(true);
+
+      // Update refs for interval access
+      demoStateRef.current = {
+        route: route,
+        progress: 0,
+        active: true,
+        courierId: actualCourierId,
+      };
+
+      // Provide route to map so it can draw polyline for demo animation
+      if (mapRef.current && mapRef.current.updateCourierRoute) {
+        mapRef.current.updateCourierRoute(actualCourierId, route);
+      }
+
+      // Set courier position to truck location via GraphQL AFTER setting up route
+      try {
+        const positionResult = await updateCourierPosition(
+          truckLocation.latitude,
+          truckLocation.longitude,
+        );
+        if (!positionResult.success) {
+          console.error(
+            '❌ Failed to set courier position to truck location:',
+            positionResult.errors,
+          );
+        }
+      } catch (error) {
+        console.error('❌ Error setting courier position to truck location:', error);
+      }
+
+      // Start interval to update position every 3 seconds
+      const interval = setInterval(async () => {
+        try {
+          await updateDemoPosition();
+        } catch (error) {
+          console.error('❌ Error updating demo position:', error);
+        }
+      }, 3000);
+
+      setDemoInterval(interval);
+    } catch (error) {
+      console.error('❌ Failed to start demo:', error);
+
+      // Provide more specific error messages
+      if (error.message.includes('WebSocket not connected')) {
+        console.error('📡 WebSocket connection failed. Please check:');
+        console.error('- Internet connection');
+        console.error('- Authentication token validity');
+        console.error('- Server availability at:', 'wss://api.thundertruck.app/cable');
+      } else if (error.message.includes('Timeout waiting for courier position')) {
+        console.error('⏱️ Timeout getting courier position. Backend may not have active couriers.');
+      }
+
+      setDemoActive(false);
+
+      // Try to disconnect and clean up
+      try {
+        webSocketService.disconnect();
+      } catch (cleanupError) {
+        console.error('Error during cleanup:', cleanupError);
+      }
     }
-    if (mapRef.current && simulationStateRef.current.courierId) {
-      mapRef.current.removeCourier(simulationStateRef.current.courierId);
-    }
-    setDemoRoute(null);
-    setDemoProgress(0);
-    setCourierLocation(null);
-    setCourierId(null);
-    simulationStateRef.current = { route: null, progress: 0, active: false, courierId: null };
   };
 
-  const updateCourierSimulation = async () => {
-    const currentState = simulationStateRef.current;
-    if (!currentState.route || currentState.route.length === 0 || !currentState.active) return;
+  const updateDemoPosition = async () => {
+    const currentState = demoStateRef.current;
 
-    const newProgress = Math.min(currentState.progress + 0.05, 1); // Move 5% each step
+    if (!currentState.route || currentState.route.length === 0 || !currentState.active) {
+      return;
+    }
 
-    simulationStateRef.current.progress = newProgress;
+    const newProgress = Math.min(currentState.progress + 0.05, 1); // Move 5% along route each update (matching MapPage)
+
+    // Update both state and ref
     setDemoProgress(newProgress);
+    demoStateRef.current.progress = newProgress;
 
+    // Calculate current position along the real route (truck to delivery) - simplified like MapPage
     const route = currentState.route;
     const totalSegments = route.length - 1;
     const currentSegmentFloat = newProgress * totalSegments;
     const segmentIndex = Math.floor(currentSegmentFloat);
     const segmentProgress = currentSegmentFloat - segmentIndex;
 
+    // Get current and next waypoints
     const startPoint = route[segmentIndex];
     const endPoint = route[Math.min(segmentIndex + 1, route.length - 1)];
 
+    // Interpolate between waypoints for smooth movement
     const currentPosition = {
       latitude: startPoint.latitude + (endPoint.latitude - startPoint.latitude) * segmentProgress,
       longitude:
         startPoint.longitude + (endPoint.longitude - startPoint.longitude) * segmentProgress,
     };
 
-    await updateCourierPosition(currentPosition.latitude, currentPosition.longitude);
+    // Call real GraphQL mutation (exactly like MapPage)
+    const result = await updateCourierPosition(currentPosition.latitude, currentPosition.longitude);
 
+    if (!result.success) {
+      console.error('❌ Failed to update position:', result.errors);
+    }
+
+    // Stop demo when route is complete
     if (newProgress >= 1) {
-      stopCourierSimulation();
+      stopDemo();
     }
   };
 
-  const startCourierSimulation = async (origin, destination) => {
-    stopCourierSimulation();
+  const stopDemo = () => {
+    console.log('🛑 Stopping courier demo...');
 
-    try {
-      const token = await getStoredToken();
-      if (!token) throw new Error('Authentication token not found.');
-
-      if (!webSocketService.isConnected()) {
-        await webSocketService.connect();
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for connection
-      }
-
-      let actualCourierId = null;
-      const courierResponsePromise = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Timeout waiting for courier.')), 10000);
-
-        const unsubscribe = webSocketService.subscribe('courier_location_update', (data) => {
-          if (!actualCourierId) {
-            actualCourierId = data.courier_id;
-            setCourierId(actualCourierId);
-
-            // Set initial position of the courier to the truck's location
-            updateCourierPosition(origin.latitude, origin.longitude);
-            setCourierLocation(origin);
-
-            clearTimeout(timeout);
-            unsubscribe();
-            resolve(actualCourierId);
-          }
-        });
-      });
-
-      webSocketService.getCourierLocation().catch(() => {});
-      actualCourierId = await courierResponsePromise;
-
-      const routeData = await googleMapsRoutingService.fetchRoute(origin, destination, {
-        profile: 'driving',
-      });
-      console.log('Route=>', routeData);
-      if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
-        throw new Error('Failed to get route from Google Maps API');
-      }
-
-      const route = routeData.coordinates;
-      setDemoRoute(route);
-      simulationStateRef.current = { route, progress: 0, active: true, courierId: actualCourierId };
-
-      if (mapRef.current) {
-        mapRef.current.addCourier(actualCourierId, 'Your Courier', origin, route, destination);
-      }
-
-      const interval = setInterval(updateCourierSimulation, 3000);
-      setDemoInterval(interval);
-    } catch (error) {
-      console.error('Failed to start courier simulation:', error);
+    if (demoInterval) {
+      clearInterval(demoInterval);
+      setDemoInterval(null);
     }
+
+    setDemoActive(false);
+    setDemoRoute(null);
+    setDemoProgress(0);
+    setDemoCourierId(null);
+    setCourierAdded(false);
+
+    // Clear the ref as well
+    demoStateRef.current = {
+      route: null,
+      progress: 0,
+      active: false,
+      courierId: null,
+    };
+
+    console.log('✅ Demo stopped');
   };
 
+  // Subscribe to WebSocket courier updates - handle like real system
   useEffect(() => {
-    if (currentStatus === 'delivering' && truckLocation && destinationLocation) {
-      startCourierSimulation(truckLocation, destinationLocation);
-    } else {
-      stopCourierSimulation();
+    const unsubscribe = webSocketService.subscribe(
+      WEBSOCKET_EVENTS.COURIER_LOCATION_UPDATE,
+      (data) => {
+        // Set demo courier ID from the first response (this will be our chosen courier)
+        if (!demoCourierId) {
+          setDemoCourierId(data.courier_id);
+        }
+
+        // Process updates for our chosen demo courier (like real system)
+        if (
+          data.courier_id === demoCourierId &&
+          mapRef.current &&
+          data.latitude &&
+          data.longitude
+        ) {
+          const location = {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            timestamp: Date.now(),
+          };
+
+          // Add courier to tracking system first if not already added
+          if (!courierAdded && mapRef.current.addCourier) {
+            // Add courier with destination so map can get route from GraphQL (for production)
+            mapRef.current.addCourier(
+              data.courier_id,
+              'Your Courier',
+              location,
+              null,
+              destinationLocation,
+            );
+            setCourierAdded(true);
+          }
+          // Update location when courier already exists (normal WebSocket behavior)
+          else if (courierAdded && mapRef.current.updateCourierLocation) {
+            mapRef.current.updateCourierLocation(data.courier_id, location);
+          }
+
+          // Update local state for any other components that might need it
+          setCourierLocation(location);
+
+          // Check for route deviation and refetch if needed (only when demo is not active)
+          if (!demoActive && cachedRoute && checkRouteDeviation(location, cachedRoute)) {
+            // Clear cached route so it gets refetched next time
+            setCachedRoute(null);
+            setLastRouteKey(null);
+          }
+        }
+      },
+    );
+
+    return unsubscribe;
+  }, [demoCourierId, courierAdded]);
+
+  // Auto-start when status is delivering and locations are available
+  useEffect(() => {
+    if (currentStatus === 'delivering' && truckLocation && destinationLocation && !demoActive) {
+      console.log('🚚 Order status is delivering - auto-starting courier simulation');
+      startDemo();
+    } else if (currentStatus !== 'delivering' && demoActive) {
+      console.log('🛑 Order status changed from delivering - stopping courier simulation');
+      stopDemo();
     }
 
     return () => {
-      stopCourierSimulation(); // Cleanup on unmount or status change
+      // Cleanup on unmount or status change
+      if (demoInterval) {
+        clearInterval(demoInterval);
+      }
     };
   }, [currentStatus, truckLocation, destinationLocation]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (demoInterval) {
+        clearInterval(demoInterval);
+      }
+    };
+  }, [demoInterval]);
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -388,20 +595,20 @@ export default function OrderDetailScreen({ route, navigation }) {
     if (currentStatus === 'delivering') {
       return (
         <View style={styles.visualSectionLarge}>
-          <Map
+          <MapWebview
             ref={mapRef}
             webViewReady={webViewReady}
             setWebViewReady={setWebViewReady}
             truckLocation={truckLocation}
             destinationLocation={destinationLocation}
             courierLocation={courierLocation}
-            routePolyline={demoRoute}
             locationPermissionGranted={true}
             fitToElements={truckLocation && destinationLocation}
             onMessage={() => {}}
-            onLoadStart={() => console.log('Map loading started')}
-            onLoadEnd={() => console.log('Map loading ended')}
+            onLoadStart={() => {}}
+            onLoadEnd={() => {}}
             onError={(error) => console.error('Map error:', error)}
+            onCourierUpdate={() => {}}
           />
         </View>
       );
@@ -419,37 +626,84 @@ export default function OrderDetailScreen({ route, navigation }) {
       case 'pending':
         return (
           <View style={styles.illustrationGrid}>
+            {/* Order Icon */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Path
-                  d="M15 10 L15 70 M10 65 L20 65 M12 68 L18 68"
-                  stroke="#8B4513"
+              <Svg width="80" height="80" viewBox="0 0 80 80">
+                {/* Background circle */}
+                <Circle cx="40" cy="40" r="35" fill="#F8F9FA" stroke="#E5E5E5" strokeWidth="2" />
+                {/* Clipboard */}
+                <Rect
+                  x="25"
+                  y="15"
+                  width="30"
+                  height="40"
+                  rx="3"
+                  fill="#FFF"
+                  stroke="#DDD"
                   strokeWidth="2"
-                  fill="none"
                 />
-                <Circle cx="15" cy="10" r="8" fill="#C0C0C0" />
-                <Path d="M10 8 L10 12 M15 6 L15 14 M20 8 L20 12" stroke="#666" strokeWidth="1" />
+                <Rect x="30" y="10" width="20" height="8" rx="2" fill="#2D1E2F" />
+                {/* Text lines */}
+                <Rect x="30" y="25" width="20" height="2" rx="1" fill="#DDD" />
+                <Rect x="30" y="30" width="15" height="2" rx="1" fill="#DDD" />
+                <Rect x="30" y="35" width="18" height="2" rx="1" fill="#DDD" />
+                {/* Checkmark */}
+                <Circle cx="45" cy="45" r="8" fill="#4CAF50" />
+                <Path
+                  d="M41 45 L44 48 L49 42"
+                  stroke="#FFF"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </Svg>
             </View>
+
+            {/* Food Preparation Icon */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Rect x="15" y="25" width="30" height="35" rx="5" fill="#8B4513" />
-                <Rect x="18" y="28" width="24" height="29" rx="3" fill="#D2691E" />
+              <Svg width="80" height="80" viewBox="0 0 80 80">
+                {/* Background circle */}
+                <Circle cx="40" cy="40" r="35" fill="#FFF4E6" stroke="#FFE0B3" strokeWidth="2" />
+                {/* Chef hat */}
                 <Path
-                  d="M45 35 Q50 35 50 40 Q50 45 45 45"
-                  stroke="#8B4513"
-                  strokeWidth="2"
-                  fill="none"
+                  d="M25 35 Q25 25 35 25 Q40 20 45 25 Q55 25 55 35 Q55 40 50 40 L30 40 Q25 40 25 35 Z"
+                  fill="#FFF"
+                  stroke="#DDD"
+                  strokeWidth="1"
                 />
-                <Ellipse cx="30" cy="25" rx="15" ry="3" fill="#F5DEB3" />
+                <Rect
+                  x="28"
+                  y="40"
+                  width="24"
+                  height="8"
+                  fill="#FFF"
+                  stroke="#DDD"
+                  strokeWidth="1"
+                />
+                {/* Cooking utensils */}
+                <Path d="M35 50 L35 65" stroke="#8B4513" strokeWidth="2" strokeLinecap="round" />
+                <Path d="M45 50 L45 65" stroke="#8B4513" strokeWidth="2" strokeLinecap="round" />
+                <Ellipse cx="35" cy="48" rx="3" ry="2" fill="#C0C0C0" />
+                <Ellipse cx="45" cy="48" rx="3" ry="2" fill="#C0C0C0" />
               </Svg>
             </View>
+
+            {/* Clock Icon */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Rect x="20" y="20" width="20" height="50" rx="3" fill="#FFA500" />
-                <Rect x="22" y="22" width="16" height="46" rx="2" fill="#FFD700" />
-                <Rect x="25" y="15" width="10" height="10" rx="1" fill="#FF6347" />
-                <Circle cx="30" cy="20" r="2" fill="#228B22" />
+              <Svg width="80" height="80" viewBox="0 0 80 80">
+                {/* Background circle */}
+                <Circle cx="40" cy="40" r="35" fill="#E3F2FD" stroke="#BBDEFB" strokeWidth="2" />
+                {/* Clock face */}
+                <Circle cx="40" cy="40" r="20" fill="#FFF" stroke="#2196F3" strokeWidth="2" />
+                {/* Clock hands */}
+                <Path d="M40 40 L40 25" stroke="#2196F3" strokeWidth="3" strokeLinecap="round" />
+                <Path d="M40 40 L50 40" stroke="#2196F3" strokeWidth="2" strokeLinecap="round" />
+                <Circle cx="40" cy="40" r="2" fill="#2196F3" />
+                {/* Clock numbers */}
+                <Circle cx="40" cy="22" r="1" fill="#666" />
+                <Circle cx="58" cy="40" r="1" fill="#666" />
+                <Circle cx="40" cy="58" r="1" fill="#666" />
+                <Circle cx="22" cy="40" r="1" fill="#666" />
               </Svg>
             </View>
           </View>
@@ -457,30 +711,102 @@ export default function OrderDetailScreen({ route, navigation }) {
       case 'preparing':
         return (
           <View style={styles.illustrationGrid}>
+            {/* Cooking Pan */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Ellipse cx="30" cy="50" rx="25" ry="5" fill="#333" />
-                <Ellipse cx="30" cy="48" rx="25" ry="5" fill="#444" />
-                <Circle cx="20" cy="45" r="4" fill="#FF6347" />
-                <Circle cx="30" cy="43" r="5" fill="#32CD32" />
-                <Circle cx="40" cy="46" r="3" fill="#FFD700" />
-                <Path d="M50 55 L60 65" stroke="#8B4513" strokeWidth="3" />
+              <Svg width="80" height="80" viewBox="0 0 80 80">
+                {/* Background circle */}
+                <Circle cx="40" cy="40" r="35" fill="#FFF3E0" stroke="#FFCC80" strokeWidth="2" />
+                {/* Pan */}
+                <Ellipse cx="40" cy="45" rx="18" ry="12" fill="#424242" />
+                <Ellipse cx="40" cy="43" rx="16" ry="10" fill="#616161" />
+                {/* Handle */}
+                <Rect x="58" y="42" width="12" height="3" rx="1.5" fill="#8D6E63" />
+                {/* Food items */}
+                <Circle cx="35" cy="43" r="3" fill="#FF6347" />
+                <Circle cx="45" cy="41" r="2.5" fill="#32CD32" />
+                <Circle cx="40" cy="47" r="2" fill="#FFD700" />
+                {/* Steam */}
+                <Path
+                  d="M30 30 Q32 25 30 20"
+                  stroke="#E0E0E0"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <Path
+                  d="M40 28 Q42 23 40 18"
+                  stroke="#E0E0E0"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <Path
+                  d="M50 30 Q52 25 50 20"
+                  stroke="#E0E0E0"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                />
               </Svg>
             </View>
+
+            {/* Oven/Grill */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Path d="M10 40 Q10 60 30 60 Q50 60 50 40 L45 35 L15 35 Z" fill="#E6E6FA" />
-                <Ellipse cx="30" cy="35" rx="17" ry="3" fill="#DDA0DD" />
-                <Circle cx="25" cy="38" r="2" fill="#FF69B4" />
-                <Circle cx="35" cy="42" r="1.5" fill="#FF1493" />
+              <Svg width="80" height="80" viewBox="0 0 80 80">
+                {/* Background circle */}
+                <Circle cx="40" cy="40" r="35" fill="#FFEBEE" stroke="#FFCDD2" strokeWidth="2" />
+                {/* Oven body */}
+                <Rect x="20" y="25" width="40" height="35" rx="4" fill="#37474F" />
+                <Rect x="22" y="27" width="36" height="31" rx="2" fill="#546E7A" />
+                {/* Oven window */}
+                <Rect x="25" y="30" width="30" height="20" rx="2" fill="#263238" />
+                <Rect x="27" y="32" width="26" height="16" rx="1" fill="#FFB74D" opacity="0.7" />
+                {/* Control knobs */}
+                <Circle cx="30" cy="55" r="3" fill="#607D8B" />
+                <Circle cx="40" cy="55" r="3" fill="#607D8B" />
+                <Circle cx="50" cy="55" r="3" fill="#607D8B" />
+                {/* Heat indicator */}
+                <Circle cx="40" cy="40" r="2" fill="#FF5722" />
               </Svg>
             </View>
+
+            {/* Timer */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Circle cx="30" cy="40" r="20" fill="#FF4500" />
-                <Circle cx="30" cy="40" r="17" fill="#FFF" />
-                <Path d="M30 25 L30 40 L40 45" stroke="#333" strokeWidth="2" fill="none" />
-                <Circle cx="30" cy="40" r="2" fill="#333" />
+              <Svg width="80" height="80" viewBox="0 0 80 80">
+                {/* Background circle */}
+                <Circle cx="40" cy="40" r="35" fill="#F3E5F5" stroke="#CE93D8" strokeWidth="2" />
+                {/* Timer body */}
+                <Circle cx="40" cy="42" r="18" fill="#FFF" stroke="#9C27B0" strokeWidth="2" />
+                {/* Timer top */}
+                <Rect x="37" y="20" width="6" height="4" rx="1" fill="#9C27B0" />
+                {/* Winding key */}
+                <Circle cx="40" cy="18" r="2" fill="#9C27B0" />
+                <Rect x="39" y="12" width="2" height="6" fill="#9C27B0" />
+                {/* Timer hands */}
+                <Path d="M40 42 L40 30" stroke="#9C27B0" strokeWidth="2" strokeLinecap="round" />
+                <Path d="M40 42 L48 45" stroke="#9C27B0" strokeWidth="1.5" strokeLinecap="round" />
+                <Circle cx="40" cy="42" r="1.5" fill="#9C27B0" />
+                {/* Numbers */}
+                <Text
+                  x="40"
+                  y="28"
+                  textAnchor="middle"
+                  fill="#9C27B0"
+                  fontSize="6"
+                  fontWeight="bold"
+                >
+                  12
+                </Text>
+                <Text
+                  x="52"
+                  y="45"
+                  textAnchor="middle"
+                  fill="#9C27B0"
+                  fontSize="6"
+                  fontWeight="bold"
+                >
+                  3
+                </Text>
               </Svg>
             </View>
           </View>
@@ -488,28 +814,69 @@ export default function OrderDetailScreen({ route, navigation }) {
       case 'completed':
         return (
           <View style={styles.illustrationGrid}>
+            {/* Success Checkmark */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Circle cx="30" cy="40" r="25" fill="#4CAF50" />
+              <Svg width="100" height="80" viewBox="0 0 100 80">
+                {/* Background circle */}
+                <Circle cx="50" cy="40" r="35" fill="#E8F5E8" stroke="#A5D6A7" strokeWidth="2" />
+                {/* Main checkmark circle */}
+                <Circle cx="50" cy="40" r="25" fill="#4CAF50" />
+                {/* Checkmark */}
                 <Path
-                  d="M15 40 L25 50 L45 25"
+                  d="M35 40 L45 50 L65 28"
                   stroke="#FFF"
                   strokeWidth="4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
+                {/* Confetti */}
+                <Circle cx="25" cy="20" r="2" fill="#FFD700" />
+                <Circle cx="75" cy="25" r="1.5" fill="#FF6B6B" />
+                <Circle cx="20" cy="60" r="1.5" fill="#4ECDC4" />
+                <Circle cx="80" cy="55" r="2" fill="#45B7D1" />
+                <Rect
+                  x="30"
+                  y="15"
+                  width="3"
+                  height="3"
+                  fill="#96CEB4"
+                  transform="rotate(45 31.5 16.5)"
+                />
+                <Rect
+                  x="70"
+                  y="60"
+                  width="3"
+                  height="3"
+                  fill="#FECA57"
+                  transform="rotate(45 71.5 61.5)"
+                />
               </Svg>
             </View>
+
+            {/* Delivery Box */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Rect x="15" y="30" width="30" height="35" rx="3" fill="#8B4513" />
-                <Rect x="18" y="33" width="24" height="29" rx="2" fill="#D2691E" />
+              <Svg width="80" height="80" viewBox="0 0 80 80">
+                {/* Background circle */}
+                <Circle cx="40" cy="40" r="35" fill="#FFF8E1" stroke="#FFE082" strokeWidth="2" />
+                {/* Box */}
+                <Rect x="20" y="30" width="40" height="30" rx="4" fill="#8D6E63" />
+                <Rect x="22" y="32" width="36" height="26" rx="2" fill="#A1887F" />
+                {/* Box handle/string */}
                 <Path
-                  d="M20 30 L20 25 Q20 20 25 20 L35 20 Q40 20 40 25 L40 30"
-                  stroke="#8B4513"
+                  d="M25 30 L25 25 Q25 20 30 20 L50 20 Q55 20 55 25 L55 30"
+                  stroke="#6D4C41"
                   strokeWidth="2"
                   fill="none"
+                  strokeLinecap="round"
                 />
+                {/* Delivered stamp */}
+                <Circle cx="55" cy="45" r="12" fill="#4CAF50" opacity="0.9" />
+                <Text x="55" y="42" textAnchor="middle" fill="#FFF" fontSize="5" fontWeight="bold">
+                  DELIVERED
+                </Text>
+                <Text x="55" y="48" textAnchor="middle" fill="#FFF" fontSize="5" fontWeight="bold">
+                  ✓
+                </Text>
               </Svg>
             </View>
           </View>
@@ -517,14 +884,30 @@ export default function OrderDetailScreen({ route, navigation }) {
       case 'cancelled':
         return (
           <View style={styles.illustrationGrid}>
+            {/* Cancelled Icon */}
             <View style={styles.illustrationItem}>
-              <Svg width="60" height="80" viewBox="0 0 60 80">
-                <Circle cx="30" cy="40" r="25" fill="#F44336" />
+              <Svg width="100" height="80" viewBox="0 0 100 80">
+                {/* Background circle */}
+                <Circle cx="50" cy="40" r="35" fill="#FFEBEE" stroke="#FFCDD2" strokeWidth="2" />
+                {/* Main circle */}
+                <Circle cx="50" cy="40" r="25" fill="#F44336" />
+                {/* X mark */}
                 <Path
-                  d="M20 30 L40 50 M40 30 L20 50"
+                  d="M35 25 L65 55 M65 25 L35 55"
                   stroke="#FFF"
                   strokeWidth="4"
                   strokeLinecap="round"
+                />
+                {/* Sad elements */}
+                <Circle cx="30" cy="25" r="1.5" fill="#BDBDBD" opacity="0.7" />
+                <Circle cx="70" cy="55" r="1.5" fill="#BDBDBD" opacity="0.7" />
+                <Path
+                  d="M25 60 Q30 65 35 60"
+                  stroke="#BDBDBD"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.7"
                 />
               </Svg>
             </View>
@@ -898,8 +1281,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   illustrationItem: {
-    marginHorizontal: 15,
-    marginVertical: 10,
+    marginHorizontal: 10,
+    marginVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Section 3: Bottom Sheet
   bottomSheet: {
