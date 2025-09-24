@@ -289,7 +289,7 @@ const CheckoutForm = ({ route, navigation }) => {
         </View>
 
         {/* Payment Section */}
-        <PaymentMethodSection userData={userData} />
+        <PaymentMethodSection userData={userData} up/>
 
         {/* Promotions Section */}
         <PromotionsSection />

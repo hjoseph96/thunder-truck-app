@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import PaymentMethodManager from './PaymentMethodManager';
+import { authService } from '../lib/api-service';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -66,6 +67,25 @@ export default function UserProfileView({ visible, onClose, userData, navigation
   const handleOrdersPress = () => {
     onClose(); // Close the profile modal first
     navigation.navigate('OrderIndex');
+  }
+
+  const handleSignOut = async () => {
+    try {
+      onClose(); // Close the profile modal first
+      await authService.signOut();
+      // Navigate to LandingPage
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'LandingPage' }],
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Still navigate to LandingPage even if signOut fails
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'LandingPage' }],
+      });
+    }
   };
 
   return (
@@ -224,6 +244,14 @@ export default function UserProfileView({ visible, onClose, userData, navigation
                   />
                 </Svg>
               </TouchableOpacity>
+
+              {/* Sign Out */}
+              <TouchableOpacity style={styles.signOutItem} onPress={handleSignOut}>
+                <View style={styles.signOutContent}>
+                  <Text style={styles.signOutText}>Sign Out</Text>
+                </View>
+              </TouchableOpacity>
+              
             </View>
           </ScrollView>
         </TouchableOpacity>
@@ -339,5 +367,25 @@ const styles = StyleSheet.create({
   },
   caret: {
     marginLeft: 10,
+  },
+  signOutItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    width: '100%',
+    backgroundColor: '#FFF5F5',
+  },
+  signOutContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  signOutText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#DC2626',
+    fontFamily: 'Poppins',
   },
 });

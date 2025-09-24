@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
 import PaymentMethodManager from './PaymentMethodManager';
 import CreditCardIcon from './CreditCardIcon';
+import { syncPaymentMethods } from '../lib/payment-service';
+import { fetchUser } from '../lib/user-service';
 
 const PaymentMethodSection = ({ userData }) => {
   const [showPaymentManager, setShowPaymentManager] = useState(false);
-  const defaultPaymentMethod = userData?.defaultUserPaymentMethod;
+  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState(userData?.defaultUserPaymentMethod);
   const hasPaymentMethods = userData?.userPaymentMethods?.length > 0;
+
 
   // Wallet SVG content from assets/images/wallet.svg (with inline colors)
   const walletSvg = `<svg width="800px" height="800px" viewBox="0 0 120 120" id="Layer_1" version="1.1" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -50,6 +53,13 @@ const PaymentMethodSection = ({ userData }) => {
       </g>
     </g>
   </svg>`;
+
+  const handlePaymentMethodUpdate = async (paymentMethod) => {
+    await syncPaymentMethods();
+    const updatedUserData = await fetchUser();
+
+    setDefaultPaymentMethod(updatedUserData.defaultUserPaymentMethod);
+  };
 
   return (
     <>
@@ -95,10 +105,8 @@ const PaymentMethodSection = ({ userData }) => {
       <PaymentMethodManager
         visible={showPaymentManager}
         onClose={() => setShowPaymentManager(false)}
-        onPaymentMethodAdded={() => {
-          // Reload user data or trigger a refresh
-          console.log('Payment method added');
-        }}
+        onPaymentMethodAdded={handlePaymentMethodUpdate}
+        onDefaultPaymentMethodChanged={handlePaymentMethodUpdate}
       />
     </>
   );

@@ -37,8 +37,7 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
       setLoading(true);
       // Fetch payment methods directly instead of entire user data
       const paymentMethods = await fetchPaymentMethods();
-      
-      
+
       // Find the default payment method
       const defaultPaymentMethod = paymentMethods.find(pm => pm.isDefault);
       setDefaultPaymentMethod(defaultPaymentMethod);

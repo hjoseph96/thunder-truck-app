@@ -19,7 +19,7 @@ import {
   CardField,
   usePlatformPay,
 } from '@stripe/stripe-react-native';
-import { createPaymentIntent, createOrders } from '../lib/payment-service';
+import { createPaymentIntent, createOrders, syncPaymentMethods } from '../lib/payment-service';
 import { fetchUser } from '../lib/user-service';
 import CreditCardIcon from './CreditCardIcon';
 import PaymentMethodManager from './PaymentMethodManager';
@@ -52,7 +52,9 @@ const PaymentScreen = ({ route, navigation }) => {
 
   const handlePaymentMethodUpdate = async () => {
     try {
+      await syncPaymentMethods();
       const updatedUserData = await fetchUser();
+
       setDefaultPaymentMethod(updatedUserData.defaultUserPaymentMethod);
     } catch (error) {
       console.error('Error updating payment method:', error);
@@ -101,8 +103,8 @@ const PaymentScreen = ({ route, navigation }) => {
       const result = await confirmPayment(paymentIntentData.clientSecret, {
             paymentMethodType: 'Card',
             paymentMethodData: {
-            paymentMethodId: defaultPaymentMethod.stripePaymentMethodId,
-              },
+              paymentMethodId: defaultPaymentMethod.stripePaymentMethodId,
+            }
       });
 
       if (result.paymentIntent.status === 'Succeeded') {
