@@ -16,6 +16,7 @@ import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
 import MapWebview from '../components/MapWebview';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
 import { updateCourierPosition } from '../lib/courier-mutations';
+import { useCourierDemo } from '../lib/useCourierDemo';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -98,6 +99,15 @@ export default function OrderDetailScreen({ route, navigation }) {
 
   const mapRef = useRef(null);
 
+  // Courier demo hook for testing
+  const courierDemo = useCourierDemo({
+    from: truckLocation,
+    to: destinationLocation,
+    enabled: currentStatus === 'delivering',
+    interval: 5000, // 5 seconds
+    totalDuration: 120000, // 2 minutes total
+  });
+
   // Animation values
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
   const arrowRotation = useRef(new Animated.Value(0)).current;
@@ -171,7 +181,7 @@ export default function OrderDetailScreen({ route, navigation }) {
     if (orderId) {
       loadOrderDetails();
       setCourierID(
-        order.courier_id == null ? '2e68f661-d271-44c4-9a00-23d99d77f251' : order.courier_id,
+        order?.courier_id == null ? '2e68f661-d271-44c4-9a00-23d99d77f251' : order?.courier_id,
       );
     } else {
       setLoading(false);
@@ -196,6 +206,7 @@ export default function OrderDetailScreen({ route, navigation }) {
 
         console.log('Adding courier to tracking system:', order.courier_id);
         mapRef.current.addCourier(order.courier_id, 'Delivery Courier', initialLocation);
+        console.log('Courier Location=>', initialLocation);
         updateCourierPosition(initialLocation.latitude, initialLocation.longitude);
       }
 
