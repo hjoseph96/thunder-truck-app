@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Ellipse } from 'react-native-svg';
 import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
-import Map from '../components/Map';
+import MapWebview from '../components/MapWebview';
+import { courierTrackingManager } from '../lib/courier-tracking-service';
+import { updateCourierPosition } from '../lib/courier-mutations';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -91,6 +93,10 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [estimatedTime, setEstimatedTime] = useState(null);
   const [currentStatus, setCurrentStatus] = useState('pending');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [courierID, setCourierID] = useState(null);
+  const [courierLocation, setCourierLocation] = useState(null);
+
+  const mapRef = useRef(null);
 
   // Animation values
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
@@ -164,11 +170,58 @@ export default function OrderDetailScreen({ route, navigation }) {
 
     if (orderId) {
       loadOrderDetails();
+      setCourierID(
+        order.courier_id == null ? '2e68f661-d271-44c4-9a00-23d99d77f251' : order.courier_id,
+      );
     } else {
       setLoading(false);
       setOrder(null);
     }
   }, [orderId]);
+
+  useEffect(() => {
+    console.group('Courier Tracking');
+    console.log('Courier ID:', courierID);
+    console.log('Order Courier ID:', courierID);
+    console.groupEnd();
+    if (currentStatus === 'delivering' && courierID) {
+      console.log('Setting up courier tracking for order:', order.courier_id);
+
+      // Add courier to tracking system first
+      if (mapRef.current && mapRef.current.addCourier) {
+        const initialLocation = truckLocation || {
+          latitude: 40.7081, // Default to NYC area
+          longitude: -73.9571,
+        };
+
+        console.log('Adding courier to tracking system:', order.courier_id);
+        mapRef.current.addCourier(order.courier_id, 'Delivery Courier', initialLocation);
+        updateCourierPosition(initialLocation.latitude, initialLocation.longitude);
+      }
+
+      // Subscribe to courier tracking manager notifications
+      const unsubscribe = courierTrackingManager.subscribe((event, data) => {
+        // Only process events for this order's courier
+        if (
+          event === 'courierLocationUpdated' &&
+          data.courier &&
+          data.courier.id === order.courier_id
+        ) {
+          console.log('Updating truck location for order courier:', data.location);
+          setTruckLocation({
+            latitude: data.location.latitude,
+            longitude: data.location.longitude,
+          });
+        }
+      });
+
+      // Cleanup subscription when effect unmounts or status changes
+      return () => {
+        console.log('Cleaning up courier tracking subscription for:', order.courier_id);
+        unsubscribe();
+      };
+    }
+  }, [currentStatus, order?.courier_id]);
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -215,9 +268,12 @@ export default function OrderDetailScreen({ route, navigation }) {
     if (currentStatus === 'delivering') {
       return (
         <View style={styles.visualSectionLarge}>
-          <Map
+          <MapWebview
+            key={order.id}
+            ref={mapRef}
             truckLocation={truckLocation}
             destinationLocation={destinationLocation}
+            courierLocation={courierLocation}
             fitToElements={true}
           />
         </View>
