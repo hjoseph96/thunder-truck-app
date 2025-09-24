@@ -346,6 +346,7 @@ const mapStyles = StyleSheet.create({
 const MapWebview = forwardRef(
   (
     {
+      key,
       webViewReady,
       setWebViewReady,
       userLocation,
@@ -715,6 +716,7 @@ const MapWebview = forwardRef(
     return (
       <View style={mapStyles.container}>
         <MapView
+          key={key}
           ref={mapRef}
           style={mapStyles.map}
           provider={PROVIDER_GOOGLE}
