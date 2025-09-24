@@ -105,8 +105,8 @@ export default function OrderDetailScreen({ route, navigation }) {
     to: destinationLocation,
     enabled: currentStatus === 'delivering',
     courierId: courierID,
-    interval: 5000, // 5 seconds
-    totalDuration: 120000, // 2 minutes total
+    interval: 3000, // 3 seconds
+    totalDuration: 60000, // 1 minutes total
   });
 
   // Animation values
