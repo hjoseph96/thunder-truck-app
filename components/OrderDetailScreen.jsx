@@ -191,21 +191,12 @@ export default function OrderDetailScreen({ route, navigation }) {
   }, [orderId]);
 
   useEffect(() => {
-    console.group('Courier Tracking');
-    console.log('Courier ID:', courierID);
-    console.log('Order Courier ID:', courierID);
-    console.groupEnd();
     if (currentStatus === 'delivering' && courierID && mapRef.current) {
-      console.log('Setting up courier tracking for order:', courierID);
-
       // Add courier to tracking system first
       const initialLocation = truckLocation || {
         latitude: 40.692673696555104,
         longitude: -73.70093036718504,
       };
-
-      console.log('Adding courier to tracking system:', courierID);
-      console.log('Courier Location=>', initialLocation);
 
       // Add courier with route information for proper tracking
       mapRef.current.addCourier(
@@ -223,7 +214,6 @@ export default function OrderDetailScreen({ route, navigation }) {
       const unsubscribe = courierTrackingManager.subscribe((event, data) => {
         // Only process events for this order's courier
         if (event === 'courierLocationUpdated' && data.courier && data.courier.id === courierID) {
-          console.log('Updating courier location:', data.location);
           // Only update the courier location state, NOT the truck location
           // The truck should stay at the food truck's fixed position
           setCourierLocation({
@@ -235,7 +225,6 @@ export default function OrderDetailScreen({ route, navigation }) {
 
       // Cleanup subscription when effect unmounts or status changes
       return () => {
-        console.log('Cleaning up courier tracking subscription for:', courierID);
         unsubscribe();
         // Remove courier from tracking system
         if (mapRef.current && mapRef.current.removeCourier) {
