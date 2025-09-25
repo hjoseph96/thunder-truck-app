@@ -15,8 +15,6 @@ import Svg, { Path, Circle, Rect, Ellipse } from 'react-native-svg';
 import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
 import MapWebview from '../components/MapWebview';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
-import { updateCourierPosition } from '../lib/courier-mutations';
-import { useCourierDemo } from '../lib/useCourierDemo';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -99,16 +97,6 @@ export default function OrderDetailScreen({ route, navigation }) {
 
   const mapRef = useRef(null);
 
-  // Courier demo hook for testing
-  const courierDemo = useCourierDemo({
-    from: truckLocation,
-    to: destinationLocation,
-    enabled: currentStatus === 'delivering',
-    courierId: courierID,
-    interval: 3000, // 3 seconds
-    totalDuration: 60000, // 1 minutes total
-  });
-
   // Animation values
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
   const arrowRotation = useRef(new Animated.Value(0)).current;
@@ -152,24 +140,28 @@ export default function OrderDetailScreen({ route, navigation }) {
         setOrder(formattedOrder);
         setCurrentStatus(formattedOrder.status);
 
-        // Parse and set destination coordinates
-        const latLongString = orderData.orderAddresses?.[0]?.latlong;
-        if (latLongString) {
-          const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
-          if (matches && matches.length === 3) {
-            setDestinationLocation({
-              longitude: parseFloat(matches[1]),
-              latitude: parseFloat(matches[2]),
-            });
-          }
-        }
-
         // Set food truck coordinates
         if (orderData.foodTruck?.latitude && orderData.foodTruck?.longitude) {
           setTruckLocation({
             latitude: orderData.foodTruck.latitude,
             longitude: orderData.foodTruck.longitude,
           });
+        }
+
+        // Parse and set destination coordinates
+        const latLongString = orderData.orderAddresses?.[0]?.latlong;
+        if (latLongString) {
+          const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
+          console.log(
+            `[INFO] From: ${orderData.foodTruck.latitude}, ${orderData.foodTruck.longitude}`,
+          );
+          console.log(`[INFO] To: ${matches[2]}, ${matches[1]}`);
+          if (matches && matches.length === 3) {
+            setDestinationLocation({
+              longitude: parseFloat(matches[1]),
+              latitude: parseFloat(matches[2]),
+            });
+          }
         }
       } catch (error) {
         console.error('Error loading order details:', error);
@@ -198,24 +190,23 @@ export default function OrderDetailScreen({ route, navigation }) {
         longitude: -73.70093036718504,
       };
 
-      // Add courier with route information for proper tracking
-      mapRef.current.addCourier(
-        courierID,
-        'Delivery Courier',
-        initialLocation,
-        courierDemo.routeCoordinates,
-        destinationLocation,
-      );
-
-      // Send initial position update
-      updateCourierPosition(initialLocation.latitude, initialLocation.longitude);
-
+      courierTrackingManager.addCourier(courierID, `Courier for ${orderId}`, initialLocation);
       // Subscribe to courier tracking manager notifications
       const unsubscribe = courierTrackingManager.subscribe((event, data) => {
+        console.log('Courier location updated:', data);
         // Only process events for this order's courier
         if (event === 'courierLocationUpdated' && data.courier && data.courier.id === courierID) {
           // Only update the courier location state, NOT the truck location
           // The truck should stay at the food truck's fixed position
+          // if (courierLocation == null) {
+          //   mapRef.current.addCourier(
+          //     courierID,
+          //     `Courier for ${orderId}`,
+          //     data.location,
+          //     [],
+          //     destinationLocation,
+          //   );
+          // }
           setCourierLocation({
             latitude: data.location.latitude,
             longitude: data.location.longitude,
@@ -232,7 +223,7 @@ export default function OrderDetailScreen({ route, navigation }) {
         }
       };
     }
-  }, [currentStatus, courierID, truckLocation, destinationLocation, courierDemo.routeCoordinates]);
+  }, [currentStatus, courierID, truckLocation, destinationLocation]);
 
   const getStatusConfig = (status) => {
     switch (status) {
