@@ -11,13 +11,11 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import Svg, { Path, Circle, Rect, Ellipse } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Ellipse, Text as SvgText } from 'react-native-svg';
+import { MaterialIcons } from '@expo/vector-icons';
 import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
-import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
-import MapWebview from './MapWebview';
-import { webSocketService, WEBSOCKET_EVENTS } from '../lib/websocket-service';
-import { updateCourierPosition } from '../lib/courier-mutations';
-import { getStoredToken } from '../lib/token-manager';
+import MapWebview from '../components/MapWebview';
+import { courierTrackingManager } from '../lib/courier-tracking-service';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -90,64 +88,15 @@ export default function OrderDetailScreen({ route, navigation }) {
   const { orderId } = route.params;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [webViewReady, setWebViewReady] = useState(false);
   const [truckLocation, setTruckLocation] = useState(null);
   const [destinationLocation, setDestinationLocation] = useState(null);
-  const [courierLocation, setCourierLocation] = useState(null);
   const [estimatedTime, setEstimatedTime] = useState(null);
   const [currentStatus, setCurrentStatus] = useState('pending');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [courierID, setCourierID] = useState(null);
+  const [courierLocation, setCourierLocation] = useState(null);
+
   const mapRef = useRef(null);
-
-  // New state for simulation - matching MapPage pattern
-  const [demoActive, setDemoActive] = useState(false);
-  const [demoInterval, setDemoInterval] = useState(null);
-  const [demoRoute, setDemoRoute] = useState(null);
-  const [demoProgress, setDemoProgress] = useState(0);
-  const [demoCourierId, setDemoCourierId] = useState(null);
-  const [courierAdded, setCourierAdded] = useState(false);
-
-  // Route caching to avoid unnecessary API calls
-  const [cachedRoute, setCachedRoute] = useState(null);
-  const [lastRouteKey, setLastRouteKey] = useState(null);
-
-  // Route deviation detection
-  const checkRouteDeviation = (courierLocation, route) => {
-    if (!route || route.length === 0) return false;
-
-    const DEVIATION_THRESHOLD = 100; // meters
-
-    // Find minimum distance to any point on the route
-    let minDistance = Infinity;
-
-    for (const routePoint of route) {
-      // Haversine formula for distance
-      const toRadians = (degrees) => degrees * (Math.PI / 180);
-      const R = 6371000; // Earth's radius in meters
-      const lat1 = toRadians(courierLocation.latitude);
-      const lat2 = toRadians(routePoint.latitude);
-      const deltaLat = toRadians(routePoint.latitude - courierLocation.latitude);
-      const deltaLng = toRadians(routePoint.longitude - courierLocation.longitude);
-
-      const a =
-        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-        Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = R * c;
-
-      minDistance = Math.min(minDistance, distance);
-    }
-
-    return minDistance > DEVIATION_THRESHOLD;
-  };
-
-  // Use refs to store current state values for interval access - matching MapPage
-  const demoStateRef = useRef({
-    route: null,
-    progress: 0,
-    active: false,
-    courierId: null,
-  });
 
   // Animation values
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
@@ -192,24 +141,28 @@ export default function OrderDetailScreen({ route, navigation }) {
         setOrder(formattedOrder);
         setCurrentStatus(formattedOrder.status);
 
-        // Parse and set destination coordinates
-        const latLongString = orderData.orderAddresses?.[0]?.latlong;
-        if (latLongString) {
-          const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
-          if (matches && matches.length === 3) {
-            setDestinationLocation({
-              longitude: parseFloat(matches[1]),
-              latitude: parseFloat(matches[2]),
-            });
-          }
-        }
-
         // Set food truck coordinates
         if (orderData.foodTruck?.latitude && orderData.foodTruck?.longitude) {
           setTruckLocation({
             latitude: orderData.foodTruck.latitude,
             longitude: orderData.foodTruck.longitude,
           });
+        }
+
+        // Parse and set destination coordinates
+        const latLongString = orderData.orderAddresses?.[0]?.latlong;
+        if (latLongString) {
+          const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
+          console.log(
+            `[INFO] From: ${orderData.foodTruck.latitude}, ${orderData.foodTruck.longitude}`,
+          );
+          console.log(`[INFO] To: ${matches[2]}, ${matches[1]}`);
+          if (matches && matches.length === 3) {
+            setDestinationLocation({
+              longitude: parseFloat(matches[1]),
+              latitude: parseFloat(matches[2]),
+            });
+          }
         }
       } catch (error) {
         console.error('Error loading order details:', error);
@@ -221,334 +174,63 @@ export default function OrderDetailScreen({ route, navigation }) {
 
     if (orderId) {
       loadOrderDetails();
+      setCourierID(
+        order?.courier_id == null ? '2e68f661-d271-44c4-9a00-23d99d77f251' : order?.courier_id,
+      );
     } else {
       setLoading(false);
       setOrder(null);
     }
   }, [orderId]);
 
-  // Start demo function - adapted from MapPage
-  const startDemo = async () => {
-    try {
-      // Check if we have an authentication token
-      const token = await getStoredToken();
-      if (!token) {
-        throw new Error('No authentication token found. Please sign in first.');
-      }
-
-      // Connect to WebSocket if not connected
-      if (!webSocketService.isConnected()) {
-        await webSocketService.connect();
-
-        // Wait for connection to be established and subscribed
-        let attempts = 0;
-        const maxAttempts = 10;
-
-        while (!webSocketService.isConnected() && attempts < maxAttempts) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          attempts++;
-        }
-
-        if (!webSocketService.isConnected()) {
-          throw new Error('Failed to establish WebSocket connection after 10 seconds');
-        }
-
-        // Additional wait for subscription to be confirmed
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-
-      // Get courier ID and location directly from WebSocket response (like MapPage)
-      let actualCourierId = null;
-      let initialLocation = null;
-
-      // Set up a promise to capture the first courier response (exactly like MapPage)
-      const courierResponsePromise = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(
-            new Error(
-              'No courier responded to position request. Please ensure a courier is available.',
-            ),
-          );
-        }, 10000);
-
-        const unsubscribe = webSocketService.subscribe('courier_location_update', (data) => {
-          if (!actualCourierId) {
-            actualCourierId = data.courier_id;
-            initialLocation = {
-              latitude: data.latitude || data.courierLatitude,
-              longitude: data.longitude || data.courierLongitude,
-              timestamp: Date.now(),
-            };
-            clearTimeout(timeout);
-            unsubscribe();
-            resolve();
-          }
-        });
-      });
-
-      // Request courier location
-      webSocketService.getCourierLocation().catch(() => {
-        // Ignore errors as we handle response through our promise
-      });
-
-      // Wait for courier response
-      await courierResponsePromise;
-
-      // Set demo courier ID BEFORE anything else (like MapPage)
-      setDemoCourierId(actualCourierId);
-
-      // Get real route from Google Maps API from truck to delivery address (with caching)
-      const routeKey = `${truckLocation.latitude},${truckLocation.longitude}-${destinationLocation.latitude},${destinationLocation.longitude}`;
-
-      let route;
-      if (cachedRoute && lastRouteKey === routeKey) {
-        console.log('🗺️ Using cached route (avoiding Google API call)');
-        route = cachedRoute;
-      } else {
-        console.log('🗺️ Fetching new route from Google Maps...');
-        console.log('📍 From (truck):', truckLocation);
-        console.log('📍 To (delivery):', destinationLocation);
-
-        const routeData = await googleMapsRoutingService.fetchRoute(
-          truckLocation,
-          destinationLocation,
-          { profile: 'driving' }, // Use driving mode for food delivery
-        );
-
-        if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
-          throw new Error('Failed to get route from Google Maps API');
-        }
-
-        route = routeData.coordinates;
-
-        // Cache the route
-        setCachedRoute(route);
-        setLastRouteKey(routeKey);
-
-        console.log(
-          `✅ Got new route with ${route.length} waypoints (${(routeData.distance / 1000).toFixed(2)}km) - cached for reuse`,
-        );
-      }
-
-      // Set demo state BEFORE adding courier to prevent race conditions
-      setDemoRoute(route);
-      setDemoProgress(0);
-      setDemoActive(true);
-
-      // Update refs for interval access
-      demoStateRef.current = {
-        route: route,
-        progress: 0,
-        active: true,
-        courierId: actualCourierId,
+  useEffect(() => {
+    if (currentStatus === 'delivering' && courierID && mapRef.current) {
+      // Add courier to tracking system first
+      const initialLocation = truckLocation || {
+        latitude: 40.692673696555104,
+        longitude: -73.70093036718504,
       };
 
-      // Provide route to map so it can draw polyline for demo animation
-      if (mapRef.current && mapRef.current.updateCourierRoute) {
-        mapRef.current.updateCourierRoute(actualCourierId, route);
-      }
-
-      // Set courier position to truck location via GraphQL AFTER setting up route
-      try {
-        const positionResult = await updateCourierPosition(
-          truckLocation.latitude,
-          truckLocation.longitude,
-        );
-        if (!positionResult.success) {
-          console.error(
-            '❌ Failed to set courier position to truck location:',
-            positionResult.errors,
-          );
+      courierTrackingManager.addCourier(
+        courierID,
+        `Courier for ${orderId}`,
+        null,
+        null,
+        destinationLocation,
+      );
+      // Subscribe to courier tracking manager notifications
+      const unsubscribe = courierTrackingManager.subscribe((event, data) => {
+        // console.log('Courier location updated:', data);
+        // Only process events for this order's courier
+        if (event === 'courierLocationUpdated' && data.courier && data.courier.id === courierID) {
+          // Only update the courier location state, NOT the truck location
+          // The truck should stay at the food truck's fixed position
+          // if (courierLocation == null) {
+          //   mapRef.current.addCourier(
+          //     courierID,
+          //     `Courier for ${orderId}`,
+          //     data.location,
+          //     [],
+          //     destinationLocation,
+          //   );
+          // }
+          setCourierLocation({
+            latitude: data.location.latitude,
+            longitude: data.location.longitude,
+          });
         }
-      } catch (error) {
-        console.error('❌ Error setting courier position to truck location:', error);
-      }
+      });
 
-      // Start interval to update position every 3 seconds
-      const interval = setInterval(async () => {
-        try {
-          await updateDemoPosition();
-        } catch (error) {
-          console.error('❌ Error updating demo position:', error);
+      // Cleanup subscription when effect unmounts or status changes
+      return () => {
+        unsubscribe();
+        // Remove courier from tracking system
+        if (mapRef.current && mapRef.current.removeCourier) {
+          mapRef.current.removeCourier(courierID);
         }
-      }, 3000);
-
-      setDemoInterval(interval);
-    } catch (error) {
-      console.error('❌ Failed to start demo:', error);
-
-      // Provide more specific error messages
-      if (error.message.includes('WebSocket not connected')) {
-        console.error('📡 WebSocket connection failed. Please check:');
-        console.error('- Internet connection');
-        console.error('- Authentication token validity');
-        console.error('- Server availability at:', 'wss://api.thundertruck.app/cable');
-      } else if (error.message.includes('Timeout waiting for courier position')) {
-        console.error('⏱️ Timeout getting courier position. Backend may not have active couriers.');
-      }
-
-      setDemoActive(false);
-
-      // Try to disconnect and clean up
-      try {
-        webSocketService.disconnect();
-      } catch (cleanupError) {
-        console.error('Error during cleanup:', cleanupError);
-      }
+      };
     }
-  };
-
-  const updateDemoPosition = async () => {
-    const currentState = demoStateRef.current;
-
-    if (!currentState.route || currentState.route.length === 0 || !currentState.active) {
-      return;
-    }
-
-    const newProgress = Math.min(currentState.progress + 0.05, 1); // Move 5% along route each update (matching MapPage)
-
-    // Update both state and ref
-    setDemoProgress(newProgress);
-    demoStateRef.current.progress = newProgress;
-
-    // Calculate current position along the real route (truck to delivery) - simplified like MapPage
-    const route = currentState.route;
-    const totalSegments = route.length - 1;
-    const currentSegmentFloat = newProgress * totalSegments;
-    const segmentIndex = Math.floor(currentSegmentFloat);
-    const segmentProgress = currentSegmentFloat - segmentIndex;
-
-    // Get current and next waypoints
-    const startPoint = route[segmentIndex];
-    const endPoint = route[Math.min(segmentIndex + 1, route.length - 1)];
-
-    // Interpolate between waypoints for smooth movement
-    const currentPosition = {
-      latitude: startPoint.latitude + (endPoint.latitude - startPoint.latitude) * segmentProgress,
-      longitude:
-        startPoint.longitude + (endPoint.longitude - startPoint.longitude) * segmentProgress,
-    };
-
-    // Call real GraphQL mutation (exactly like MapPage)
-    const result = await updateCourierPosition(currentPosition.latitude, currentPosition.longitude);
-
-    if (!result.success) {
-      console.error('❌ Failed to update position:', result.errors);
-    }
-
-    // Stop demo when route is complete
-    if (newProgress >= 1) {
-      stopDemo();
-    }
-  };
-
-  const stopDemo = () => {
-    console.log('🛑 Stopping courier demo...');
-
-    if (demoInterval) {
-      clearInterval(demoInterval);
-      setDemoInterval(null);
-    }
-
-    setDemoActive(false);
-    setDemoRoute(null);
-    setDemoProgress(0);
-    setDemoCourierId(null);
-    setCourierAdded(false);
-
-    // Clear the ref as well
-    demoStateRef.current = {
-      route: null,
-      progress: 0,
-      active: false,
-      courierId: null,
-    };
-
-    console.log('✅ Demo stopped');
-  };
-
-  // Subscribe to WebSocket courier updates - handle like real system
-  useEffect(() => {
-    const unsubscribe = webSocketService.subscribe(
-      WEBSOCKET_EVENTS.COURIER_LOCATION_UPDATE,
-      (data) => {
-        // Set demo courier ID from the first response (this will be our chosen courier)
-        if (!demoCourierId) {
-          setDemoCourierId(data.courier_id);
-        }
-
-        // Process updates for our chosen demo courier (like real system)
-        if (
-          data.courier_id === demoCourierId &&
-          mapRef.current &&
-          data.latitude &&
-          data.longitude
-        ) {
-          const location = {
-            latitude: data.latitude,
-            longitude: data.longitude,
-            timestamp: Date.now(),
-          };
-
-          // Add courier to tracking system first if not already added
-          if (!courierAdded && mapRef.current.addCourier) {
-            // Add courier with destination so map can get route from GraphQL (for production)
-            mapRef.current.addCourier(
-              data.courier_id,
-              'Your Courier',
-              location,
-              null,
-              destinationLocation,
-            );
-            setCourierAdded(true);
-          }
-          // Update location when courier already exists (normal WebSocket behavior)
-          else if (courierAdded && mapRef.current.updateCourierLocation) {
-            mapRef.current.updateCourierLocation(data.courier_id, location);
-          }
-
-          // Update local state for any other components that might need it
-          setCourierLocation(location);
-
-          // Check for route deviation and refetch if needed (only when demo is not active)
-          if (!demoActive && cachedRoute && checkRouteDeviation(location, cachedRoute)) {
-            // Clear cached route so it gets refetched next time
-            setCachedRoute(null);
-            setLastRouteKey(null);
-          }
-        }
-      },
-    );
-
-    return unsubscribe;
-  }, [demoCourierId, courierAdded]);
-
-  // Auto-start when status is delivering and locations are available
-  useEffect(() => {
-    if (currentStatus === 'delivering' && truckLocation && destinationLocation && !demoActive) {
-      console.log('🚚 Order status is delivering - auto-starting courier simulation');
-      startDemo();
-    } else if (currentStatus !== 'delivering' && demoActive) {
-      console.log('🛑 Order status changed from delivering - stopping courier simulation');
-      stopDemo();
-    }
-
-    return () => {
-      // Cleanup on unmount or status change
-      if (demoInterval) {
-        clearInterval(demoInterval);
-      }
-    };
-  }, [currentStatus, truckLocation, destinationLocation]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (demoInterval) {
-        clearInterval(demoInterval);
-      }
-    };
-  }, [demoInterval]);
+  }, [currentStatus, courierID, truckLocation, destinationLocation]);
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -596,19 +278,12 @@ export default function OrderDetailScreen({ route, navigation }) {
       return (
         <View style={styles.visualSectionLarge}>
           <MapWebview
+            key={order.id}
             ref={mapRef}
-            webViewReady={webViewReady}
-            setWebViewReady={setWebViewReady}
             truckLocation={truckLocation}
             destinationLocation={destinationLocation}
             courierLocation={courierLocation}
-            locationPermissionGranted={true}
-            fitToElements={truckLocation && destinationLocation}
-            onMessage={() => {}}
-            onLoadStart={() => {}}
-            onLoadEnd={() => {}}
-            onError={(error) => console.error('Map error:', error)}
-            onCourierUpdate={() => {}}
+            fitToElements={true}
           />
         </View>
       );
@@ -787,7 +462,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                 <Path d="M40 42 L48 45" stroke="#9C27B0" strokeWidth="1.5" strokeLinecap="round" />
                 <Circle cx="40" cy="42" r="1.5" fill="#9C27B0" />
                 {/* Numbers */}
-                <Text
+                <SvgText
                   x="40"
                   y="28"
                   textAnchor="middle"
@@ -796,8 +471,8 @@ export default function OrderDetailScreen({ route, navigation }) {
                   fontWeight="bold"
                 >
                   12
-                </Text>
-                <Text
+                </SvgText>
+                <SvgText
                   x="52"
                   y="45"
                   textAnchor="middle"
@@ -806,7 +481,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                   fontWeight="bold"
                 >
                   3
-                </Text>
+                </SvgText>
               </Svg>
             </View>
           </View>
@@ -871,12 +546,26 @@ export default function OrderDetailScreen({ route, navigation }) {
                 />
                 {/* Delivered stamp */}
                 <Circle cx="55" cy="45" r="12" fill="#4CAF50" opacity="0.9" />
-                <Text x="55" y="42" textAnchor="middle" fill="#FFF" fontSize="5" fontWeight="bold">
+                <SvgText
+                  x="55"
+                  y="42"
+                  textAnchor="middle"
+                  fill="#FFF"
+                  fontSize="5"
+                  fontWeight="bold"
+                >
                   DELIVERED
-                </Text>
-                <Text x="55" y="48" textAnchor="middle" fill="#FFF" fontSize="5" fontWeight="bold">
+                </SvgText>
+                <SvgText
+                  x="55"
+                  y="48"
+                  textAnchor="middle"
+                  fill="#FFF"
+                  fontSize="5"
+                  fontWeight="bold"
+                >
                   ✓
-                </Text>
+                </SvgText>
               </Svg>
             </View>
           </View>
@@ -1035,15 +724,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                 },
               ]}
             >
-              <Svg width="20" height="20" viewBox="0 0 20 20">
-                <Path
-                  d="M5 8L10 13L15 8"
-                  stroke="#666"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
+              <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
             </Animated.View>
           </View>
         </TouchableOpacity>

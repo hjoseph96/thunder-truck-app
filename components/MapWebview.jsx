@@ -346,6 +346,7 @@ const mapStyles = StyleSheet.create({
 const MapWebview = forwardRef(
   (
     {
+      key,
       webViewReady,
       setWebViewReady,
       userLocation,
@@ -410,10 +411,34 @@ const MapWebview = forwardRef(
             })();
 
           if (shouldUpdate) {
-            const remainingCoordinates = getRemainingRouteCoordinates(
-              courier.route,
-              currentProgress,
-            );
+            // FIX: Use courier's current animated position to prevent iOS polyline jump
+            // During animation, start polyline from where courier marker visually appears
+            let remainingCoordinates;
+
+            if (courier.animationState.isPolylineAnimating) {
+              // During animation: get remaining route from animated position
+              const courierAnimatedPosition = courier.getCurrentAnimatedPosition();
+              const animatedProgress = courier.animationState.currentProgress;
+
+              // Get the remaining route coordinates from the animated progress
+              const remainingRouteCoords = getRemainingRouteCoordinates(
+                courier.route,
+                animatedProgress,
+              );
+
+              if (remainingRouteCoords.length > 1) {
+                // Replace first coordinate with exact animated position to prevent jump
+                remainingCoordinates = [courierAnimatedPosition, ...remainingRouteCoords.slice(1)];
+              } else {
+                // Fallback: straight line to destination if no route remaining
+                remainingCoordinates = courier.destination
+                  ? [courierAnimatedPosition, courier.destination]
+                  : [courierAnimatedPosition];
+              }
+            } else {
+              // Normal case: use remaining route coordinates from current progress
+              remainingCoordinates = getRemainingRouteCoordinates(courier.route, currentProgress);
+            }
 
             // Only create polyline if there are at least 2 coordinates for a valid line
             if (remainingCoordinates.length > 1) {
@@ -715,6 +740,7 @@ const MapWebview = forwardRef(
     return (
       <View style={mapStyles.container}>
         <MapView
+          key={key}
           ref={mapRef}
           style={mapStyles.map}
           provider={PROVIDER_GOOGLE}
