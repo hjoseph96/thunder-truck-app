@@ -11,7 +11,8 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import Svg, { Path, Circle, Rect, Ellipse } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Ellipse, Text as SvgText } from 'react-native-svg';
+import { MaterialIcons } from '@expo/vector-icons';
 import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
 import MapWebview from '../components/MapWebview';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
@@ -190,10 +191,16 @@ export default function OrderDetailScreen({ route, navigation }) {
         longitude: -73.70093036718504,
       };
 
-      courierTrackingManager.addCourier(courierID, `Courier for ${orderId}`, initialLocation);
+      courierTrackingManager.addCourier(
+        courierID,
+        `Courier for ${orderId}`,
+        null,
+        null,
+        destinationLocation,
+      );
       // Subscribe to courier tracking manager notifications
       const unsubscribe = courierTrackingManager.subscribe((event, data) => {
-        console.log('Courier location updated:', data);
+        // console.log('Courier location updated:', data);
         // Only process events for this order's courier
         if (event === 'courierLocationUpdated' && data.courier && data.courier.id === courierID) {
           // Only update the courier location state, NOT the truck location
@@ -455,7 +462,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                 <Path d="M40 42 L48 45" stroke="#9C27B0" strokeWidth="1.5" strokeLinecap="round" />
                 <Circle cx="40" cy="42" r="1.5" fill="#9C27B0" />
                 {/* Numbers */}
-                <Text
+                <SvgText
                   x="40"
                   y="28"
                   textAnchor="middle"
@@ -464,8 +471,8 @@ export default function OrderDetailScreen({ route, navigation }) {
                   fontWeight="bold"
                 >
                   12
-                </Text>
-                <Text
+                </SvgText>
+                <SvgText
                   x="52"
                   y="45"
                   textAnchor="middle"
@@ -474,7 +481,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                   fontWeight="bold"
                 >
                   3
-                </Text>
+                </SvgText>
               </Svg>
             </View>
           </View>
@@ -539,12 +546,26 @@ export default function OrderDetailScreen({ route, navigation }) {
                 />
                 {/* Delivered stamp */}
                 <Circle cx="55" cy="45" r="12" fill="#4CAF50" opacity="0.9" />
-                <Text x="55" y="42" textAnchor="middle" fill="#FFF" fontSize="5" fontWeight="bold">
+                <SvgText
+                  x="55"
+                  y="42"
+                  textAnchor="middle"
+                  fill="#FFF"
+                  fontSize="5"
+                  fontWeight="bold"
+                >
                   DELIVERED
-                </Text>
-                <Text x="55" y="48" textAnchor="middle" fill="#FFF" fontSize="5" fontWeight="bold">
+                </SvgText>
+                <SvgText
+                  x="55"
+                  y="48"
+                  textAnchor="middle"
+                  fill="#FFF"
+                  fontSize="5"
+                  fontWeight="bold"
+                >
                   ✓
-                </Text>
+                </SvgText>
               </Svg>
             </View>
           </View>
@@ -703,15 +724,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                 },
               ]}
             >
-              <Svg width="20" height="20" viewBox="0 0 20 20">
-                <Path
-                  d="M5 8L10 13L15 8"
-                  stroke="#666"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
+              <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
             </Animated.View>
           </View>
         </TouchableOpacity>
