@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -26,21 +25,27 @@ import PaymentMethodManager from './PaymentMethodManager';
 import DeliveryMethodSelector from './DeliveryMethodSelector';
 import OrderSuccessModal from './OrderSuccessModal';
 
-
 const { width: screenWidth } = Dimensions.get('window');
 
 const PaymentScreen = ({ route, navigation }) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { confirmPayment, loading } = useConfirmPayment();
   const { isPlatformPaySupported, confirmPlatformPayPayment } = usePlatformPay();
-  const { 
-    selectedAddress, userData, groupedItems,
-    orderTotal, orderDeliveryFee, orderSubtotal,
-    orderDiscountTotal, cartIds
+  const {
+    selectedAddress,
+    userData,
+    groupedItems,
+    orderTotal,
+    orderDeliveryFee,
+    orderSubtotal,
+    orderDiscountTotal,
+    cartIds,
   } = route.params;
-  
+
   const [deliveryAddress, setDeliveryAddress] = useState(selectedAddress);
-  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState(userData.defaultUserPaymentMethod);
+  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState(
+    userData.defaultUserPaymentMethod,
+  );
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState(null);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -68,13 +73,13 @@ const PaymentScreen = ({ route, navigation }) => {
   const handleSuccessAnimationComplete = () => {
     setShowSuccessAnimation(false);
     // Navigate back or to success screen
-    navigation.goBack();
+    // navigation.goBack();
   };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'USD',
     }).format(amount);
   };
 
@@ -93,7 +98,7 @@ const PaymentScreen = ({ route, navigation }) => {
 
       // Step 1: Create PaymentIntent using GraphQL service
       const paymentIntentData = await createPaymentIntent(totalInCents);
-      
+
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
         Alert.alert('Error', 'Failed to get payment intent from server');
         return;
@@ -101,25 +106,24 @@ const PaymentScreen = ({ route, navigation }) => {
 
       // Step 2: Confirm payment with Stripe using saved payment method
       const result = await confirmPayment(paymentIntentData.clientSecret, {
-            paymentMethodType: 'Card',
-            paymentMethodData: {
-              paymentMethodId: defaultPaymentMethod.stripePaymentMethodId,
-            }
+        paymentMethodType: 'Card',
+        paymentMethodData: {
+          paymentMethodId: defaultPaymentMethod.stripePaymentMethodId,
+        },
       });
 
       if (result.paymentIntent.status === 'Succeeded') {
-          // Navigate to success screen or update UI
-          handlePaymentSuccess(result.paymentIntent);
-       } else {
-          Alert.alert('Payment Failed', result.error.message);
-          console.error('Payment error:', result.error.message);
+        // Navigate to success screen or update UI
+        handlePaymentSuccess(result.paymentIntent);
+      } else {
+        Alert.alert('Payment Failed', result.error.message);
+        console.error('Payment error:', result.error.message);
       }
     } catch (err) {
       Alert.alert('Error', 'Payment processing failed');
       console.error('Payment error:', err);
     }
   };
-
 
   // ============================================================================
   //  APPLE PAY INTEGRATION
@@ -136,13 +140,13 @@ const PaymentScreen = ({ route, navigation }) => {
       // Create payment intent using GraphQL service
       const totalInCents = parseInt(orderTotal * 100);
       const paymentIntentData = await createPaymentIntent(totalInCents);
-      
+
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
         Alert.alert('Error', 'Failed to get payment intent from server');
         console.error('Missing client secret for Apple Pay:', paymentIntentData);
         return;
       }
-      
+
       const { clientSecret } = paymentIntentData;
       console.log('Apple Pay - Client Secret:', clientSecret);
 
@@ -187,13 +191,13 @@ const PaymentScreen = ({ route, navigation }) => {
       const totalInCents = parseInt(orderTotal * 100);
       // Create payment intent using GraphQL service
       const paymentIntentData = await createPaymentIntent(totalInCents);
-      
+
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
         Alert.alert('Error', 'Failed to get payment intent from server');
         console.error('Missing client secret for Google Pay:', paymentIntentData);
         return;
       }
-      
+
       const { clientSecret } = paymentIntentData;
 
       const { error } = await confirmGooglePayPayment(clientSecret, {
@@ -236,6 +240,12 @@ const PaymentScreen = ({ route, navigation }) => {
       if (createdOrdersData.success) {
         // Show success animation
         setShowSuccessAnimation(true);
+
+        setTimeout(() => {
+          navigation.navigate('OrderDetail', {
+            orderId: createdOrdersData.orderId || createdOrdersData.orders[0].id,
+          });
+        }, 2000); // Wait for success animation to complete
       }
     } catch (error) {
       console.error('Error creating orders:', error);
@@ -254,7 +264,7 @@ const PaymentScreen = ({ route, navigation }) => {
       country: deliveryAddress.country,
       latlong: deliveryAddress.latlong,
       deliveryInstructions: deliveryAddress.deliveryInstructions,
-    }
+    };
 
     const userOrderData = {
       promotionId: null,
@@ -263,29 +273,38 @@ const PaymentScreen = ({ route, navigation }) => {
       deliveryFeeCents: parseInt(orderDeliveryFee * 100),
       tipCents: 0,
       userId: userData.id,
-      orderItems: Object.entries(groupedItems).map(([truckName, items], index) => {
-        return {
-          vendorName: truckName,
-          menuItemName: items[0].cartItem.menuItem.name,
-          quantity: items[0].cartItem.quantity,
-          totalPriceCents: parseInt((items[0].cartItem.menuItem.price * items[0].cartItem.quantity) * 100),
-        }
-      }).flat(),
-      orderPayments: [{
-        amountChargedCents: parseInt(orderTotal * 100),
-        stripePaymentIntentId: paymentIntent.id || paymentIntent.paymentIntentId,
-      }],
+      orderItems: Object.entries(groupedItems)
+        .map(([truckName, items], index) => {
+          return {
+            vendorName: truckName,
+            menuItemName: items[0].cartItem.menuItem.name,
+            quantity: items[0].cartItem.quantity,
+            totalPriceCents: parseInt(
+              items[0].cartItem.menuItem.price * items[0].cartItem.quantity * 100,
+            ),
+          };
+        })
+        .flat(),
+      orderPayments: [
+        {
+          amountChargedCents: parseInt(orderTotal * 100),
+          stripePaymentIntentId: paymentIntent.id || paymentIntent.paymentIntentId,
+        },
+      ],
       orderAddresses: [orderAddress],
-    }
+    };
 
     if (Object.keys(groupedItems).length === 1) {
       const firstTruck = Object.values(groupedItems)[0];
       userOrderData.foodTruckId = firstTruck[0].foodTruckData.id;
     }
-    
+
     const singleDeliveryFeeInCents = 299;
     const foodTruckOrderData = Object.entries(groupedItems).map(([truckName, items], index) => {
-      const truckTotal = items.reduce((sum, item) => sum + ((item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity), 0);
+      const truckTotal = items.reduce(
+        (sum, item) => sum + (item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity,
+        0,
+      );
       const foodTruckId = items[0].foodTruckData.id;
       const userId = userData.id;
 
@@ -294,14 +313,16 @@ const PaymentScreen = ({ route, navigation }) => {
           vendorName: truckName,
           menuItemName: item.cartItem.menuItem.name,
           quantity: item.cartItem.quantity,
-          totalPriceCents: parseInt((item.cartItem.menuItem.price * item.cartItem.quantity) * 100),
-        }
-      })
+          totalPriceCents: parseInt(item.cartItem.menuItem.price * item.cartItem.quantity * 100),
+        };
+      });
 
-      const orderPayments = [{
-        amountChargedCents: parseInt(truckTotal * 100) + singleDeliveryFeeInCents,
-        stripePaymentIntentId: paymentIntent.id || paymentIntent.paymentIntentId,
-      }]
+      const orderPayments = [
+        {
+          amountChargedCents: parseInt(truckTotal * 100) + singleDeliveryFeeInCents,
+          stripePaymentIntentId: paymentIntent.id || paymentIntent.paymentIntentId,
+        },
+      ];
 
       return {
         userId: userId,
@@ -315,11 +336,11 @@ const PaymentScreen = ({ route, navigation }) => {
         orderItems: orderItems,
         orderPayments: orderPayments,
         orderAddresses: [orderAddress],
-      }
+      };
     });
 
     return [userOrderData, ...foodTruckOrderData];
-  }
+  };
 
   // ============================================================================
   // 8. COMPONENT RENDER
@@ -335,7 +356,6 @@ const PaymentScreen = ({ route, navigation }) => {
         </View>
       </View>
 
-      
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
         <View style={styles.headerSpacer} />
 
@@ -345,13 +365,15 @@ const PaymentScreen = ({ route, navigation }) => {
             <View style={styles.sectionTitleContainer}>
               <Text style={styles.sectionTitle}>Delivery Address</Text>
             </View>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.changeButton}
-              onPress={() => navigation.navigate('UserAddressList', { 
-                userAddresses: userData?.userAddresses || [],
-                onAddressSelect: handleAddressUpdate 
-              })}
+              onPress={() =>
+                navigation.navigate('UserAddressList', {
+                  userAddresses: userData?.userAddresses || [],
+                  onAddressSelect: handleAddressUpdate,
+                })
+              }
             >
               <Text style={styles.changeButtonText}>Change</Text>
             </TouchableOpacity>
@@ -369,7 +391,9 @@ const PaymentScreen = ({ route, navigation }) => {
               <TextInput
                 style={styles.addressDeliveryInstructionsText}
                 value={deliveryAddress?.deliveryInstructions}
-                onChangeText={(value) => handleAddressUpdate({ ...deliveryAddress, deliveryInstructions: value })}
+                onChangeText={(value) =>
+                  handleAddressUpdate({ ...deliveryAddress, deliveryInstructions: value })
+                }
                 placeholder="Any special drop off instructions?"
                 placeholderTextColor="#999"
                 multiline
@@ -378,8 +402,6 @@ const PaymentScreen = ({ route, navigation }) => {
               />
             </View>
           </View>
-          
-          
         </View>
 
         {/* Delivery Method Section */}
@@ -402,68 +424,76 @@ const PaymentScreen = ({ route, navigation }) => {
           <View style={styles.sectionTitleContainer}>
             <Text style={styles.sectionTitle}>Order Breakdown</Text>
           </View>
-           <View style={styles.orderMenuPanel}>
-             {groupedItems && Object.entries(groupedItems).map(([truckName, items], index) => {
-               const totalItems = items.reduce((sum, item) => sum + item.cartItem?.quantity, 0);
-               const truckTotal = items.reduce((sum, item) => sum + ((item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity), 0);
-               const isFirst = index === 0;
-               const isLast = index === Object.entries(groupedItems).length - 1;
-               
-               return (
-                 <View key={truckName} style={[
-                   styles.truckPanel,
-                   isFirst && styles.truckPanelFirst,
-                   isLast && styles.truckPanelLast
-                 ]}>
-                  {/* Truck Header */}
-                  <View style={styles.truckHeader}>
-                    <View style={styles.truckHeaderLeft}>
-                      <View style={styles.truckImageContainer}>
-                        {items[0]?.foodTruckData?.coverImageUrl && (
-                          <Image 
-                            source={{ uri: items[0].foodTruckData.logoUrl }} 
-                            style={styles.truckHeaderImage} 
-                          />
-                        )}
-                      </View>
-                      <View style={styles.truckInfo}>
-                        <Text style={styles.truckName}>{truckName}</Text>
-                        <Text style={styles.itemCount}>{totalItems} items</Text>
-                      </View>
-                    </View>
-                    <View style={styles.truckHeaderRight}>
-                      <Text style={styles.truckTotal}>{formatCurrency(truckTotal)}</Text>
-                    </View>
-                  </View>
-                  
-                  {/* Items Content */}
-                  <View style={styles.truckContent}>
-                    {items.map((item, index) => (
-                      <View key={index} style={styles.orderItem}>
-                        <View style={styles.itemImageContainer}>
-                          {item.cartItem.menuItem?.imageUrl && (
-                            <Image source={{ uri: item.cartItem.menuItem.imageUrl }} style={styles.cartItemImage} />
+          <View style={styles.orderMenuPanel}>
+            {groupedItems &&
+              Object.entries(groupedItems).map(([truckName, items], index) => {
+                const totalItems = items.reduce((sum, item) => sum + item.cartItem?.quantity, 0);
+                const truckTotal = items.reduce(
+                  (sum, item) =>
+                    sum + (item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity,
+                  0,
+                );
+                const isFirst = index === 0;
+                const isLast = index === Object.entries(groupedItems).length - 1;
+
+                return (
+                  <View
+                    key={truckName}
+                    style={[
+                      styles.truckPanel,
+                      isFirst && styles.truckPanelFirst,
+                      isLast && styles.truckPanelLast,
+                    ]}
+                  >
+                    {/* Truck Header */}
+                    <View style={styles.truckHeader}>
+                      <View style={styles.truckHeaderLeft}>
+                        <View style={styles.truckImageContainer}>
+                          {items[0]?.foodTruckData?.coverImageUrl && (
+                            <Image
+                              source={{ uri: items[0].foodTruckData.logoUrl }}
+                              style={styles.truckHeaderImage}
+                            />
                           )}
                         </View>
-                        <View style={styles.itemDetails}>
-                          <Text style={styles.itemName}>
-                            {item.cartItem?.menuItem?.name}
-                          </Text>
-                          <Text style={styles.itemQuantity}>
-                            x{item.cartItem?.quantity}
+                        <View style={styles.truckInfo}>
+                          <Text style={styles.truckName}>{truckName}</Text>
+                          <Text style={styles.itemCount}>{totalItems} items</Text>
+                        </View>
+                      </View>
+                      <View style={styles.truckHeaderRight}>
+                        <Text style={styles.truckTotal}>{formatCurrency(truckTotal)}</Text>
+                      </View>
+                    </View>
+
+                    {/* Items Content */}
+                    <View style={styles.truckContent}>
+                      {items.map((item, index) => (
+                        <View key={index} style={styles.orderItem}>
+                          <View style={styles.itemImageContainer}>
+                            {item.cartItem.menuItem?.imageUrl && (
+                              <Image
+                                source={{ uri: item.cartItem.menuItem.imageUrl }}
+                                style={styles.cartItemImage}
+                              />
+                            )}
+                          </View>
+                          <View style={styles.itemDetails}>
+                            <Text style={styles.itemName}>{item.cartItem?.menuItem?.name}</Text>
+                            <Text style={styles.itemQuantity}>x{item.cartItem?.quantity}</Text>
+                          </View>
+                          <Text style={styles.itemPrice}>
+                            {formatCurrency(
+                              (item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity,
+                            )}
                           </Text>
                         </View>
-                        <Text style={styles.itemPrice}>
-                          {formatCurrency(((item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity))}
-                        </Text>
-                      </View>
-                    ))}
+                      ))}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              })}
           </View>
-          
         </View>
 
         {/* Pricing Breakdown Section */}
@@ -501,23 +531,25 @@ const PaymentScreen = ({ route, navigation }) => {
             <View style={styles.sectionTitleContainer}>
               <Text style={styles.sectionTitle}>Payment Method</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.changeButton}
               onPress={() => setShowPaymentManager(true)}
             >
               <Text style={styles.changeButtonText}>Change</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           </View>
           <View style={styles.paymentCard}>
             <View style={styles.paymentMethodRow}>
-              <CreditCardIcon 
+              <CreditCardIcon
                 brand={defaultPaymentMethod?.userPaymentDisplay?.brand || 'unknown'}
                 size={64}
                 style={styles.paymentMethodIcon}
               />
               <View style={styles.paymentMethodDetails}>
                 <Text style={styles.paymentMethodText}>
-                  •••• •••• •••• {defaultPaymentMethod?.userPaymentDisplay?.lastFour || '****'} {defaultPaymentMethod?.userPaymentDisplay?.expMonth}/{defaultPaymentMethod?.userPaymentDisplay?.expYear}
+                  •••• •••• •••• {defaultPaymentMethod?.userPaymentDisplay?.lastFour || '****'}{' '}
+                  {defaultPaymentMethod?.userPaymentDisplay?.expMonth}/
+                  {defaultPaymentMethod?.userPaymentDisplay?.expYear}
                 </Text>
               </View>
             </View>
@@ -527,7 +559,10 @@ const PaymentScreen = ({ route, navigation }) => {
         <View style={styles.orderButtonContainer}>
           {/* Order Now Button */}
           <TouchableOpacity
-            style={[styles.orderButton, (!defaultPaymentMethod?.stripePaymentMethodId || loading) && styles.disabledButton]}
+            style={[
+              styles.orderButton,
+              (!defaultPaymentMethod?.stripePaymentMethodId || loading) && styles.disabledButton,
+            ]}
             onPress={handleCardPayment}
             disabled={!defaultPaymentMethod?.stripePaymentMethodId || loading}
           >
@@ -538,27 +573,21 @@ const PaymentScreen = ({ route, navigation }) => {
             )}
           </TouchableOpacity>
 
-      {/* Apple Pay Button (iOS only and when supported) */}
-      {Platform.OS === 'ios' && isPlatformPaySupported && (
-        <TouchableOpacity
-          style={styles.applePayButton}
-          onPress={handleApplePay}
-        >
-          <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
-        </TouchableOpacity>
-      )}
+          {/* Apple Pay Button (iOS only and when supported) */}
+          {Platform.OS === 'ios' && isPlatformPaySupported && (
+            <TouchableOpacity style={styles.applePayButton} onPress={handleApplePay}>
+              <Text style={styles.payButtonText}>Pay with Apple Pay</Text>
+            </TouchableOpacity>
+          )}
 
-      {/* Google Pay Button (Android only) */}
-      {Platform.OS === 'android' && (
-        <TouchableOpacity
-          style={styles.googlePayButton}
-          onPress={handleGooglePay}
-        >
-          <Text style={styles.payButtonText}>Pay with Google Pay</Text>
-        </TouchableOpacity>
-      )}
+          {/* Google Pay Button (Android only) */}
+          {Platform.OS === 'android' && (
+            <TouchableOpacity style={styles.googlePayButton} onPress={handleGooglePay}>
+              <Text style={styles.payButtonText}>Pay with Google Pay</Text>
+            </TouchableOpacity>
+          )}
         </View>
-    </ScrollView>
+      </ScrollView>
 
       {/* Payment Method Manager Modal */}
       <PaymentMethodManager
@@ -797,7 +826,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     backgroundColor: '#fafafa',
-
   },
   truckHeaderLeft: {
     flexDirection: 'row',
@@ -841,8 +869,7 @@ const styles = StyleSheet.create({
     color: '#132a13',
     fontFamily: 'Cairo',
   },
-  truckContent: {
-  },
+  truckContent: {},
   orderItem: {
     flexDirection: 'row',
     alignItems: 'center',
