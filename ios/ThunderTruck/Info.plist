@@ -33,6 +33,8 @@
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
@@ -45,13 +47,19 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>This app uses camera to scan QR codes.</string>
+    <string>ThunderTruck uses the camera to scan QR codes for quick access to food truck information and payment processing.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>This app uses location to show your position on the map and provide location-based services.</string>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>This app uses location to show your position on the map and provide location-based services.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>ThunderTruck may use the microphone for voice commands and accessibility features.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>ThunderTruck may access your photo library to upload profile pictures and share food truck experiences.</string>
+    <key>RCTNewArchEnabled</key>
+    <true/>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>

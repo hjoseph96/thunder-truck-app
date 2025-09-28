@@ -1,0 +1,6 @@
+module Pods_ThunderTruck {
+  umbrella header "Pods-ThunderTruck-umbrella.h"
+
+  export *
+  module * { export * }
+}

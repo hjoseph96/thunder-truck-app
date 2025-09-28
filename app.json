@@ -2,7 +2,7 @@
   "expo": {
     "name": "ThunderTruck",
     "slug": "ThunderTruck",
-    "version": "1.0.0",
+    "version": "1.0.15",
     "orientation": "portrait",
     "icon": "./assets/images/thundertruck_icon.png",
     "userInterfaceStyle": "light",
@@ -34,14 +34,22 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.thundertruck.app",
+      "buildNumber": "0.0.46",
       "infoPlist": {
+        "NSCameraUsageDescription": "ThunderTruck uses the camera to scan QR codes for quick access to food truck information and payment processing.",
         "NSLocationWhenInUseUsageDescription": "This app uses location to show your position on the map and provide location-based services.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to show your position on the map and provide location-based services."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses location to show your position on the map and provide location-based services.",
+        "NSMicrophoneUsageDescription": "ThunderTruck may use the microphone for voice commands and accessibility features.",
+        "NSPhotoLibraryUsageDescription": "ThunderTruck may access your photo library to upload profile pictures and share food truck experiences."
       },
       "entitlements": {
         "com.apple.developer.in-app-payments": [
           "merchant.com.thundertruck.app"
         ]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
@@ -53,7 +61,9 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "INTERNET"
+        "INTERNET",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -66,6 +76,11 @@
           "locationAlwaysAndWhenInUsePermission": "This app uses location to show your position on the map and provide location-based services."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "92671575-0d81-44f6-baa7-637e21d82dc3"
+      }
+    }
   }
 }

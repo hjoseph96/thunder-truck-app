@@ -1,0 +1,1 @@
+../../../../../../node_modules/@stripe/stripe-react-native/ios/StripeSwiftInterop.h
