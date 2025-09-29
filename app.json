@@ -11,27 +11,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#fb9d13"
     },
-    "fonts": [
-      {
-        "asset": "./assets/fonts/Cairo-Regular.ttf",
-        "family": "Cairo"
-      },
-      {
-        "asset": "./assets/fonts/Cairo-Light.ttf",
-        "family": "Cairo",
-        "weight": "300"
-      },
-      {
-        "asset": "./assets/fonts/Cairo-Medium.ttf",
-        "family": "Cairo",
-        "weight": "500"
-      },
-      {
-        "asset": "./assets/fonts/Cairo-Bold.ttf",
-        "family": "Cairo",
-        "weight": "700"
-      }
-    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thundertruck.app",
@@ -49,7 +28,8 @@
         ]
       },
       "config": {
-        "usesNonExemptEncryption": false
+        "usesNonExemptEncryption": false,
+        "googleMapsApiKey": "AIzaSyCyPj7XRPG-53Q9C4QFdFXgtgTE7ODidGM"
       }
     },
     "android": {
@@ -63,8 +43,14 @@
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
         "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "package": "com.thundertruck.app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

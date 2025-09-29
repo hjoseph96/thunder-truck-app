@@ -1,1 +1,0 @@
-../../../../../../node_modules/@stripe/stripe-react-native/ios/stripe_react_native.h
