@@ -17,6 +17,12 @@ import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
 import MapWebview from '../components/MapWebview';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
 
+// Development-only imports (will be tree-shaken in production builds)
+let DevelopmentControls = null;
+if (__DEV__) {
+  DevelopmentControls = require('./DevelopmentControls').default;
+}
+
 const { width: screenWidth } = Dimensions.get('window');
 
 // Rating Component
@@ -102,7 +108,14 @@ export default function OrderDetailScreen({ route, navigation }) {
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
   const arrowRotation = useRef(new Animated.Value(0)).current;
 
-  const VALID_STATUSES = ['pending', 'preparing', 'delivering', 'completed', 'cancelled'];
+  const VALID_STATUSES = [
+    'pending',
+    'preparing',
+    'picking_up',
+    'delivering',
+    'completed',
+    'cancelled',
+  ];
 
   // Animation function for bottom sheet
   const toggleBottomSheet = () => {
@@ -184,36 +197,43 @@ export default function OrderDetailScreen({ route, navigation }) {
   }, [orderId]);
 
   useEffect(() => {
-    if (currentStatus === 'delivering' && courierID && mapRef.current) {
-      // Add courier to tracking system first
-      const initialLocation = truckLocation || {
-        latitude: 40.692673696555104,
-        longitude: -73.70093036718504,
-      };
+    // Handle courier tracking for both picking_up and delivering statuses
+    const isTrackingStatus = currentStatus === 'picking_up' || currentStatus === 'delivering';
 
+    if (isTrackingStatus && courierID && mapRef.current) {
+      // Determine destination based on current status:
+      // - picking_up: courier goes to food truck
+      // - delivering: courier goes to customer address
+      const courierDestination =
+        currentStatus === 'picking_up' ? truckLocation : destinationLocation;
+
+      // Only proceed if we have a valid destination
+      if (!courierDestination) {
+        console.warn(
+          `Cannot track courier: missing ${currentStatus === 'picking_up' ? 'truck' : 'destination'} location`,
+        );
+        return;
+      }
+
+      console.log(
+        `🚴 Setting up courier tracking for ${currentStatus} stage. Destination:`,
+        courierDestination,
+      );
+
+      // Add courier to tracking system with appropriate destination
       courierTrackingManager.addCourier(
         courierID,
         `Courier for ${orderId}`,
         null,
         null,
-        destinationLocation,
+        courierDestination,
       );
+
       // Subscribe to courier tracking manager notifications
       const unsubscribe = courierTrackingManager.subscribe((event, data) => {
-        // console.log('Courier location updated:', data);
         // Only process events for this order's courier
         if (event === 'courierLocationUpdated' && data.courier && data.courier.id === courierID) {
-          // Only update the courier location state, NOT the truck location
-          // The truck should stay at the food truck's fixed position
-          // if (courierLocation == null) {
-          //   mapRef.current.addCourier(
-          //     courierID,
-          //     `Courier for ${orderId}`,
-          //     data.location,
-          //     [],
-          //     destinationLocation,
-          //   );
-          // }
+          // Update courier location state for map rendering
           setCourierLocation({
             latitude: data.location.latitude,
             longitude: data.location.longitude,
@@ -230,7 +250,7 @@ export default function OrderDetailScreen({ route, navigation }) {
         }
       };
     }
-  }, [currentStatus, courierID, truckLocation, destinationLocation]);
+  }, [currentStatus, courierID, truckLocation, destinationLocation, orderId]);
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -245,6 +265,12 @@ export default function OrderDetailScreen({ route, navigation }) {
           title: 'Preparing your order...',
           subtitle: 'Estimated arrival 12:05-12:25',
           color: '#FF6B35',
+        };
+      case 'picking_up':
+        return {
+          title: 'Courier is heading to the restaurant...',
+          subtitle: estimatedTime || 'Picking up your order',
+          color: '#9C27B0',
         };
       case 'delivering':
         return {
@@ -274,7 +300,8 @@ export default function OrderDetailScreen({ route, navigation }) {
   };
 
   const renderStatusImages = () => {
-    if (currentStatus === 'delivering') {
+    // Show map for both picking_up and delivering statuses
+    if (currentStatus === 'picking_up' || currentStatus === 'delivering') {
       return (
         <View style={styles.visualSectionLarge}>
           <MapWebview
@@ -651,32 +678,17 @@ export default function OrderDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Demo Status Buttons */}
-      <View style={styles.statusButtonsContainer}>
-        <Text style={styles.demoLabel}>Demo: Test Order Statuses</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.statusButtonsScroll}
-        >
-          {VALID_STATUSES.map((status) => (
-            <TouchableOpacity
-              key={status}
-              style={[styles.statusButton, currentStatus === status && styles.statusButtonActive]}
-              onPress={() => setCurrentStatus(status)}
-            >
-              <Text
-                style={[
-                  styles.statusButtonText,
-                  currentStatus === status && styles.statusButtonTextActive,
-                ]}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      {/* Development Controls (only in dev mode) */}
+      {__DEV__ && DevelopmentControls && (
+        <DevelopmentControls
+          currentStatus={currentStatus}
+          setCurrentStatus={setCurrentStatus}
+          validStatuses={VALID_STATUSES}
+          courierLocation={courierLocation}
+          truckLocation={truckLocation}
+          destinationLocation={destinationLocation}
+        />
+      )}
 
       <View style={styles.content}>
         {/* Section 1: Status Information */}
@@ -855,46 +867,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#2D1E2F',
     fontFamily: 'Poppins',
-  },
-  statusButtonsContainer: {
-    backgroundColor: '#F8F9FA',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  demoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-    fontFamily: 'Poppins',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  statusButtonsScroll: {
-    flexDirection: 'row',
-  },
-  statusButton: {
-    backgroundColor: '#FFF',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  statusButtonActive: {
-    backgroundColor: '#2D1E2F',
-    borderColor: '#2D1E2F',
-  },
-  statusButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#666',
-    fontFamily: 'Poppins',
-  },
-  statusButtonTextActive: {
-    color: '#FFF',
   },
   content: {
     flex: 1,
