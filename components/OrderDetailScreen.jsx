@@ -268,13 +268,13 @@ export default function OrderDetailScreen({ route, navigation }) {
         };
       case 'picking_up':
         return {
-          title: 'Courier is heading to the restaurant...',
-          subtitle: estimatedTime || 'Picking up your order',
+          title: 'Courier is picking up the order',
+          subtitle: estimatedTime || 'Your order will be on its way soon',
           color: '#9C27B0',
         };
       case 'delivering':
         return {
-          title: 'Heading your way...',
+          title: 'The order is headed your way!',
           subtitle: estimatedTime || 'Estimated arrival 12:05-12:25',
           color: '#2196F3',
         };
