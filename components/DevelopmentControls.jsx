@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { simulateCourierMovement } from '../lib/courier-mutations';
+import {fetchRoute} from '../lib/google-maps-routing-service';
 import { calculateDistance } from '../lib/animation-utils';
 
 /**
@@ -112,11 +113,18 @@ export default function DevelopmentControls({
     setIsSimulating(true);
 
     // Stage 1: Start movement to food truck (picking_up)
+    // const route = await fetchRoute(courierLocation, truckLocation);
+    // if(route.coordinates.length === 1) {
+    //   setCurrentStatus('delivering');
+    //   startDeliveryStage();
+    //   return;
+    // } 
 
     setSimulationMessage('📍 Stage 1: Moving to restaurant...');
     setCurrentStatus('picking_up');
     targetLocationRef.current = truckLocation;
     setDeliveryStage('pickup');
+
 
     try {
       const result = await simulateCourierMovement(courierLocation, truckLocation);
@@ -137,6 +145,13 @@ export default function DevelopmentControls({
     }
   };
 
+  // Handle picking_up button click with automatic simulation
+  const handlePickingUpClick = async () => {
+    setCurrentStatus('picking_up');
+    // Automatically start the simulation
+    await handleDeliverOrder();
+  };
+
   return (
     <View style={styles.container}>
       {/* Demo Status Buttons */}
@@ -151,7 +166,7 @@ export default function DevelopmentControls({
             <TouchableOpacity
               key={status}
               style={[styles.statusButton, currentStatus === status && styles.statusButtonActive]}
-              onPress={() => setCurrentStatus(status)}
+              onPress={status === 'picking_up' ? handlePickingUpClick : () => setCurrentStatus(status)}
             >
               <Text
                 style={[
