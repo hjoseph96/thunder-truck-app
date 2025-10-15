@@ -10,13 +10,18 @@ import {
 import { simulateCourierMovement } from '../lib/courier-mutations';
 import {fetchRoute} from '../lib/google-maps-routing-service';
 import { calculateDistance } from '../lib/animation-utils';
-
+import {updateCourierPosition} from '../lib/courier-mutations';
 /**
  * Development-only controls for testing order statuses and courier simulation
  * This component should only be rendered in development mode (__DEV__ === true)
  *
  * To remove for production: Simply delete this file and its import in OrderDetailScreen.jsx
  */
+const _courierLocation = {
+  latitude: 40.75163,
+  longitude: -73.82624
+}
+
 export default function DevelopmentControls({
   currentStatus,
   setCurrentStatus,
@@ -98,11 +103,9 @@ export default function DevelopmentControls({
   // Handler for complete delivery flow
   const handleDeliverOrder = async () => {
     // Validate we have necessary data
-    if (!courierLocation) {
-      setSimulationMessage('⏳ Waiting for courier location from WebSocket...');
-      console.warn('Cannot simulate: courier location not yet available');
-      return;
-    }
+
+      updateCourierPosition(_courierLocation.latitude, _courierLocation.longitude);
+      console.log('✅ Courier location set to:', _courierLocation);
 
     if (!truckLocation || !destinationLocation) {
       setSimulationMessage('❌ Missing truck or destination location');
@@ -127,7 +130,8 @@ export default function DevelopmentControls({
 
 
     try {
-      const result = await simulateCourierMovement(courierLocation, truckLocation);
+      console.log("Simulating courier movement from:", _courierLocation, "to:", truckLocation);
+      const result = await simulateCourierMovement(_courierLocation, truckLocation);
 
       if (!result.success) {
         setSimulationMessage(`❌ ${result.message || 'Failed to start pickup'}`);
