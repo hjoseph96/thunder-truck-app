@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { simulateCourierMovement } from '../lib/courier-mutations';
+import { calculateDistance } from '../lib/animation-utils';
 
 /**
  * Development-only controls for testing order statuses and courier simulation
  * This component should only be rendered in development mode (__DEV__ === true)
- * 
+ *
  * To remove for production: Simply delete this file and its import in OrderDetailScreen.jsx
  */
 export default function DevelopmentControls({
@@ -25,9 +26,76 @@ export default function DevelopmentControls({
 }) {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationMessage, setSimulationMessage] = useState('');
+  const [deliveryStage, setDeliveryStage] = useState(null); // 'pickup' or 'delivery'
+  const targetLocationRef = useRef(null);
 
-  // Handler for simulating courier movement
-  const handleSimulateCourierMovement = async () => {
+  // Monitor courier location and trigger next stage when arrived
+  useEffect(() => {
+    if (!courierLocation || !deliveryStage || !targetLocationRef.current) {
+      return;
+    }
+
+    const distance = calculateDistance(courierLocation, targetLocationRef.current);
+    const ARRIVAL_THRESHOLD = 50; // 50 meters threshold
+
+    console.log(`📍 Distance to target: ${distance.toFixed(2)}m (stage: ${deliveryStage})`);
+
+    if (distance <= ARRIVAL_THRESHOLD) {
+      if (deliveryStage === 'pickup') {
+        // Arrived at food truck, wait 3 seconds then start delivery
+        console.log('✅ Arrived at restaurant! Waiting 3 seconds...');
+        setSimulationMessage('✅ Arrived at restaurant! Preparing delivery...');
+
+        setTimeout(async () => {
+          await startDeliveryStage();
+        }, 3000);
+
+        setDeliveryStage(null); // Clear to avoid re-triggering
+      } else if (deliveryStage === 'delivery') {
+        // Arrived at customer
+        console.log('✅ Delivered to customer!');
+        setSimulationMessage('✅ Delivered to customer!');
+        setDeliveryStage(null);
+        setIsSimulating(false);
+
+        // Clear message after delay
+        setTimeout(() => {
+          setSimulationMessage('');
+        }, 5000);
+      }
+    }
+  }, [courierLocation, deliveryStage]);
+
+  // Start delivery stage (food truck → customer)
+  const startDeliveryStage = async () => {
+    console.log('🎬 Stage 2: Starting delivery journey (restaurant → customer)');
+    console.log(`   From: [${truckLocation.latitude}, ${truckLocation.longitude}]`);
+    console.log(`   To: [${destinationLocation.latitude}, ${destinationLocation.longitude}]`);
+
+    setSimulationMessage('🚚 Stage 2: Delivering to customer...');
+    setCurrentStatus('delivering');
+    targetLocationRef.current = destinationLocation;
+    setDeliveryStage('delivery');
+
+    try {
+      const result = await simulateCourierMovement(truckLocation, destinationLocation);
+
+      if (!result.success) {
+        setSimulationMessage(`❌ ${result.message || 'Failed to start delivery'}`);
+        console.error('Delivery simulation failed:', result);
+        setIsSimulating(false);
+        setDeliveryStage(null);
+      }
+    } catch (error) {
+      setSimulationMessage(`❌ Error: ${error.message}`);
+      console.error('Error during delivery simulation:', error);
+      setIsSimulating(false);
+      setDeliveryStage(null);
+    }
+  };
+
+  // Handler for complete delivery flow
+  const handleDeliverOrder = async () => {
     // Validate we have necessary data
     if (!courierLocation) {
       setSimulationMessage('⏳ Waiting for courier location from WebSocket...');
@@ -42,51 +110,30 @@ export default function DevelopmentControls({
     }
 
     setIsSimulating(true);
-    setSimulationMessage('🚀 Starting simulation...');
+
+    // Stage 1: Start movement to food truck (picking_up)
+
+    setSimulationMessage('📍 Stage 1: Moving to restaurant...');
+    setCurrentStatus('picking_up');
+    targetLocationRef.current = truckLocation;
+    setDeliveryStage('pickup');
 
     try {
-      let fromPoint, toPoint, stageName;
+      const result = await simulateCourierMovement(courierLocation, truckLocation);
 
-      // Determine simulation parameters based on current status
-      if (currentStatus === 'picking_up') {
-        // Stage 1: Courier → Food Truck
-        fromPoint = courierLocation;
-        toPoint = truckLocation;
-        stageName = 'pickup journey (courier → restaurant)';
-      } else if (currentStatus === 'delivering') {
-        // Stage 2: Food Truck → Customer
-        fromPoint = courierLocation; // Use current courier location (should be near truck)
-        toPoint = destinationLocation;
-        stageName = 'delivery journey (restaurant → customer)';
-      } else {
-        setSimulationMessage('❌ Simulation only available during picking_up or delivering status');
+      if (!result.success) {
+        setSimulationMessage(`❌ ${result.message || 'Failed to start pickup'}`);
+        console.error('Pickup simulation failed:', result);
         setIsSimulating(false);
-        return;
-      }
-
-      console.log(`🎬 Simulating ${stageName}`);
-      console.log(`   From: [${fromPoint.latitude}, ${fromPoint.longitude}]`);
-      console.log(`   To: [${toPoint.latitude}, ${toPoint.longitude}]`);
-
-      // Call the simulation mutation
-      const result = await simulateCourierMovement(fromPoint, toPoint);
-
-      if (result.success) {
-        setSimulationMessage(`✅ ${result.message || 'Simulation started! Watch the map for updates.'}`);
-        console.log('✅ Simulation started successfully');
+        setDeliveryStage(null);
       } else {
-        setSimulationMessage(`❌ ${result.message || 'Failed to start simulation'}`);
-        console.error('Simulation failed:', result);
+        console.log('✅ Pickup simulation started, monitoring location...');
       }
     } catch (error) {
       setSimulationMessage(`❌ Error: ${error.message}`);
       console.error('Error during simulation:', error);
-    } finally {
-      // Clear simulation state after a delay
-      setTimeout(() => {
-        setIsSimulating(false);
-        setSimulationMessage('');
-      }, 5000);
+      setIsSimulating(false);
+      setDeliveryStage(null);
     }
   };
 
@@ -100,7 +147,7 @@ export default function DevelopmentControls({
           showsHorizontalScrollIndicator={false}
           style={styles.statusButtonsScroll}
         >
-          {validStatuses.map((status) => (
+          {validStatuses.filter(status => status !== 'delivering').map((status) => (
             <TouchableOpacity
               key={status}
               style={[styles.statusButton, currentStatus === status && styles.statusButtonActive]}
@@ -119,43 +166,6 @@ export default function DevelopmentControls({
         </ScrollView>
       </View>
 
-      {/* Courier Simulation Controls */}
-      {(currentStatus === 'picking_up' || currentStatus === 'delivering') && (
-        <View style={styles.simulationContainer}>
-          <Text style={styles.demoLabel}>Dev: Courier Movement Simulation</Text>
-          <View style={styles.simulationContent}>
-            <View style={styles.simulationInfo}>
-              <Text style={styles.simulationStage}>
-                {currentStatus === 'picking_up' ? '📍 Stage 1: Pickup' : '🚚 Stage 2: Delivery'}
-              </Text>
-              <Text style={styles.simulationRoute}>
-                {currentStatus === 'picking_up'
-                  ? 'Courier → Restaurant'
-                  : 'Restaurant → Customer'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.simulateButton,
-                (isSimulating || !courierLocation) && styles.simulateButtonDisabled,
-              ]}
-              onPress={handleSimulateCourierMovement}
-              disabled={isSimulating || !courierLocation}
-            >
-              {isSimulating ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Text style={styles.simulateButtonText}>
-                  {courierLocation ? '▶ Simulate Movement' : '⏳ Waiting for courier...'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-          {simulationMessage && (
-            <Text style={styles.simulationMessage}>{simulationMessage}</Text>
-          )}
-        </View>
-      )}
     </View>
   );
 }
@@ -205,53 +215,36 @@ const styles = StyleSheet.create({
   statusButtonTextActive: {
     color: '#FFF',
   },
-  // Simulation Controls Styles
+  // Delivery Button Styles
   simulationContainer: {
-    backgroundColor: '#FFF9E6',
+    backgroundColor: '#F8F9FA',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE082',
-    borderTopWidth: 1,
-    borderTopColor: '#FFE082',
+    borderBottomColor: '#E5E5E5',
   },
-  simulationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  simulationInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  simulationStage: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#F57C00',
-    fontFamily: 'Poppins',
-    marginBottom: 2,
-  },
-  simulationRoute: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Poppins',
-  },
-  simulateButton: {
+  deliverButton: {
     backgroundColor: '#F57C00',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 8,
-    minWidth: 160,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  simulateButtonDisabled: {
+  deliverButtonDisabled: {
     backgroundColor: '#BDBDBD',
     opacity: 0.6,
   },
-  simulateButtonText: {
-    fontSize: 14,
+  deliverButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonSpinner: {
+    marginRight: 8,
+  },
+  deliverButtonText: {
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFF',
     fontFamily: 'Poppins',
@@ -264,4 +257,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
