@@ -23,17 +23,17 @@ export const DEVIATION_THRESHOLDS = {
 export const ANIMATION_SETTINGS = {
   default: {
     smoothingFactor: 0.25, // Responsive animation for real-time updates
-    animationDuration: 3000, // 3 seconds to match WebSocket update interval for perfect sync
+    animationDuration: 5000, // 5 seconds for slower, more realistic movement
     minUpdateInterval: 800, // Update frequency (0.8 seconds) for real-time tracking
   },
   cycling: {
     smoothingFactor: 0.3, // Slightly smoother for cycling movement
-    animationDuration: 3000, // 3 seconds to match WebSocket update interval
+    animationDuration: 5000, // 5 seconds for slower, more realistic movement
     minUpdateInterval: 1000, // Cycling updates can be less frequent
   },
   walking: {
     smoothingFactor: 0.35, // Smoothest for walking
-    animationDuration: 3000, // 3 seconds to match WebSocket update interval
+    animationDuration: 6000, // 6 seconds for slower walking speed
     minUpdateInterval: 1200, // Walking updates less frequent
   },
 };
