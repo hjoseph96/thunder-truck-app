@@ -618,17 +618,15 @@ const MapWebview = forwardRef(
     React.useImperativeHandle(ref, () => ({
       postMessage: (message) => {
         // Handle any messages that need to be sent to the map
-        console.log('MapWebview: Received message:', message);
 
         try {
           const parsedMessage = typeof message === 'string' ? JSON.parse(message) : message;
 
           if (parsedMessage.type === 'addFoodTrucks') {
-            console.log('MapWebview: Adding food trucks:', parsedMessage.foodTrucks?.length);
             setFoodTrucks(parsedMessage.foodTrucks || []);
           }
         } catch (error) {
-          console.error('MapWebview: Error parsing message:', error);
+          console.error('Error parsing message:', error);
         }
       },
       // Enhanced courier management with destination support
@@ -697,7 +695,6 @@ const MapWebview = forwardRef(
 
     // Handle map load
     const handleMapLoad = () => {
-      console.log('MapWebview: Map loaded successfully');
 
       setMapReady(true);
       if (setWebViewReady) {
@@ -709,14 +706,12 @@ const MapWebview = forwardRef(
     const handleMapInteraction = () => {
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
-        console.log('MapWebview: User interaction detected, disabling auto-fit');
       }
     };
 
     // Handle GPS button press
     const handleGPSButtonPress = () => {
       if (userLocation && mapRef.current) {
-        console.log('MapWebview: Centering map on user location');
 
         // Mark as user interaction since they're manually centering
         setHasUserInteracted(true);
@@ -782,7 +777,6 @@ const MapWebview = forwardRef(
               title={truck.name}
               description={`Delivery: $${truck.deliveryFee}${truck.isSubscriber ? ' • Premium' : ''}`}
               onPress={() => {
-                console.log('Food truck pressed:', truck.name);
                 // Navigate to FoodTruckViewer with the truck ID
                 if (onMessage) {
                   onMessage({

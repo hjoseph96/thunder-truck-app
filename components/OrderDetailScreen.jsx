@@ -166,10 +166,6 @@ export default function OrderDetailScreen({ route, navigation }) {
         const latLongString = orderData.orderAddresses?.[0]?.latlong;
         if (latLongString) {
           const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
-          console.log(
-            `[INFO] From: ${orderData.foodTruck.latitude}, ${orderData.foodTruck.longitude}`,
-          );
-          console.log(`[INFO] To: ${matches[2]}, ${matches[1]}`);
           if (matches && matches.length === 3) {
             setDestinationLocation({
               longitude: parseFloat(matches[1]),
@@ -214,11 +210,6 @@ export default function OrderDetailScreen({ route, navigation }) {
         );
         return;
       }
-
-      console.log(
-        `🚴 Setting up courier tracking for ${currentStatus} stage. Destination:`,
-        courierDestination,
-      );
 
       // Add courier to tracking system with appropriate destination
       courierTrackingManager.addCourier(

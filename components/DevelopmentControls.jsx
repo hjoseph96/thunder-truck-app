@@ -22,6 +22,9 @@ const _courierLocation = {
   longitude: -73.82624
 }
 
+// Animation duration constant to match courier tracking service
+const ANIMATION_DURATION_MS = 3000; // 3 seconds
+
 export default function DevelopmentControls({
   currentStatus,
   setCurrentStatus,
@@ -52,17 +55,7 @@ export default function DevelopmentControls({
   const updateSimulationPosition = async () => {
     const currentState = simulationStateRef.current;
 
-    console.log('🔍 updateSimulationPosition called - checking route state:');
-    console.log(
-      '🔍 ref route:',
-      currentState.route ? `${currentState.route.length} waypoints` : 'null/undefined',
-    );
-    console.log('🔍 ref active:', currentState.active);
-    console.log('🔍 ref progress:', currentState.progress);
-    console.log('🔍 ref stage:', currentState.stage);
-
     if (!currentState.route || currentState.route.length === 0 || !currentState.active) {
-      console.log('⚠️ No simulation route available for position update');
       return;
     }
 
@@ -76,24 +69,33 @@ export default function DevelopmentControls({
     const route = currentState.route;
     const currentPosition = getCoordinateAtProgress(route, newProgress);
 
-    console.log(
-      `📍 Following route - Progress: ${(newProgress * 100).toFixed(1)}% (waypoint ${currentPosition.segmentIndex + 1}/${route.length})`,
-    );
-    console.log(`📍 Position:`, currentPosition);
-
     // Call real GraphQL mutation to update courier position
     const result = await updateCourierPosition(currentPosition.latitude, currentPosition.longitude);
 
     if (result.success) {
-      console.log('✅ Position updated successfully');
     } else {
-      console.error('❌ Failed to update position:', result.errors);
     }
 
-    // Check if route is complete
+    // Check if route is complete - but wait for visual animation to finish
     if (newProgress >= 1) {
-      console.log('🏁 Simulation route completed');
-      await handleRouteCompletion();
+      // Stop the interval immediately to prevent further updates
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+        setSimulationInterval(null);
+      }
+      
+      // Show completion message while waiting for animation
+      if (currentState.stage === 'pickup') {
+        setSimulationMessage('🎯 Reached restaurant! Animation completing...');
+      } else if (currentState.stage === 'delivery') {
+        setSimulationMessage('🎯 Reached customer! Animation completing...');
+      }
+      
+      // Wait for animation duration before transitioning to next stage
+      // This ensures the visual animation completes before starting the next stage
+      setTimeout(async () => {
+        await handleRouteCompletion();
+      }, ANIMATION_DURATION_MS);
     }
   };
 
@@ -101,18 +103,23 @@ export default function DevelopmentControls({
   const handleRouteCompletion = async () => {
     const currentState = simulationStateRef.current;
     
+    console.log('[DEBUG] Route completion - Current stage:', currentState.stage);
+    console.log('[DEBUG] Route completion - Current status:', currentStatus);
+    
     if (currentState.stage === 'pickup') {
-      // Arrived at food truck, wait 3 seconds then start delivery
-      console.log('✅ Arrived at restaurant! Waiting 3 seconds...');
+      // Animation has completed, now transition to delivery stage
+      console.log('[DEBUG] Transitioning from pickup to delivery stage');
       setSimulationMessage('✅ Arrived at restaurant! Preparing delivery...');
       setCurrentStatus('preparing');
 
+      // Wait a moment for user to see the arrival message, then start delivery
       setTimeout(async () => {
+        console.log('[DEBUG] Starting delivery stage after delay');
         await startDeliveryStage();
-      }, 3000);
+      }, 2000); // Short delay for user experience
     } else if (currentState.stage === 'delivery') {
       // Arrived at customer
-      console.log('✅ Delivered to customer!');
+      console.log('[DEBUG] Delivery stage completed');
       setSimulationMessage('✅ Delivered to customer!');
       setCurrentStatus('completed');
       stopSimulation();
@@ -121,12 +128,14 @@ export default function DevelopmentControls({
       setTimeout(() => {
         setSimulationMessage('');
       }, 5000);
+    } else {
+      console.log('[DEBUG] Unknown stage:', currentState.stage);
     }
   };
 
   // Stop simulation and cleanup
   const stopSimulation = () => {
-    console.log('🛑 Stopping courier simulation...');
+    console.log('[DEBUG] stopSimulation called');
 
     if (simulationInterval) {
       clearInterval(simulationInterval);
@@ -146,7 +155,6 @@ export default function DevelopmentControls({
       stage: null,
     };
 
-    console.log('✅ Simulation stopped');
   };
 
   // Cleanup on unmount
@@ -160,10 +168,7 @@ export default function DevelopmentControls({
 
   // Start delivery stage (food truck → customer) using frontend simulation
   const startDeliveryStage = async () => {
-    console.log('🎬 Stage 2: Starting delivery journey (restaurant → customer)');
-    console.log(`   From: [${truckLocation.latitude}, ${truckLocation.longitude}]`);
-    console.log(`   To: [${destinationLocation.latitude}, ${destinationLocation.longitude}]`);
-
+    console.log('[DEBUG] startDeliveryStage called');
     setSimulationMessage('🚚 Stage 2: Delivering to customer...');
     setCurrentStatus('delivering');
     targetLocationRef.current = destinationLocation;
@@ -171,7 +176,6 @@ export default function DevelopmentControls({
 
     try {
       // Get real route from Google Maps API
-      console.log('🗺️ Fetching real route from Google Maps for delivery...');
       const routeData = await googleMapsRoutingService.fetchRoute(
         truckLocation,
         destinationLocation,
@@ -183,9 +187,6 @@ export default function DevelopmentControls({
       }
 
       const route = routeData.coordinates;
-      console.log(
-        `✅ Got delivery route with ${route.length} waypoints (${(routeData.distance / 1000).toFixed(2)}km)`,
-      );
 
       // Set up delivery simulation
       setSimulationRoute(route);
@@ -198,10 +199,13 @@ export default function DevelopmentControls({
         active: true,
         stage: 'delivery',
       };
+      
+      console.log('[DEBUG] Delivery stage setup complete:', simulationStateRef.current);
 
       // Start interval to update position every 3 seconds
       const interval = setInterval(async () => {
         try {
+          console.log('[DEBUG] Delivery interval tick - stage:', simulationStateRef.current.stage);
           await updateSimulationPosition();
         } catch (error) {
           console.error('❌ Error updating delivery position:', error);
@@ -209,7 +213,7 @@ export default function DevelopmentControls({
       }, 3000);
 
       setSimulationInterval(interval);
-      console.log('✅ Delivery simulation started successfully');
+      console.log('[DEBUG] Delivery interval started');
 
     } catch (error) {
       setSimulationMessage(`❌ Error: ${error.message}`);
@@ -230,7 +234,6 @@ export default function DevelopmentControls({
 
     // Set initial courier position
     updateCourierPosition(_courierLocation.latitude, _courierLocation.longitude);
-    console.log('✅ Courier location set to:', _courierLocation);
 
     setIsSimulating(true);
 
@@ -242,8 +245,6 @@ export default function DevelopmentControls({
 
     try {
       // Get real route from Google Maps API
-      console.log('🗺️ Fetching real route from Google Maps for pickup...');
-      console.log("Simulating courier movement from:", _courierLocation, "to:", truckLocation);
       
       const routeData = await googleMapsRoutingService.fetchRoute(
         _courierLocation,
@@ -256,9 +257,6 @@ export default function DevelopmentControls({
       }
 
       const route = routeData.coordinates;
-      console.log(
-        `✅ Got pickup route with ${route.length} waypoints (${(routeData.distance / 1000).toFixed(2)}km)`,
-      );
 
       // Set up pickup simulation
       setSimulationRoute(route);
@@ -271,10 +269,13 @@ export default function DevelopmentControls({
         active: true,
         stage: 'pickup',
       };
+      
+      console.log('[DEBUG] Pickup stage setup complete:', simulationStateRef.current);
 
       // Start interval to update position every 3 seconds
       const interval = setInterval(async () => {
         try {
+          console.log('[DEBUG] Pickup interval tick - stage:', simulationStateRef.current.stage);
           await updateSimulationPosition();
         } catch (error) {
           console.error('❌ Error updating pickup position:', error);
@@ -282,7 +283,7 @@ export default function DevelopmentControls({
       }, 3000);
 
       setSimulationInterval(interval);
-      console.log('✅ Pickup simulation started successfully');
+      console.log('[DEBUG] Pickup interval started');
 
     } catch (error) {
       setSimulationMessage(`❌ Error: ${error.message}`);
