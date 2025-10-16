@@ -10,12 +10,16 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Ellipse, Text as SvgText } from 'react-native-svg';
 import { MaterialIcons } from '@expo/vector-icons';
-import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
+import { fetchOrder, formatOrderForDisplay, submitMenuItemReviews, submitFoodTruckReview } from '../lib/order-service';
+import { fetchMenuItem } from '../lib/menu-item-service';
 import MapWebview from '../components/MapWebview';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
+import MenuItemReviewModal from './MenuItemReviewModal';
+import FoodTruckReviewModal from './FoodTruckReviewModal';
 
 // Development-only imports (will be tree-shaken in production builds)
 let DevelopmentControls = null;
@@ -101,6 +105,13 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [courierID, setCourierID] = useState(null);
   const [courierLocation, setCourierLocation] = useState(null);
+  const [menuItemImages, setMenuItemImages] = useState({});
+  
+  // Review system state
+  const [showMenuItemReviewModal, setShowMenuItemReviewModal] = useState(false);
+  const [showFoodTruckReviewModal, setShowFoodTruckReviewModal] = useState(false);
+  const [reviewTimer, setReviewTimer] = useState(null);
+  const [hasShownReviews, setHasShownReviews] = useState(false);
 
   const mapRef = useRef(null);
 
@@ -116,6 +127,46 @@ export default function OrderDetailScreen({ route, navigation }) {
     'completed',
     'cancelled',
   ];
+
+  // Function to fetch menu item images
+  const fetchMenuItemImages = async (orderItems) => {
+    if (!orderItems || orderItems.length === 0) return;
+
+    const imagePromises = orderItems.map(async (item) => {
+      if (!item.menuItemId) return null;
+      
+      try {
+        const menuItemData = await fetchMenuItem(item.menuItemId);
+        const imageUrl = menuItemData?.menuItem?.imageUrl;
+        
+        if (imageUrl) {
+          return {
+            menuItemId: item.menuItemId,
+            imageUrl: imageUrl,
+          };
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch image for menu item ${item.menuItemId}:`, error);
+      }
+      
+      return null;
+    });
+
+    try {
+      const imageResults = await Promise.all(imagePromises);
+      const imageMap = {};
+      
+      imageResults.forEach((result) => {
+        if (result) {
+          imageMap[result.menuItemId] = result.imageUrl;
+        }
+      });
+      
+      setMenuItemImages(imageMap);
+    } catch (error) {
+      console.error('Error fetching menu item images:', error);
+    }
+  };
 
   // Animation function for bottom sheet
   const toggleBottomSheet = () => {
@@ -145,6 +196,78 @@ export default function OrderDetailScreen({ route, navigation }) {
     setIsExpanded(!isExpanded);
   };
 
+  // Review system functions
+  const startReviewTimer = () => {
+    // Clear any existing timer
+    if (reviewTimer) {
+      clearTimeout(reviewTimer);
+    }
+
+    // Set timer for 20 minutes (20 * 60 * 1000 milliseconds)
+    const timer = setTimeout(() => {
+      if (currentStatus === 'completed' && !hasShownReviews) {
+        setShowMenuItemReviewModal(true);
+        setHasShownReviews(true);
+      }
+    }, 20 * 60 * 1000); // 20 minutes
+
+    setReviewTimer(timer);
+  };
+
+  const handleMenuItemReviewsSubmit = async (reviews) => {
+    try {
+      // TODO: Enable API call after backend implementation
+      // const result = await submitMenuItemReviews(orderId, reviews);
+      
+      // Simulate API call for now
+      console.log('Menu item reviews to be submitted:', {
+        orderId,
+        reviews
+      });
+      
+      // Simulate successful submission
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('Menu item reviews submitted successfully (simulated)');
+      
+      setShowMenuItemReviewModal(false);
+      setShowFoodTruckReviewModal(true);
+    } catch (error) {
+      console.error('Error submitting menu item reviews:', error);
+      // Keep modal open on error so user can retry
+    }
+  };
+
+  const handleFoodTruckReviewSubmit = async (review) => {
+    try {
+      // TODO: Enable API call after backend implementation
+      // const result = await submitFoodTruckReview(orderId, review);
+      
+      // Simulate API call for now
+      console.log('Food truck review to be submitted:', {
+        orderId,
+        review
+      });
+      
+      // Simulate successful submission
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('Food truck review submitted successfully (simulated)');
+      
+      setShowFoodTruckReviewModal(false);
+    } catch (error) {
+      console.error('Error submitting food truck review:', error);
+      // Keep modal open on error so user can retry
+    }
+  };
+
+  const handleCloseMenuItemReviewModal = () => {
+    setShowMenuItemReviewModal(false);
+    setShowFoodTruckReviewModal(true);
+  };
+
+  const handleCloseFoodTruckReviewModal = () => {
+    setShowFoodTruckReviewModal(false);
+  };
+
   useEffect(() => {
     const loadOrderDetails = async () => {
       setLoading(true);
@@ -153,6 +276,12 @@ export default function OrderDetailScreen({ route, navigation }) {
         const formattedOrder = formatOrderForDisplay(orderData);
         setOrder(formattedOrder);
         setCurrentStatus(formattedOrder.status);
+
+        // TODO: Enable menu item image fetching after backend implementation
+        // Fetch menu item images for order items
+        // if (formattedOrder.formattedItems && formattedOrder.formattedItems.length > 0) {
+        //   fetchMenuItemImages(formattedOrder.formattedItems);
+        // }
 
         // Set food truck coordinates
         if (orderData.foodTruck?.latitude && orderData.foodTruck?.longitude) {
@@ -242,6 +371,21 @@ export default function OrderDetailScreen({ route, navigation }) {
       };
     }
   }, [currentStatus, courierID, truckLocation, destinationLocation, orderId]);
+
+  // Effect to handle review timer when order is completed
+  useEffect(() => {
+    if (currentStatus === 'completed' && !hasShownReviews) {
+      startReviewTimer();
+    }
+
+    // Cleanup timer on unmount or status change
+    return () => {
+      if (reviewTimer) {
+        clearTimeout(reviewTimer);
+        setReviewTimer(null);
+      }
+    };
+  }, [currentStatus, hasShownReviews]);
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -678,6 +822,10 @@ export default function OrderDetailScreen({ route, navigation }) {
           courierLocation={courierLocation}
           truckLocation={truckLocation}
           destinationLocation={destinationLocation}
+          onTriggerReviews={() => {
+            setShowMenuItemReviewModal(true);
+            setHasShownReviews(true);
+          }}
         />
       )}
 
@@ -752,6 +900,31 @@ export default function OrderDetailScreen({ route, navigation }) {
                         />
                       </Svg>
                     </View>
+                    {/* Menu item image */}
+                    {item.menuItemId && (
+                      <View style={styles.itemImageContainer}>
+                        {/* TODO: Enable menu item images after backend implementation */}
+                        {/* {menuItemImages[item.menuItemId] ? (
+                          <Image
+                            source={{ uri: menuItemImages[item.menuItemId] }}
+                            style={styles.itemImage}
+                            resizeMode="cover"
+                            onError={() => {
+                              // Remove failed image from state to show placeholder
+                              setMenuItemImages(prev => {
+                                const updated = { ...prev };
+                                delete updated[item.menuItemId];
+                                return updated;
+                              });
+                            }}
+                          />
+                        ) : ( */}
+                          <View style={styles.itemImagePlaceholder}>
+                            <MaterialIcons name="restaurant" size={20} color="#999" />
+                          </View>
+                        {/* )} */}
+                      </View>
+                    )}
                     <View style={styles.itemInfo}>
                       <Text style={styles.itemName}>{item.menuItemName}</Text>
                     </View>
@@ -834,6 +1007,22 @@ export default function OrderDetailScreen({ route, navigation }) {
           </ScrollView>
         )}
       </Animated.View>
+
+      {/* Review Modals */}
+      <MenuItemReviewModal
+        visible={showMenuItemReviewModal}
+        onClose={handleCloseMenuItemReviewModal}
+        menuItems={order?.formattedItems || []}
+        onSubmitReviews={handleMenuItemReviewsSubmit}
+        menuItemImages={menuItemImages}
+      />
+
+      <FoodTruckReviewModal
+        visible={showFoodTruckReviewModal}
+        onClose={handleCloseFoodTruckReviewModal}
+        foodTruckName={order?.foodTruck?.name || 'Food Truck'}
+        onSubmitReview={handleFoodTruckReviewSubmit}
+      />
     </SafeAreaView>
   );
 }
@@ -1020,6 +1209,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  itemImageContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginRight: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
+  },
+  itemImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   itemInfo: {
     flex: 1,
