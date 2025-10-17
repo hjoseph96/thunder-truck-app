@@ -822,6 +822,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           courierLocation={courierLocation}
           truckLocation={truckLocation}
           destinationLocation={destinationLocation}
+          mapRef={mapRef}
           onTriggerReviews={() => {
             setShowMenuItemReviewModal(true);
             setHasShownReviews(true);
