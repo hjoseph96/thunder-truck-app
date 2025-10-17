@@ -3,18 +3,33 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } fr
 import Svg, { Path } from 'react-native-svg';
 import { fetchUserOrders, formatOrdersForDisplay } from '../lib/order-service';
 
+// Filter options - individual statuses
+const FILTER_OPTIONS = [
+  { id: 'pending', label: 'Pending', statuses: ['pending'] },
+  { id: 'preparing', label: 'Preparing', statuses: ['preparing'] },
+  { id: 'delivering', label: 'Delivering', statuses: ['delivering'] },
+  { id: 'cancelled', label: 'Cancelled', statuses: ['cancelled'] },
+  { id: 'completed', label: 'Completed', statuses: ['completed'] },
+];
+
 export default function OrderIndexScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAllOrders, setShowAllOrders] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('pending'); // Default to pending
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
+  // Load initial orders when filter changes
   useEffect(() => {
-    const loadOrders = async () => {
+    const loadInitialOrders = async () => {
       setLoading(true);
+      setCurrentPage(1);
+      setHasMore(true);
       try {
-        const status = showAllOrders
-          ? ['pending', 'preparing', 'delivering', 'cancelled']
-          : ['preparing', 'delivering'];
+        const currentFilter = FILTER_OPTIONS.find(f => f.id === selectedFilter);
+        const status = currentFilter ? currentFilter.statuses : ['pending', 'preparing', 'delivering'];
 
         const response = await fetchUserOrders({
           status,
@@ -25,19 +40,71 @@ export default function OrderIndexScreen({ navigation }) {
         if (response.orders) {
           const formattedOrders = formatOrdersForDisplay(response.orders);
           setOrders(formattedOrders);
+          setTotalCount(response.totalCount || 0);
+          setHasMore(formattedOrders.length < (response.totalCount || 0));
         } else {
           setOrders([]);
+          setTotalCount(0);
+          setHasMore(false);
         }
       } catch (error) {
         console.error('Error loading orders:', error);
-        setOrders([]); // Set to empty array on error
+        setOrders([]);
+        setTotalCount(0);
+        setHasMore(false);
       } finally {
         setLoading(false);
       }
     };
 
-    loadOrders();
-  }, [showAllOrders]);
+    loadInitialOrders();
+  }, [selectedFilter]);
+
+  // Load more orders for infinite scroll
+  const loadMoreOrders = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const currentFilter = FILTER_OPTIONS.find(f => f.id === selectedFilter);
+      const status = currentFilter ? currentFilter.statuses : ['pending', 'preparing', 'delivering'];
+      const nextPage = currentPage + 1;
+
+      const response = await fetchUserOrders({
+        status,
+        perPage: 10,
+        page: nextPage,
+      });
+
+      if (response.orders && response.orders.length > 0) {
+        const formattedOrders = formatOrdersForDisplay(response.orders);
+        setOrders(prevOrders => [...prevOrders, ...formattedOrders]);
+        setCurrentPage(nextPage);
+
+        // Check if there are more orders to load
+        const totalLoaded = orders.length + formattedOrders.length;
+        setHasMore(totalLoaded < (response.totalCount || 0));
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading more orders:', error);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Handle scroll to bottom
+  const handleScroll = ({ nativeEvent }) => {
+    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+    const paddingToBottom = 20;
+
+    // Check if user scrolled to bottom
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+      loadMoreOrders();
+    }
+  };
 
   const getStatusText = (status) => {
     switch (status) {
@@ -103,6 +170,8 @@ export default function OrderIndexScreen({ navigation }) {
 
   const displayOrders = orders;
 
+  const currentFilterLabel = FILTER_OPTIONS.find(f => f.id === selectedFilter)?.label || 'Pending';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -118,30 +187,65 @@ export default function OrderIndexScreen({ navigation }) {
           </Svg>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Orders</Text>
-        <TouchableOpacity
-          style={[styles.toggleButton, styles.headerButtonRight]}
-          onPress={() => setShowAllOrders(!showAllOrders)}
-        >
-          <Text style={styles.toggleButtonText}>{showAllOrders ? 'Active' : 'All'}</Text>
-        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Horizontal Filter List */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScrollView}
+        contentContainerStyle={styles.filterScrollContent}
+      >
+        {FILTER_OPTIONS.map((filter) => (
+          <TouchableOpacity
+            key={filter.id}
+            style={[
+              styles.filterChip,
+              selectedFilter === filter.id && styles.filterChipActive,
+            ]}
+            onPress={() => setSelectedFilter(filter.id)}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                selectedFilter === filter.id && styles.filterChipTextActive,
+              ]}
+            >
+              {filter.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={400}
+      >
         {displayOrders.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyTitle}>
-              {showAllOrders ? 'No Orders' : 'No Active Orders'}
+              No {currentFilterLabel} Orders
             </Text>
             <Text style={styles.emptyText}>
-              {showAllOrders
-                ? "You haven't placed any orders yet."
-                : "You don't have any orders being prepared or delivered right now."}
+              {selectedFilter === 'pending'
+                ? "You don't have any pending orders right now."
+                : selectedFilter === 'preparing'
+                ? "You don't have any orders being prepared."
+                : selectedFilter === 'delivering'
+                ? "You don't have any orders being delivered."
+                : selectedFilter === 'completed'
+                ? "You haven't completed any orders yet."
+                : selectedFilter === 'cancelled'
+                ? "You don't have any cancelled orders."
+                : "You don't have any orders."}
             </Text>
           </View>
         ) : (
           <>
             <Text style={styles.sectionTitle}>
-              {showAllOrders ? 'All Orders' : 'Active Orders'}
+              {currentFilterLabel} Orders
             </Text>
             {displayOrders.map((order) => (
               <TouchableOpacity
@@ -181,6 +285,20 @@ export default function OrderIndexScreen({ navigation }) {
                 </View>
               </TouchableOpacity>
             ))}
+
+            {/* Loading more indicator */}
+            {loadingMore && (
+              <View style={styles.loadingMoreContainer}>
+                <Text style={styles.loadingMoreText}>Loading more orders...</Text>
+              </View>
+            )}
+
+            {/* End of list indicator */}
+            {!hasMore && displayOrders.length > 0 && (
+              <View style={styles.endOfListContainer}>
+                <Text style={styles.endOfListText}>No more orders to load</Text>
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -216,14 +334,38 @@ const styles = StyleSheet.create({
     color: '#2D1E2F',
     fontFamily: 'Poppins',
   },
-  toggleButton: {
-    backgroundColor: '#2D1E2F',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+  filterScrollView: {
+    maxHeight: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    backgroundColor: '#FFF',
   },
-  toggleButtonText: {
-    fontSize: 12,
+  filterScrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  filterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginRight: 8,
+  },
+  filterChipActive: {
+    backgroundColor: '#2D1E2F',
+    borderColor: '#2D1E2F',
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+    fontFamily: 'Poppins',
+  },
+  filterChipTextActive: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFF',
     fontFamily: 'Poppins',
@@ -357,5 +499,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins',
     marginTop: 2,
     marginLeft: 16,
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Poppins',
+  },
+  endOfListContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endOfListText: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Poppins',
+    fontStyle: 'italic',
   },
 });
