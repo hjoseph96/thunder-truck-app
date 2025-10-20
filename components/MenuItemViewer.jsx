@@ -407,6 +407,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     height: screenHeight * 0.4,
@@ -422,6 +430,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e39219',
     margin: 2,
+    ...Platform.select({
+      web: {
+        flexShrink: 0,
+        height: '40vh',
+      },
+    }),
   },
   headerImage: {
     width: '100%',
@@ -459,7 +473,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 0,
     zIndex: 2,
-    
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+      },
+    }),
   },
   contentSection: {
     backgroundColor: '#fff',
@@ -644,6 +663,13 @@ const styles = StyleSheet.create({
     elevation: 6,
     borderBottomRightRadius: 16,
     borderBottomLeftRadius: 16,
+    ...Platform.select({
+      web: {
+        width: '100%',
+        borderRadius: 0,
+        marginTop: 20,
+      },
+    }),
   },
   addToCartButtonText: {
     color: '#76520e',
@@ -749,6 +775,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 1000,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        bottom: 30,
+        right: 30,
+      },
+    }),
   },
   cartPopupBackdrop: {
     position: 'absolute',

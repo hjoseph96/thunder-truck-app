@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -339,11 +340,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     height: screenHeight * 0.4,
     position: 'relative',
     overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        flexShrink: 0,
+        height: '40vh',
+      },
+    }),
   },
   coverImage: {
     width: '100%',
@@ -470,6 +485,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     color: 'whitesmoke',
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        paddingBottom: 100,
+      },
+    }),
   },
   descriptionSection: {
     marginBottom: 20,
@@ -642,6 +664,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 1000,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        bottom: 30,
+        right: 30,
+      },
+    }),
   },
 });
 

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fetchUser } from '../lib/user-service';
@@ -342,6 +343,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      },
+    }),
   },
   loadingContainer: {
     flex: 1,
@@ -371,6 +380,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        paddingTop: 16,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   backButton: {
     width: 40,
@@ -396,6 +414,13 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        paddingBottom: 100,
+      },
+    }),
   },
   scrollContent: {
     paddingBottom: 20,
@@ -506,6 +531,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     paddingHorizontal: 14,
     paddingTop: 10,
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        bottom: 0,
+        height: 'auto',
+        zIndex: 98,
+        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+        paddingVertical: 12,
+      },
+    }),
   },
   nextButton: {
     backgroundColor: '#2D1E2F',

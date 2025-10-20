@@ -11,6 +11,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Ellipse, Text as SvgText } from 'react-native-svg';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -1032,6 +1033,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
@@ -1042,6 +1051,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+      },
+    }),
   },
   helpText: {
     fontSize: 16,
@@ -1053,6 +1070,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingBottom: 140, // Space for bottom sheet
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+      },
+    }),
   },
   loadingContainer: {
     flex: 1,

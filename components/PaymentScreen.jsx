@@ -616,25 +616,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      },
+    }),
   },
   // Modern Professional Header Styles (Consistent with CheckoutForm)
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: '#2D1E2F',
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingTop: 50,
-    backgroundColor: '#2D1E2F',
-    color: '#D38105',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    // Professional shadow - creates depth
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 8,
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        paddingTop: 16,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   backButton: {
     width: 40,
@@ -659,6 +674,13 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        paddingBottom: 100,
+      },
+    }),
   },
   contentContainer: {
     paddingBottom: 40,
