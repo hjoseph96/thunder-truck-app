@@ -449,6 +449,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingBottom: 100, // Space for fixed bottom navigation
   },
   heroImage: {
     width: screenWidth,
