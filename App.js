@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StripeProvider } from '@stripe/stripe-react-native';
+import StripeProviderWrapper from './lib/stripe/StripeProviderWrapper';
 import Toast from 'react-native-toast-message';
 import LandingPage from './components/LandingPage';
 import SignIn from './components/SignIn';
@@ -27,7 +27,6 @@ import PaymentMethodManager from './components/PaymentMethodManager';
 import OrderIndexScreen from './components/OrderIndexScreen';
 import OrderDetailScreen from './components/OrderDetailScreen';
 
-import { STRIPE_CONFIG } from './config/stripe-config';
 import { toastConfig } from './config/toast-config';
 
 const Stack = createStackNavigator();
@@ -41,11 +40,7 @@ export default function App() {
   };
 
   return (
-    <StripeProvider
-      publishableKey={STRIPE_CONFIG.publishableKey}
-      merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
-      urlScheme={STRIPE_CONFIG.urlScheme}
-    >
+    <StripeProviderWrapper>
       <NavigationContainer ref={navigationRef} onReady={onReady}>
         <Stack.Navigator
           initialRouteName="LandingPage"
@@ -197,6 +192,6 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />
-    </StripeProvider>
+    </StripeProviderWrapper>
   );
 }

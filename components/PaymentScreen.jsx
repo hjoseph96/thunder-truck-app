@@ -16,9 +16,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import {
   useStripe,
   useConfirmPayment,
-  CardField,
   usePlatformPay,
-} from '@stripe/stripe-react-native';
+} from '../lib/stripe/stripe-hooks';
+import { CardField } from './payment/CardField';
 import { createPaymentIntent, createOrders, syncPaymentMethods } from '../lib/payment-service';
 import { fetchUser } from '../lib/user-service';
 import CreditCardIcon from './CreditCardIcon';
@@ -330,7 +330,6 @@ const PaymentScreen = ({ route, navigation }) => {
         foodTruckId: foodTruckId,
         promotionId: null,
         deliveryMethodId: selectedDeliveryMethod.id,
-        foodTruckId: items[0].foodTruckData.id,
         subtotalCents: parseInt(orderSubtotal * 100),
         deliveryFeeCents: parseInt(orderDeliveryFee * 100),
         tipCents: 0,

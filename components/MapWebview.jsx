@@ -1,6 +1,6 @@
 import React, { forwardRef, useRef, useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Animated } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, AnimatedRegion } from 'react-native-maps';
+import { MapView, Marker, Polyline, PROVIDER_GOOGLE, AnimatedRegion } from './map/MapView';
 import { decode } from '@mapbox/polyline';
 import Svg, { Path } from 'react-native-svg';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
