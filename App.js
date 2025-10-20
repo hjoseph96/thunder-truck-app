@@ -1,6 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useFonts } from 'expo-font';
+import { ActivityIndicator, View, Platform } from 'react-native';
 import StripeProviderWrapper from './lib/stripe/StripeProviderWrapper';
 import Toast from 'react-native-toast-message';
 import LandingPage from './components/LandingPage';
@@ -33,11 +35,88 @@ const Stack = createStackNavigator();
 
 export default function App() {
   const navigationRef = useRef(null);
+  const [webFontsReady, setWebFontsReady] = useState(Platform.OS !== 'web');
+
+  // Load Cairo fonts for mobile platforms only
+  // Web platform uses Google Fonts CDN loaded via CSS injection
+  const [fontsLoaded] = useFonts(
+    Platform.OS === 'web' 
+      ? {} 
+      : {
+          'Cairo': require('./assets/fonts/Cairo-Regular.ttf'),
+          'Cairo-Light': require('./assets/fonts/Cairo-Light.ttf'),
+          'Cairo-Medium': require('./assets/fonts/Cairo-Medium.ttf'),
+          'Cairo-Bold': require('./assets/fonts/Cairo-Bold.ttf'),
+        }
+  );
+
+  // Inject Google Fonts for web platform to support Inter and Poppins fonts
+  // These fonts are used throughout the app but don't exist in assets folder
+  // Cairo fonts are also loaded from Google Fonts on web to avoid TTF decoding issues
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // Create link element for Google Fonts preconnect (performance optimization)
+      const preconnectLink = document.createElement('link');
+      preconnectLink.rel = 'preconnect';
+      preconnectLink.href = 'https://fonts.googleapis.com';
+      document.head.appendChild(preconnectLink);
+
+      const preconnectGstaticLink = document.createElement('link');
+      preconnectGstaticLink.rel = 'preconnect';
+      preconnectGstaticLink.href = 'https://fonts.gstatic.com';
+      preconnectGstaticLink.crossOrigin = 'anonymous';
+      document.head.appendChild(preconnectGstaticLink);
+
+      // Load Inter, Poppins, and Cairo fonts from Google Fonts
+      // Multiple weights are loaded to match the fontWeight values used in components
+      // Cairo is included here to avoid TTF file decoding errors on web
+      const fontLink = document.createElement('link');
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&display=swap';
+      fontLink.rel = 'stylesheet';
+      
+      // Wait for fonts to load before rendering app
+      fontLink.onload = () => {
+        setWebFontsReady(true);
+      };
+      
+      // Fallback: if font loading takes too long, render anyway after 2 seconds
+      const timeoutId = setTimeout(() => {
+        setWebFontsReady(true);
+      }, 2000);
+      
+      document.head.appendChild(fontLink);
+
+      return () => {
+        // Cleanup font links and timeout when component unmounts
+        clearTimeout(timeoutId);
+        if (preconnectLink.parentNode) {
+          document.head.removeChild(preconnectLink);
+        }
+        if (preconnectGstaticLink.parentNode) {
+          document.head.removeChild(preconnectGstaticLink);
+        }
+        if (fontLink.parentNode) {
+          document.head.removeChild(fontLink);
+        }
+      };
+    }
+  }, []);
 
   const onReady = () => {
     // Set the navigation reference for session management
     setNavigationRef(navigationRef.current);
   };
+
+  // Display loading indicator while fonts are being loaded
+  // Mobile: Wait for Cairo fonts to load via expo-font
+  // Web: Wait for Google Fonts CSS to load and apply
+  if (!fontsLoaded || !webFontsReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
+        <ActivityIndicator size="large" color="#fecd15" />
+      </View>
+    );
+  }
 
   return (
     <StripeProviderWrapper>
