@@ -167,7 +167,7 @@ export default function ExplorerHome({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      {/* Header - Sticky on web */}
+      {/* Header - Fixed on web */}
       <View style={styles.header}>
         
         {/* Search Bar */}
@@ -190,7 +190,7 @@ export default function ExplorerHome({ navigation }) {
         </View>
       </View>
 
-      {/* Location Bar - Sticky on web */}
+      {/* Location Bar - Fixed on web */}
       <View style={styles.locationBar}>
         <TouchableOpacity style={styles.locationContent} onPress={() => navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, onAddressSelect: updateSelectedAddress })}>
           <MaterialIcons name="location-on" size={24} color="red" style={styles.locationIcon} />
@@ -216,7 +216,11 @@ export default function ExplorerHome({ navigation }) {
       </View>
 
       {/* Main Content - Scrollable container */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         
         {/* Hero Image */}
         <Carousel
@@ -331,7 +335,7 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'hidden',
+        width: '100%',
       },
     }),
   },
@@ -342,10 +346,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         top: 0,
+        left: 0,
+        right: 0,
         zIndex: 100,
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        width: '100%',
       },
     }),
   },
@@ -358,10 +365,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         top: 75,
+        left: 0,
+        right: 0,
         zIndex: 99,
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+        width: '100%',
       },
     }),
   },
@@ -471,12 +481,28 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
+        position: 'absolute',
+        top: 155,
+        left: 0,
+        right: 0,
+        bottom: 80,
         overflowY: 'auto',
         overflowX: 'hidden',
-        paddingBottom: 150, // Space for fixed bottom navigation on web
+        WebkitOverflowScrolling: 'touch',
       },
       default: {
-        paddingBottom: 100, // Space for fixed bottom navigation on mobile
+        paddingBottom: 100,
+      },
+    }),
+  },
+  contentContainer: {
+    ...Platform.select({
+      web: {
+        paddingBottom: 40,
+        minHeight: '100%',
+      },
+      default: {
+        flexGrow: 1,
       },
     }),
   },

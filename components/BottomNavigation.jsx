@@ -106,11 +106,14 @@ const styles = StyleSheet.create({
     // Fixed to bottom - platform specific
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         bottom: 0,
+        left: 0,
+        right: 0,
         zIndex: 98,
         boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
         borderTopWidth: 1,
+        width: '100%',
       },
       default: {
         position: 'absolute',
