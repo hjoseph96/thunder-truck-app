@@ -8,7 +8,6 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import PhoneInput from 'react-native-phone-number-input';
 import { authService } from '../lib/api-service';
 import { storeToken, storeUserData } from '../lib/token-manager';
 import { resetSessionExpiration } from '../lib/session-manager';
