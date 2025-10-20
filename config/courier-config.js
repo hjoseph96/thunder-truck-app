@@ -18,22 +18,25 @@ export const DEVIATION_THRESHOLDS = {
 
 /**
  * Animation settings for courier markers
- * Optimized for smooth real-time tracking experience
+ * Optimized for 5fps performance (200ms intervals) for controlled, resource-efficient animations
  */
 export const ANIMATION_SETTINGS = {
   default: {
     smoothingFactor: 0.25, // Responsive animation for real-time updates
     animationDuration: 5000, // 5 seconds for slower, more realistic movement
-    minUpdateInterval: 800, // Update frequency (0.8 seconds) for real-time tracking
+    minUpdateInterval: 200, // 5fps = 200ms intervals for controlled animation
+    frameRate: 5, // Explicit 5fps setting
   },
   cycling: {
     smoothingFactor: 0.3, // Slightly smoother for cycling movement
     animationDuration: 5000, // 5 seconds for slower, more realistic movement
-    minUpdateInterval: 1000, // Cycling updates can be less frequent
+    minUpdateInterval: 200, // 5fps = 200ms intervals for controlled animation
+    frameRate: 5, // Explicit 5fps setting
   },
   walking: {
     smoothingFactor: 0.35, // Smoothest for walking
     animationDuration: 6000, // 6 seconds for slower walking speed
-    minUpdateInterval: 1200, // Walking updates less frequent
+    minUpdateInterval: 200, // 5fps = 200ms intervals for controlled animation
+    frameRate: 5, // Explicit 5fps setting
   },
 };
