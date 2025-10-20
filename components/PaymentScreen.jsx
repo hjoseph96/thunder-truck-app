@@ -12,6 +12,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   useStripe,
   useConfirmPayment,
@@ -348,12 +349,18 @@ const PaymentScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Professional Header */}
+      {/* Modern Professional Header */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Complete Your Order</Text>
-          <Text style={styles.headerSubtitle}>Review your order details</Text>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#2D1E2F" />
+        </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Payment</Text>
         </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
@@ -611,37 +618,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  // Professional Header Styles
+  // Modern Professional Header Styles (Consistent with CheckoutForm)
   header: {
-    backgroundColor: '#FB9C12',
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#BF5B18',
-  },
-  headerContent: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingTop: 50,
+    backgroundColor: '#2D1E2F',
+    color: '#D38105',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    // Professional shadow - creates depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FCFAD6',
-    textAlign: 'center',
-    fontFamily: 'Cairo',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#D38105',
+    letterSpacing: -0.3,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#FCFAD6',
-    textAlign: 'center',
-    fontFamily: 'Cairo',
-    opacity: 0.9,
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerSpacer: {
     marginTop: 15,

@@ -60,6 +60,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 16,
+    // Fixed to bottom
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   navItem: {
     padding: 8,
