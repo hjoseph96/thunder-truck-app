@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { fetchUserOrders, formatOrdersForDisplay } from '../lib/order-service';
 
@@ -310,6 +310,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
@@ -319,6 +327,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        backgroundColor: '#FFF',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+        width: '100%',
+      },
+    }),
   },
   headerButtonLeft: {
     position: 'absolute',
@@ -339,6 +359,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
     backgroundColor: '#FFF',
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 65,
+        left: 0,
+        right: 0,
+        zIndex: 99,
+        width: '100%',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+      },
+    }),
   },
   filterScrollContent: {
     paddingHorizontal: 20,
@@ -373,6 +404,19 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        top: 125,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 40,
+      },
+    }),
   },
   loadingContainer: {
     flex: 1,

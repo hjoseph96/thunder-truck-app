@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'hidden',
+        width: '100%',
       },
     }),
   },
@@ -355,8 +355,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
         flexShrink: 0,
         height: '40vh',
+        zIndex: 100,
+        width: '100%',
       },
     }),
   },
@@ -487,8 +493,17 @@ const styles = StyleSheet.create({
     color: 'whitesmoke',
     ...Platform.select({
       web: {
+        position: 'absolute',
+        top: '40vh',
+        left: 0,
+        right: 0,
+        bottom: 0,
         overflowY: 'auto',
         overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 40,
+      },
+      default: {
         paddingBottom: 100,
       },
     }),

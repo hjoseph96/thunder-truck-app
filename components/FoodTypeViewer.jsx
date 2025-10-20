@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'hidden',
+        width: '100%',
       },
     }),
   },
@@ -273,11 +273,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         top: 0,
+        left: 0,
+        right: 0,
         zIndex: 100,
         paddingTop: 20,
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+        width: '100%',
       },
     }),
   },
@@ -303,8 +306,18 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
+        position: 'absolute',
+        top: 80,
+        left: 0,
+        right: 0,
+        bottom: 0,
         overflowY: 'auto',
         overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 40,
+      },
+      default: {
+        paddingBottom: 20,
       },
     }),
   },
