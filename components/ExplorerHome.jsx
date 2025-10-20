@@ -9,6 +9,7 @@ import {
   Image,
   Dimensions,
   TextInput,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G, ClipPath, Rect, Defs } from 'react-native-svg';
@@ -21,6 +22,10 @@ import { getNearbyFoodTrucksWithCache, getMockLocation } from '../lib/food-truck
 import { getStoredUserData } from '../lib/token-manager';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Determine if running on web
+const isWeb = Platform.OS === 'web';
+const isMobile = !isWeb;
 
 export default function ExplorerHome({ navigation }) {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -162,7 +167,7 @@ export default function ExplorerHome({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      {/* Header */}
+      {/* Header - Sticky on web */}
       <View style={styles.header}>
         
         {/* Search Bar */}
@@ -185,7 +190,7 @@ export default function ExplorerHome({ navigation }) {
         </View>
       </View>
 
-      {/* Location Bar */}
+      {/* Location Bar - Sticky on web */}
       <View style={styles.locationBar}>
         <TouchableOpacity style={styles.locationContent} onPress={() => navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, onAddressSelect: updateSelectedAddress })}>
           <MaterialIcons name="location-on" size={24} color="red" style={styles.locationIcon} />
@@ -210,7 +215,7 @@ export default function ExplorerHome({ navigation }) {
         </View>
       </View>
 
-      {/* Main Content */}
+      {/* Main Content - Scrollable container */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         
         {/* Hero Image */}
@@ -245,7 +250,7 @@ export default function ExplorerHome({ navigation }) {
         <View style={styles.categoriesContainer}>
           {/* What's on your mind */}
           <View style={styles.questionHeader}>
-            <Text style={styles.questionText}>Hungry? Let’s roll.</Text>
+            <Text style={styles.questionText}>Hungry? Let's roll.</Text>
           </View>
 
           {/* Food Types Header */}
@@ -282,30 +287,29 @@ export default function ExplorerHome({ navigation }) {
                   style={styles.categoryItem}
                   onPress={() => handleFoodTruckPress(foodTruck)}
                 >
-                                          <Image
-                       source={{ 
-                         uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/100x100/cccccc/666666?text=No+Image'
-                       }}
-                       style={styles.categoryImage}
-                       resizeMode="cover"
-                     />
-                                     <Text style={styles.categoryText}>{foodTruck.name}</Text>
-                   <Text style={styles.foodTruckSubtext}>
-                     {foodTruck.foodTypes?.map(ft => ft.title).join(', ') || 'Various cuisines'}
-                   </Text>
-                   <Text style={styles.deliveryFeeText}>
-                     ${foodTruck.deliveryFee} delivery
-                   </Text>
+                  <Image
+                    source={{ 
+                      uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/100x100/cccccc/666666?text=No+Image'
+                    }}
+                    style={styles.categoryImage}
+                    resizeMode="cover"
+                  />
+                  <Text style={styles.categoryText}>{foodTruck.name}</Text>
+                  <Text style={styles.foodTruckSubtext}>
+                    {foodTruck.foodTypes?.map(ft => ft.title).join(', ') || 'Various cuisines'}
+                  </Text>
+                  <Text style={styles.deliveryFeeText}>
+                    ${foodTruck.deliveryFee} delivery
+                  </Text>
                 </TouchableOpacity>
               ))
             )}
           </View>
         </View>
 
-
       </ScrollView>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Sticky on web */}
       <BottomNavigation navigation={navigation} userData={userData} />
 
       {/* Onboarding Modal */}
@@ -322,12 +326,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     backgroundColor: '#2D1E2F',
     paddingTop: 10,
     paddingBottom: 15,
     paddingHorizontal: 12,
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  locationBar: {
+    backgroundColor: '#D4A574',
+    paddingHorizontal: 15,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        top: 75,
+        zIndex: 99,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+      },
+    }),
   },
   statusBar: {
     flexDirection: 'row',
@@ -379,14 +415,6 @@ const styles = StyleSheet.create({
   },
   micIcon: {
     marginLeft: 5,
-  },
-  locationBar: {
-    backgroundColor: '#D4A574',
-    paddingHorizontal: 15,
-    paddingVertical: 11,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   locationContent: {
     flexDirection: 'row',
@@ -441,21 +469,50 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingBottom: 100, // Space for fixed bottom navigation
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        paddingBottom: 150, // Space for fixed bottom navigation on web
+      },
+      default: {
+        paddingBottom: 100, // Space for fixed bottom navigation on mobile
+      },
+    }),
   },
   heroImage: {
     width: screenWidth,
     height: 250,
+    ...Platform.select({
+      web: {
+        maxWidth: '100%',
+        height: 'auto',
+      },
+    }),
   },
   slideItem: {
     width: screenWidth,
     height: 250,
     justifyContent: 'center',
     alignItems: 'center',
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: 'auto',
+        minHeight: 250,
+      },
+    }),
   },
   slideImage: {
     width: screenWidth,
     height: 250,
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: 'auto',
+        minHeight: 250,
+      },
+    }),
   },
   pageIndicator: {
     flexDirection: 'row',
@@ -497,6 +554,14 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     paddingHorizontal: 27,
     marginTop: 30,
+    ...Platform.select({
+      web: {
+        maxWidth: 1200,
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        width: '100%',
+      },
+    }),
   },
   sectionHeader: {
     marginTop: 30,
@@ -523,15 +588,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 10,
+    ...Platform.select({
+      web: {
+        justifyContent: 'flex-start',
+        gap: 20,
+      },
+    }),
   },
   categoryItem: {
-    width: '48%', // Two items per row
+    width: '48%',
     alignItems: 'center',
     marginBottom: 20,
+    ...Platform.select({
+      web: {
+        width: 'calc(25% - 15px)',
+        minWidth: 180,
+      },
+    }),
   },
   categoryImage: {
     width: '100%',
-    height: 100, // Fixed height for category images
+    height: 100,
     marginBottom: 10,
     borderRadius: 8,
   },

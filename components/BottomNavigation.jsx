@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, G, ClipPath, Rect, Defs } from 'react-native-svg';
 import UserProfileView from './UserProfileView';
 
@@ -103,11 +103,22 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     // Shadow for Android
     elevation: 16,
-    // Fixed to bottom
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    // Fixed to bottom - platform specific
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 98,
+        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+        borderTopWidth: 1,
+      },
+      default: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+      },
+    }),
   },
   navItem: {
     alignItems: 'center',
