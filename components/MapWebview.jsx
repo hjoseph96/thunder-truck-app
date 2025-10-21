@@ -1,5 +1,5 @@
 import React, { forwardRef, useRef, useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Animated } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Animated, Platform } from 'react-native';
 import { MapView, Marker, Polyline, PROVIDER_GOOGLE, AnimatedRegion } from './map/MapView';
 import { decode } from '@mapbox/polyline';
 import Svg, { Path } from 'react-native-svg';
@@ -105,6 +105,36 @@ const FoodTruckIcon = ({ size = 30 }) => {
 const SvgMarker = ({ type, size = 30, fallbackColor = '#007cff' }) => {
   const [hasError] = useState(false);
 
+  // For web platform, render as HTML/CSS instead of React Native SVG
+  if (Platform.OS === 'web') {
+    const markerStyles = {
+      width: `${size}px`,
+      height: `${size}px`,
+      backgroundColor: fallbackColor,
+      borderRadius: '50%',
+      border: '3px solid white',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: `${size * 0.5}px`,
+      boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    };
+
+    // Different emoji icons for different marker types
+    const markerIcons = {
+      foodTruck: '🚚',
+      courier: '🚴',
+      destination: '📍',
+    };
+
+    return (
+      <div style={markerStyles}>
+        <span>{markerIcons[type] || markerIcons.destination}</span>
+      </div>
+    );
+  }
+
+  // Native platform rendering (iOS/Android)
   // Fallback to a colored circle if SVG fails to load
   if (hasError) {
     return (
@@ -249,6 +279,51 @@ const DynamicPolyline = ({ courier, coordinates }) => {
 const CourierMarker = ({ courier, position }) => {
   if (!position) return null;
 
+  const markerColor = courier.animationState?.isPolylineAnimating ? '#00ff88' : '#007cff';
+  const markerScale = courier.animationState?.isPolylineAnimating ? 1.1 : 1.0;
+
+  // Platform-specific marker rendering
+  const markerContent = Platform.OS === 'web' ? (
+    <div
+      style={{
+        width: '30px',
+        height: '30px',
+        backgroundColor: markerColor,
+        borderRadius: '50%',
+        border: '3px solid white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+        transform: `scale(${markerScale})`,
+        transition: 'all 0.3s ease',
+      }}
+    >
+      <span style={{ fontSize: '14px' }}>🚴</span>
+    </div>
+  ) : (
+    <View
+      style={{
+        width: 30,
+        height: 30,
+        backgroundColor: markerColor,
+        borderRadius: 15,
+        borderWidth: 3,
+        borderColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 4,
+        transform: [{ scale: markerScale }],
+      }}
+    >
+      <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>🚴</Text>
+    </View>
+  );
+
   return (
     <Marker
       ref={(ref) => {
@@ -265,27 +340,7 @@ const CourierMarker = ({ courier, position }) => {
       description={`Status: ${courier.status}${courier.animationState?.isPolylineAnimating ? ' (Moving along route)' : ''}`}
       anchor={{ x: 0.5, y: 0.5 }}
     >
-      <View
-        style={{
-          width: 30,
-          height: 30,
-          backgroundColor: courier.animationState?.isPolylineAnimating ? '#00ff88' : '#007cff',
-          borderRadius: 15,
-          borderWidth: 3,
-          borderColor: 'white',
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-          elevation: 4,
-          // Add subtle scale effect during animation
-          transform: [{ scale: courier.animationState?.isPolylineAnimating ? 1.1 : 1.0 }],
-        }}
-      >
-        <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>🚴</Text>
-      </View>
+      {markerContent}
     </Marker>
   );
 };
@@ -294,9 +349,22 @@ const CourierMarker = ({ courier, position }) => {
 const mapStyles = StyleSheet.create({
   container: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: '100%',
+        minHeight: 300,
+      },
+    }),
   },
   map: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: '100%',
+      },
+    }),
   },
   gpsButton: {
     position: 'absolute',
@@ -306,13 +374,21 @@ const mapStyles = StyleSheet.create({
     borderRadius: 25,
     width: 50,
     height: 50,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
+      },
+    }),
   },
   gpsButtonText: {
     fontSize: 20,
@@ -325,11 +401,18 @@ const mapStyles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'white',
     borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 4,
+      },
+    }),
   },
   userLocationMarkerInner: {
     position: 'absolute',

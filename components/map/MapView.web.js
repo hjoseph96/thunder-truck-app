@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { GoogleMap, Marker as GoogleMarker, Polyline as GooglePolyline, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, Marker as GoogleMarker, Polyline as GooglePolyline, OverlayView, useJsApiLoader } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '../../config/google-maps-config';
 
 export const PROVIDER_GOOGLE = 'google';
@@ -34,7 +34,7 @@ export const MapView = forwardRef((props, ref) => {
   );
 
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY || process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
 
   const handleMapLoad = (map) => {
@@ -71,17 +71,24 @@ export const MapView = forwardRef((props, ref) => {
   }));
 
   if (loadError) {
+    console.error('Google Maps load error:', loadError);
     return (
-      <div style={style}>
-        <p>Error loading Google Maps. Please check your API key.</p>
+      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5' }}>
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <p style={{ color: '#d32f2f', fontWeight: 'bold', marginBottom: '10px' }}>Error loading Google Maps</p>
+          <p style={{ color: '#666', fontSize: '14px' }}>Please check your API key configuration</p>
+          <p style={{ color: '#999', fontSize: '12px', marginTop: '10px' }}>API Key: {GOOGLE_MAPS_API_KEY ? 'Configured' : 'Missing'}</p>
+        </div>
       </div>
     );
   }
 
   if (!isLoaded) {
     return (
-      <div style={style}>
-        <p>Loading map...</p>
+      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5' }}>
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <p style={{ color: '#666' }}>Loading map...</p>
+        </div>
       </div>
     );
   }
@@ -95,11 +102,12 @@ export const MapView = forwardRef((props, ref) => {
         onLoad={handleMapLoad}
         onDragEnd={handleDragEnd}
         options={{
-          mapTypeId: mapType.toUpperCase(),
+          mapTypeId: mapType === 'standard' ? 'roadmap' : mapType.toUpperCase(),
           mapTypeControl: false,
           fullscreenControl: false,
           streetViewControl: false,
           zoomControl: true,
+          styles: [], // Empty styles for standard rendering
         }}
         {...otherProps}
       >
@@ -115,16 +123,17 @@ MapView.displayName = 'MapView';
  * Marker component for web
  * Provides similar API to react-native-maps Marker
  */
-export const Marker = ({
+export const Marker = forwardRef(({
   coordinate,
   title = '',
   description = '',
   onPress = () => {},
   icon = null,
   image = null,
+  anchor = { x: 0.5, y: 1 },
   children,
   ...props
-}) => {
+}, ref) => {
   const position =
     coordinate && coordinate.latitude && coordinate.longitude
       ? { lat: coordinate.latitude, lng: coordinate.longitude }
@@ -136,19 +145,45 @@ export const Marker = ({
     onPress?.();
   };
 
+  // If children are provided, use OverlayView for custom rendering
+  if (children) {
+    return (
+      <OverlayView
+        position={position}
+        mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+        getPixelPositionOffset={(width, height) => ({
+          x: -(width * anchor.x),
+          y: -(height * anchor.y),
+        })}
+      >
+        <div
+          onClick={handleMarkerClick}
+          title={title}
+          style={{
+            cursor: 'pointer',
+            position: 'absolute',
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          {children}
+        </div>
+      </OverlayView>
+    );
+  }
+  
+  // Otherwise use standard Google Marker
   return (
     <GoogleMarker
       position={position}
       title={title}
-      label={title}
       onClick={handleMarkerClick}
       icon={icon}
       {...props}
-    >
-      {children && <div>{children}</div>}
-    </GoogleMarker>
+    />
   );
-};
+});
+
+Marker.displayName = 'Marker';
 
 /**
  * Polyline component for web
@@ -158,7 +193,11 @@ export const Polyline = ({
   coordinates = [],
   strokeColor = '#000000',
   strokeWidth = 2,
-  lineDashPattern = [],
+  strokeOpacity = 1.0,
+  strokePattern = null,
+  lineDashPattern = null,
+  lineCap = 'round',
+  lineJoin = 'round',
   ...props
 }) => {
   const path = coordinates.map((coord) => ({
@@ -170,11 +209,37 @@ export const Polyline = ({
     return null;
   }
 
+  // Convert strokePattern or lineDashPattern to Google Maps format
+  let icons = undefined;
+  if (strokePattern && strokePattern.length > 0) {
+    // Create dashed line effect using icons
+    icons = [{
+      icon: {
+        path: 'M 0,-1 0,1',
+        strokeOpacity: 1,
+        scale: strokeWidth / 2,
+      },
+      offset: '0',
+      repeat: `${strokePattern[0] + strokePattern[1]}px`,
+    }];
+  } else if (lineDashPattern && lineDashPattern.length > 0) {
+    icons = [{
+      icon: {
+        path: 'M 0,-1 0,1',
+        strokeOpacity: 1,
+        scale: strokeWidth / 2,
+      },
+      offset: '0',
+      repeat: `${lineDashPattern[0] + lineDashPattern[1]}px`,
+    }];
+  }
+
   const options = {
     strokeColor: strokeColor,
-    strokeOpacity: 0.8,
+    strokeOpacity: strokeOpacity,
     strokeWeight: strokeWidth,
     geodesic: true,
+    icons: icons,
   };
 
   return <GooglePolyline path={path} options={options} {...props} />;
@@ -194,3 +259,6 @@ export class AnimatedRegion {
     return { remove: () => {} };
   }
 }
+
+// Default export to match react-native-maps structure
+export default MapView;

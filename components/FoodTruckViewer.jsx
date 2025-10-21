@@ -8,8 +8,8 @@ import {
   ScrollView,
   Dimensions,
   Alert,
-  ActivityIndicator,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -433,12 +433,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
     marginLeft: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
     letterSpacing: 0.3,
     bottom: 60,
     position: 'absolute',
+    ...Platform.select({
+      web: {
+        textShadow: '1px 1px 3px rgba(0, 0, 0, 0.8)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
   foodTruckMeta: {
     flexDirection: 'row',
@@ -482,9 +489,16 @@ const styles = StyleSheet.create({
     color: '#fecd15',
     fontSize: 16,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: {
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
 
   content: {

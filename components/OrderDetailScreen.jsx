@@ -21,6 +21,7 @@ import MapWebview from '../components/MapWebview';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
 import MenuItemReviewModal from './MenuItemReviewModal';
 import FoodTruckReviewModal from './FoodTruckReviewModal';
+import { useLocationManager } from '../lib/hooks/useLocationManager';
 
 // Development-only imports (will be tree-shaken in production builds)
 let DevelopmentControls = null;
@@ -113,6 +114,9 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [showFoodTruckReviewModal, setShowFoodTruckReviewModal] = useState(false);
   const [reviewTimer, setReviewTimer] = useState(null);
   const [hasShownReviews, setHasShownReviews] = useState(false);
+
+  // Location manager hook for user's current location
+  const { userLocation, locationPermissionGranted, moveToCurrentLocation } = useLocationManager();
 
   const mapRef = useRef(null);
 
@@ -446,6 +450,9 @@ export default function OrderDetailScreen({ route, navigation }) {
             truckLocation={truckLocation}
             destinationLocation={destinationLocation}
             courierLocation={courierLocation}
+            userLocation={userLocation}
+            locationPermissionGranted={locationPermissionGranted}
+            onGPSButtonPress={moveToCurrentLocation}
             fitToElements={true}
           />
         </View>
