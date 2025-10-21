@@ -53,7 +53,24 @@
       "package": "com.thundertruck.app"
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "ThunderTruck: Order Street Food Ahead",
+      "shortName": "ThunderTruck",
+      "description": "Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.",
+      "lang": "en",
+      "backgroundColor": "#fb9d13",
+      "themeColor": "#fb9d13",
+      "display": "standalone",
+      "orientation": "portrait",
+      "dir": "ltr",
+      "preferRelatedApplications": false,
+      "scope": "/",
+      "startUrl": "/",
+      "splashScreen": {
+        "image": "./assets/images/thundertruck_icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#fb9d13"
+      }
     },
     "plugins": [
       [

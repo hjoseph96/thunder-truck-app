@@ -104,6 +104,7 @@ const CartPopup = ({
         style={styles.cartPopupBackdrop} 
         onPress={onClose}
         activeOpacity={1}
+        pointerEvents="auto"
       />
       <View style={styles.cartPopup}>
         <View style={styles.cartPopupContent}>
@@ -133,10 +134,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    zIndex: 998,
+    zIndex: 997,
     ...Platform.select({
       web: {
         position: 'fixed',
+        zIndex: 9997,
       },
     }),
   },
@@ -145,11 +147,14 @@ const styles = StyleSheet.create({
     bottom: 120,
     right: 20,
     zIndex: 999,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
     ...Platform.select({
       web: {
         position: 'fixed',
-        bottom: 30,
-        right: 30,
+        bottom: 110,
+        right: 6,
+        zIndex: 10000,
       },
     }),
   },
@@ -180,19 +185,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cartPopupTriangle: {
-    position: 'absolute',
-    bottom: -8,
-    right: 20,
     width: 0,
     height: 0,
     backgroundColor: 'transparent',
     borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 8,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 10,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#fff',
+    marginTop: -1,
+    marginRight: 20,
     ...Platform.select({
       web: {
         display: 'none',

@@ -8,6 +8,7 @@ import {
   Modal,
   Dimensions,
   Image,
+  Platform,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import PaymentMethodManager from './PaymentMethodManager';
@@ -88,14 +89,15 @@ export default function UserProfileView({ visible, onClose, userData, navigation
     }
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity
-          style={styles.modalContainer}
-          activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
-        >
+  // On web, render as a fixed div (not Modal) to respect z-index
+  // On mobile, use Modal for native slide animation
+  const profileContent = (
+    <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+      <TouchableOpacity
+        style={styles.modalContainer}
+        activeOpacity={1}
+        onPress={(e) => e.stopPropagation()}
+      >
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Your Profile</Text>
@@ -256,13 +258,44 @@ export default function UserProfileView({ visible, onClose, userData, navigation
           </ScrollView>
         </TouchableOpacity>
       </TouchableOpacity>
+  );
 
+  // Web: Render as fixed div (respects z-index)
+  // Mobile: Render inside Modal (native animation)
+  if (Platform.OS === 'web') {
+    return (
+      <>
+        {visible && profileContent}
+        {/* Payment Method Manager Modal */}
+        <PaymentMethodManager
+          visible={showPaymentMethodModal}
+          onClose={() => setShowPaymentMethodModal(false)}
+          userData={userData}
+          navigation={navigation}
+        />
+      </>
+    );
+  }
+  
+  return (
+    <>
+      <Modal 
+        visible={visible} 
+        animationType="slide" 
+        transparent={true} 
+        onRequestClose={onClose}
+        statusBarTranslucent={true}
+      >
+        {profileContent}
+      </Modal>
       {/* Payment Method Manager Modal */}
       <PaymentMethodManager
         visible={showPaymentMethodModal}
         onClose={() => setShowPaymentMethodModal(false)}
+        userData={userData}
+        navigation={navigation}
       />
-    </Modal>
+    </>
   );
 }
 
@@ -270,12 +303,38 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 50,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      },
+    }),
   },
   modalContainer: {
     height: screenHeight * 0.7,
     backgroundColor: '#FFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        bottom: 80,
+        left: 0,
+        right: 0,
+        maxHeight: 'calc(100vh - 155px)',
+        height: 'auto',
+        zIndex: 50,
+        boxShadow: 'none',
+        borderBottomWidth: 0,
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
@@ -287,8 +346,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderTopRightRadius: 20,
     borderTopLeftRadius: 20,
-    boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
     elevation: 10,
+    ...Platform.select({
+      web: {
+        boxShadow: 'none',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E5E5',
+      },
+      default: {
+        boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   headerTitle: {
     fontSize: 24,
@@ -303,6 +371,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        paddingBottom: 20,
+        marginBottom: 0,
+      },
+    }),
   },
   avatarSection: {
     alignItems: 'center',

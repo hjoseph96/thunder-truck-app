@@ -8,6 +8,11 @@ The following files have been configured for Vercel deployment:
 - ✅ `.vercelignore` - Excludes unnecessary files from deployment
 - ✅ `package.json` - Updated with modern Expo web export scripts
 - ✅ `dist/` - Build directory created and tested successfully
+- ✅ `lib/token-manager.js` - Platform-aware storage (localStorage on web, AsyncStorage on native)
+- ✅ `web/index.html` - Custom SEO-optimized HTML template
+- ✅ `public/robots.txt` - Search engine and LLM crawler configuration
+- ✅ `public/sitemap.xml` - XML sitemap for better indexing
+- ✅ `public/manifest.json` - PWA manifest for installable web app
 
 ## 🚀 Quick Deployment Steps
 
@@ -75,6 +80,32 @@ The build process is configured in `vercel.json`:
 - **Output Directory:** `dist`
 - **Install Command:** `npm install`
 - **Dev Command:** `npm run web`
+
+## 🔐 Authentication Persistence
+
+**JWT Token Storage:**
+- **Web:** Uses browser's `localStorage` for persistent authentication
+- **Native:** Uses `AsyncStorage` for secure token storage
+- **Keys:** 
+  - `thunder_truck_jwt_token` - JWT authentication token
+  - `thunder_truck_user_data` - User profile data
+
+**How it works:**
+- **Sign In:** When users sign in on web, their JWT is stored in `localStorage`
+- **Auto-Login:** On app startup, checks for stored token and routes to ExplorerHome if found
+- **Persistent Sessions:** Users remain authenticated across browser sessions (no repeated sign-ins)
+- **API Integration:** Token is automatically included in API requests via `lib/graphql-client.js`
+- **Logout:** Clears both token and user data from storage, returns to LandingPage
+
+**User Experience:**
+1. First visit: User sees LandingPage → Signs in → Goes to ExplorerHome
+2. Subsequent visits: User goes directly to ExplorerHome (auto-login)
+3. After logout: User sees LandingPage again
+
+**Privacy Note:** JWT tokens persist in browser storage until:
+- User explicitly logs out
+- Token expires (server-side expiration)
+- User clears browser data
 
 ## 🔍 Build Verification
 

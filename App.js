@@ -30,6 +30,7 @@ import OrderIndexScreen from './components/OrderIndexScreen';
 import OrderDetailScreen from './components/OrderDetailScreen';
 
 import { toastConfig } from './config/toast-config';
+import { isAuthenticated } from './lib/token-manager';
 
 const Stack = createStackNavigator();
 
@@ -37,6 +38,8 @@ export default function App() {
   const navigationRef = useRef(null);
   const [webFontsReady, setWebFontsReady] = useState(Platform.OS !== 'web');
   const [mobileFontsReady, setMobileFontsReady] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [initialRoute, setInitialRoute] = useState('LandingPage');
 
   // Load Cairo fonts for mobile platforms only
   // Web platform uses Google Fonts CDN loaded via CSS injection
@@ -66,6 +69,33 @@ export default function App() {
       }
     }
   }, [fontsLoaded]);
+
+  // Check for existing authentication on app startup
+  // This enables auto-login for users with stored JWT tokens
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const authenticated = await isAuthenticated();
+        console.log('Auth check on startup:', authenticated);
+        
+        if (authenticated) {
+          // User has valid token, go directly to ExplorerHome
+          setInitialRoute('ExplorerHome');
+        } else {
+          // No token found, show LandingPage
+          setInitialRoute('LandingPage');
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        // On error, default to LandingPage
+        setInitialRoute('LandingPage');
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   // Inject Google Fonts for web platform to support Inter and Poppins fonts
   // These fonts are used throughout the app but don't exist in assets folder
@@ -124,12 +154,14 @@ export default function App() {
     setNavigationRef(navigationRef.current);
   };
 
-  // Display loading indicator while fonts are being loaded
+  // Display loading indicator while checking auth or loading fonts
+  // 1. First, check authentication status
+  // 2. Then wait for fonts to load
   // Mobile: Wait for Cairo fonts to load via expo-font (with 3s timeout fallback)
   // Web: Wait for Google Fonts CSS to load and apply (with 2s timeout fallback)
   const fontsAreReady = Platform.OS === 'web' ? webFontsReady : mobileFontsReady;
   
-  if (!fontsAreReady) {
+  if (isCheckingAuth || !fontsAreReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
         <ActivityIndicator size="large" color="#fecd15" />
@@ -141,7 +173,7 @@ export default function App() {
     <StripeProviderWrapper>
       <NavigationContainer ref={navigationRef} onReady={onReady}>
         <Stack.Navigator
-          initialRouteName="LandingPage"
+          initialRouteName={initialRoute}
           screenOptions={{
             headerShown: false,
           }}

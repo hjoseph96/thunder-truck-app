@@ -10,6 +10,7 @@ import {
   Dimensions,
   TextInput,
   Platform,
+  Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G, ClipPath, Rect, Defs } from 'react-native-svg';
@@ -36,6 +37,14 @@ export default function ExplorerHome({ navigation }) {
   const [userData, setUserData] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const carouselRef = useRef(null);
+  
+  // Animation values for each slide
+  const slideAnimations = useRef(
+    Array(5).fill(0).map(() => ({
+      scale: new Animated.Value(1),
+      opacity: new Animated.Value(0.7)
+    }))
+  ).current;
 
   const slideImages = [
       require('../assets/images/slide-1.png'),
@@ -148,20 +157,84 @@ export default function ExplorerHome({ navigation }) {
   };
 
   const renderSlideItem = ({ item, index }) => {
+    const isActive = index === currentSlide;
+    const animation = slideAnimations[index % slideAnimations.length]; // Use modulo to safely access animation
+    
     return (
-      <View style={styles.slideItem}>
+      <Animated.View 
+        style={[
+          styles.slideItem,
+          {
+            transform: [{ scale: animation.scale }],
+            opacity: animation.opacity,
+          }
+        ]}
+      >
         <Image
           source={item}
           style={styles.slideImage}
           resizeMode="cover"
         />
-      </View>
+      </Animated.View>
     );
   };
 
   const onSnapToItem = (index) => {
+    // Use modulo to safely access animations for looping carousel
+    const prevIndex = currentSlide % slideAnimations.length;
+    const newIndex = index % slideAnimations.length;
+    
+    // Animate out the previous slide
+    if (prevIndex !== newIndex) {
+      Animated.parallel([
+        Animated.spring(slideAnimations[prevIndex].scale, {
+          toValue: 0.85,
+          friction: 5,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnimations[prevIndex].opacity, {
+          toValue: 0.7,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }
+    
+    // Animate in the new slide
+    Animated.parallel([
+      Animated.spring(slideAnimations[newIndex].scale, {
+        toValue: 1,
+        friction: 5,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnimations[newIndex].opacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
     setCurrentSlide(index);
   };
+  
+  // Initialize first slide animation
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(slideAnimations[0].scale, {
+        toValue: 1,
+        friction: 5,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnimations[0].opacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -223,18 +296,20 @@ export default function ExplorerHome({ navigation }) {
       >
         
         {/* Hero Image */}
-        <Carousel
-          ref={carouselRef}
-          data={slideImages}
-          renderItem={renderSlideItem}
-          sliderWidth={screenWidth}
-          itemWidth={screenWidth}
-          onSnapToItem={onSnapToItem}
-          loop
-          autoplay
-          autoplayInterval={5000}
-          style={styles.heroImage}
-        />
+        <View style={styles.carouselContainer}>
+          <Carousel
+            ref={carouselRef}
+            data={slideImages}
+            renderItem={renderSlideItem}
+            sliderWidth={screenWidth}
+            itemWidth={screenWidth}
+            onSnapToItem={onSnapToItem}
+            loop
+            autoplay
+            autoplayInterval={5000}
+            style={styles.heroImage}
+          />
+        </View>
 
         {/* Page Indicator */}
         <View style={styles.pageIndicator}>
@@ -372,6 +447,9 @@ const styles = StyleSheet.create({
         zIndex: 99,
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
         width: '100%',
+        paddingTop: 11,
+        paddingBottom: 11,
+        margin: 0,
       },
     }),
   },
@@ -482,10 +560,10 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         position: 'absolute',
-        top: 155,
+        top: 121,
         left: 0,
         right: 0,
-        bottom: 80,
+        bottom: 64,
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
@@ -500,9 +578,22 @@ const styles = StyleSheet.create({
       web: {
         paddingBottom: 40,
         minHeight: '100%',
+        paddingTop: 0,
       },
       default: {
         flexGrow: 1,
+      },
+    }),
+  },
+  carouselContainer: {
+    width: '100%',
+    ...Platform.select({
+      web: {
+        margin: '100px 0',
+        minHeight: '50vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       },
     }),
   },
@@ -513,6 +604,7 @@ const styles = StyleSheet.create({
       web: {
         maxWidth: '100%',
         height: 'auto',
+        minHeight: '50vh',
       },
     }),
   },
@@ -521,22 +613,29 @@ const styles = StyleSheet.create({
     height: 250,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
     ...Platform.select({
       web: {
         width: '100%',
         height: 'auto',
-        minHeight: 250,
+        minHeight: '50vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       },
     }),
   },
   slideImage: {
     width: screenWidth,
     height: 250,
+    borderRadius: 0,
     ...Platform.select({
       web: {
         width: '100%',
         height: 'auto',
-        minHeight: 250,
+        minHeight: '50vh',
+        maxHeight: '50vh',
+        objectFit: 'cover',
       },
     }),
   },

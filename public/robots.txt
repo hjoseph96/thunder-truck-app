@@ -1,0 +1,55 @@
+# robots.txt for ThunderTruck
+# This file tells search engine crawlers which pages they can and cannot access
+
+# Allow all crawlers to access all content
+User-agent: *
+Allow: /
+
+# Disallow crawling of API endpoints (if any are exposed via web)
+Disallow: /api/
+Disallow: /_expo/
+
+# Allow specific bots (Google, Bing, etc.)
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Allow AI/LLM crawlers for better visibility in AI search
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+# Crawl delay (optional, prevents overwhelming the server)
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://web.thundertruck.app/sitemap.xml
+

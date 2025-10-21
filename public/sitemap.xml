@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  
+  <!-- Homepage -->
+  <url>
+    <loc>https://web.thundertruck.app/</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://web.thundertruck.app/assets/images/thunder-truck-hero-image.png</image:loc>
+      <image:title>ThunderTruck - Order Street Food Ahead</image:title>
+      <image:caption>Real-time food truck tracking and delivery</image:caption>
+    </image:image>
+  </url>
+  
+  <!-- Sign Up Page -->
+  <url>
+    <loc>https://web.thundertruck.app/signup</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- Sign In Page -->
+  <url>
+    <loc>https://web.thundertruck.app/signin</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- Map/Explorer Page -->
+  <url>
+    <loc>https://web.thundertruck.app/map</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Food Types/Categories -->
+  <url>
+    <loc>https://web.thundertruck.app/food-types</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Orders Page -->
+  <url>
+    <loc>https://web.thundertruck.app/orders</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Terms of Service -->
+  <url>
+    <loc>https://web.thundertruck.app/terms</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <!-- Privacy Policy -->
+  <url>
+    <loc>https://web.thundertruck.app/privacy</loc>
+    <lastmod>2025-10-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <!-- 
+    Note: For dynamic pages (individual food trucks, menu items, etc.),
+    consider generating this sitemap dynamically from your API/database
+    or create a separate sitemap-dynamic.xml that updates automatically
+  -->
+  
+</urlset>
+

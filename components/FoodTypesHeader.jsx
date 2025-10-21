@@ -1,9 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Pressable, Animated, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { fetchFoodTypes } from '../lib/food-types-service';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Interactive Food Type Item Component (Hover on web, tap animation on mobile)
+const FoodTypeItemWithHover = ({ foodType, onPress, sanitizeImageUrl }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const animateScale = (toValue) => {
+    Animated.spring(scaleAnim, {
+      toValue,
+      friction: 5,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleHoverIn = () => {
+    if (Platform.OS === 'web') {
+      animateScale(1.1);
+    }
+  };
+
+  const handleHoverOut = () => {
+    if (Platform.OS === 'web') {
+      animateScale(1);
+    }
+  };
+
+  const handlePressIn = () => {
+    if (Platform.OS !== 'web') {
+      animateScale(1.1);
+    }
+  };
+
+  const handlePressOut = () => {
+    if (Platform.OS !== 'web') {
+      animateScale(1);
+    }
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={({ pressed }) => [
+        styles.foodTypeItem,
+        pressed && styles.foodTypeItemPressed,
+      ]}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <View style={styles.iconContainer}>
+          {foodType.iconImageUrl ? (
+            <Image
+              source={{ 
+                uri: sanitizeImageUrl(foodType.iconImageUrl),
+                cache: 'default'
+              }}
+              style={styles.foodTypeIcon}
+              resizeMode="contain"
+              onLoadStart={() => console.log('Loading image:', sanitizeImageUrl(foodType.iconImageUrl))}
+              onLoad={() => console.log('Image loaded successfully:', sanitizeImageUrl(foodType.iconImageUrl))}
+              onError={(error) => {
+                console.error('Image load error:', error.nativeEvent, 'for URL:', sanitizeImageUrl(foodType.iconImageUrl));
+              }}
+            />
+          ) : (
+            <View style={styles.fallbackIcon}>
+              <Text style={styles.fallbackText}>🍽️</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.foodTypeTitle} numberOfLines={2}>
+          {foodType.title}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+};
 
 export default function FoodTypesHeader({ navigation }) {
   const [foodTypes, setFoodTypes] = useState([]);
@@ -158,37 +237,12 @@ export default function FoodTypesHeader({ navigation }) {
           scrollEventThrottle={16}
         >
           {foodTypes.map((foodType) => (
-            <TouchableOpacity
+            <FoodTypeItemWithHover
               key={foodType.id}
-              style={styles.foodTypeItem}
+              foodType={foodType}
               onPress={() => handleFoodTypePress(foodType)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.iconContainer}>
-                {foodType.iconImageUrl ? (
-                  <Image
-                    source={{ 
-                      uri: sanitizeImageUrl(foodType.iconImageUrl),
-                      cache: 'default'
-                    }}
-                    style={styles.foodTypeIcon}
-                    resizeMode="contain"
-                    onLoadStart={() => console.log('Loading image:', sanitizeImageUrl(foodType.iconImageUrl))}
-                    onLoad={() => console.log('Image loaded successfully:', sanitizeImageUrl(foodType.iconImageUrl))}
-                    onError={(error) => {
-                      console.error('Image load error:', error.nativeEvent, 'for URL:', sanitizeImageUrl(foodType.iconImageUrl));
-                    }}
-                  />
-                ) : (
-                  <View style={styles.fallbackIcon}>
-                    <Text style={styles.fallbackText}>🍽️</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.foodTypeTitle} numberOfLines={2}>
-                {foodType.title}
-              </Text>
-            </TouchableOpacity>
+              sanitizeImageUrl={sanitizeImageUrl}
+            />
           ))}
           
           {/* Loading indicator for more food types */}
@@ -242,6 +296,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     width: 100,
     minHeight: 100,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      },
+    }),
+  },
+  foodTypeItemPressed: {
+    opacity: 0.7,
   },
   iconContainer: {
     width: 60,

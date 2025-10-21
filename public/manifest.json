@@ -1,0 +1,79 @@
+{
+  "name": "ThunderTruck: Order Street Food Ahead and Track Real-Time Delivery",
+  "short_name": "ThunderTruck",
+  "description": "Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fb9d13",
+  "theme_color": "#fb9d13",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["food", "lifestyle", "shopping"],
+  "icons": [
+    {
+      "src": "/assets/images/thundertruck_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/images/thundertruck_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/images/thunder-truck-hero-image.png",
+      "sizes": "1920x1080",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Find Food Trucks",
+      "short_name": "Find Trucks",
+      "description": "Find food trucks near your location",
+      "url": "/map",
+      "icons": [
+        {
+          "src": "/assets/images/thundertruck_icon.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "description": "View your order history",
+      "url": "/orders",
+      "icons": [
+        {
+          "src": "/assets/images/thundertruck_icon.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.thundertruck.app",
+      "id": "com.thundertruck.app"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/thundertruck/id123456789"
+    }
+  ],
+  "prefer_related_applications": false
+}
+

@@ -53,11 +53,13 @@ export default function MenuItemViewer({ navigation, route }) {
   };
 
   const handleCartPress = async () => {
+    console.log('Cart icon pressed, current state:', showCartPopup);
     if (!showCartPopup) {
       // Load cart data when opening popup
       await loadCartData();
     }
     setShowCartPopup(!showCartPopup);
+    console.log('Cart popup state toggled to:', !showCartPopup);
   };
 
   const loadCartData = async () => {
@@ -289,7 +291,12 @@ export default function MenuItemViewer({ navigation, route }) {
     return (
       <View style={styles.relatedMenuItemsContainer}>
         <Text style={styles.relatedMenuItemsTitle}>You might also like</Text>
-        <View style={styles.relatedMenuItemsGrid}>
+        <ScrollView
+          horizontal={Platform.OS === 'web'}
+          showsHorizontalScrollIndicator={Platform.OS === 'web'}
+          contentContainerStyle={styles.relatedMenuItemsGrid}
+          style={Platform.OS === 'web' ? styles.relatedMenuItemsScrollView : null}
+        >
           {relatedMenuItems.map((relatedItem) => (
             <TouchableOpacity
               key={relatedItem.id}
@@ -314,12 +321,12 @@ export default function MenuItemViewer({ navigation, route }) {
                 {relatedItem.price && (
                   <Text style={styles.relatedMenuItemPrice}>
                     ${relatedItem.price}
-                </Text>
+                  </Text>
                 )}
               </View>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </View>
     );
   };
@@ -385,7 +392,11 @@ export default function MenuItemViewer({ navigation, route }) {
     </ScrollView>
     
     {/* Fixed Cart Icon */}
-    <TouchableOpacity style={styles.cartIcon} onPress={handleCartPress}>
+    <TouchableOpacity 
+      style={styles.cartIcon} 
+      onPress={handleCartPress}
+      activeOpacity={0.7}
+    >
       <MaterialIcons name="shopping-cart" size={28} color="#000" />
     </TouchableOpacity>
 
@@ -477,6 +488,7 @@ const styles = StyleSheet.create({
       web: {
         overflowY: 'auto',
         overflowX: 'hidden',
+        paddingBottom: 100,
       },
     }),
   },
@@ -656,6 +668,7 @@ const styles = StyleSheet.create({
     height: 60,
     width: screenWidth,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -665,9 +678,15 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
     ...Platform.select({
       web: {
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
         width: '100%',
+        zIndex: 100,
+        boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.15)',
         borderRadius: 0,
-        marginTop: 20,
+        marginTop: 0,
       },
     }),
   },
@@ -722,17 +741,42 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: 'Cairo',
   },
+  relatedMenuItemsScrollView: {
+    width: '100%',
+    ...Platform.select({
+      web: {
+        maxHeight: 400,
+      },
+    }),
+  },
   relatedMenuItemsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    ...Platform.select({
+      web: {
+        flexWrap: 'nowrap',
+        paddingRight: 20,
+      },
+      default: {
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+      },
+    }),
   },
   relatedMenuItem: {
-    width: '48%',
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
+    ...Platform.select({
+      web: {
+        width: 250,
+        minWidth: 250,
+        marginRight: 16,
+      },
+      default: {
+        width: '48%',
+      },
+    }),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -780,6 +824,7 @@ const styles = StyleSheet.create({
         position: 'fixed',
         bottom: 30,
         right: 30,
+        zIndex: 10001,
       },
     }),
   },
