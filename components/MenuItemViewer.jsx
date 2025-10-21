@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo',
     fontWeight: '300',
     width: 340,
-    overflow: 'scroll',
+    overflow: 'hidden',
   },
   optionGroup: {
     backgroundColor: '#fff',
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   relatedMenuItem: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    overflow: 'scroll',
+    overflow: 'hidden',
     marginBottom: 16,
     ...Platform.select({
       web: {
