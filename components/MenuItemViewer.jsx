@@ -347,11 +347,6 @@ export default function MenuItemViewer({ navigation, route }) {
     );
   };
 
-  const ContentWrapper = Platform.OS === 'web' ? View : ScrollView;
-  const contentWrapperProps = Platform.OS === 'web' 
-    ? { style: styles.content } 
-    : { style: styles.content, showsVerticalScrollIndicator: false };
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -376,9 +371,10 @@ export default function MenuItemViewer({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <ContentWrapper {...contentWrapperProps}>
-        {/* Content Section */}
-        <View style={styles.contentSection}>
+      {Platform.OS === 'web' ? (
+        <View style={styles.content}>
+          {/* Content Section */}
+          <View style={styles.contentSection}>
             <View style={styles.headerRow}>
                 <Text style={styles.menuItemName}>{menuItem.name}</Text>
                 <Text style={styles.menuItemPrice}>+${menuItem.price}</Text>
@@ -388,29 +384,66 @@ export default function MenuItemViewer({ navigation, route }) {
                 {menuItem.description}
             </Text>
           )}
+          </View>
+          
+          <View>
+              {/* Option Groups */}
+              {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
+                menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
+              )}
+              
+              {/* Related Menu Items */}
+              {renderRelatedMenuItems()}
+              
+          {/* Add to Cart Button */}
+          <TouchableOpacity 
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+            disabled={cartLoading}
+          >
+              <Text style={styles.addToCartButtonText}>
+                {cartLoading ? 'Adding...' : 'Add to Cart'}
+              </Text>
+          </TouchableOpacity>
         </View>
-        
-        <View>
-            {/* Option Groups */}
-            {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
-              menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
+        </View>
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Content Section */}
+          <View style={styles.contentSection}>
+              <View style={styles.headerRow}>
+                  <Text style={styles.menuItemName}>{menuItem.name}</Text>
+                  <Text style={styles.menuItemPrice}>+${menuItem.price}</Text>
+              </View>
+            {menuItem.description && (
+              <Text style={styles.menuItemDescription}>
+                  {menuItem.description}
+              </Text>
             )}
-            
-            {/* Related Menu Items */}
-            {renderRelatedMenuItems()}
-            
-        {/* Add to Cart Button */}
-        <TouchableOpacity 
-          style={styles.addToCartButton}
-          onPress={handleAddToCart}
-          disabled={cartLoading}
-        >
-            <Text style={styles.addToCartButtonText}>
-              {cartLoading ? 'Adding...' : 'Add to Cart'}
-            </Text>
-        </TouchableOpacity>
-      </View>
-    </ContentWrapper>
+          </View>
+          
+          <View>
+              {/* Option Groups */}
+              {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
+                menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
+              )}
+              
+              {/* Related Menu Items */}
+              {renderRelatedMenuItems()}
+              
+          {/* Add to Cart Button */}
+          <TouchableOpacity 
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+            disabled={cartLoading}
+          >
+              <Text style={styles.addToCartButtonText}>
+                {cartLoading ? 'Adding...' : 'Add to Cart'}
+              </Text>
+          </TouchableOpacity>
+        </View>
+        </ScrollView>
+      )}
     
     {/* Fixed Cart Icon */}
     <TouchableOpacity 
@@ -444,7 +477,7 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'scroll',
+        overflowY: 'scroll',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
       },
@@ -522,7 +555,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-    overflow: 'scroll',
     borderBottomColor: '#eee',
     borderBottomWidth: 1,
     ...Platform.select({
