@@ -347,6 +347,11 @@ export default function MenuItemViewer({ navigation, route }) {
     );
   };
 
+  const ContentWrapper = Platform.OS === 'web' ? View : ScrollView;
+  const contentWrapperProps = Platform.OS === 'web' 
+    ? { style: styles.content } 
+    : { style: styles.content, showsVerticalScrollIndicator: false };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -371,7 +376,7 @@ export default function MenuItemViewer({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ContentWrapper {...contentWrapperProps}>
         {/* Content Section */}
         <View style={styles.contentSection}>
             <View style={styles.headerRow}>
@@ -405,7 +410,7 @@ export default function MenuItemViewer({ navigation, route }) {
             </Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+    </ContentWrapper>
     
     {/* Fixed Cart Icon */}
     <TouchableOpacity 
@@ -439,7 +444,9 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'hidden',
+        overflow: 'scroll',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
       },
     }),
   },
@@ -502,9 +509,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
     ...Platform.select({
       web: {
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        paddingBottom: 100,
+        paddingBottom: 120,
+        minHeight: '100%',
       },
     }),
   },
@@ -519,6 +525,12 @@ const styles = StyleSheet.create({
     overflow: 'scroll',
     borderBottomColor: '#eee',
     borderBottomWidth: 1,
+    ...Platform.select({
+      web: {
+        paddingBottom: 100,
+        marginBottom: 20,
+      },
+    }),
   },
   headerRow: {
     display: 'flex',
@@ -557,7 +569,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo',
     fontWeight: '300',
     width: 340,
-    overflow: 'hidden',
+    overflow: 'scroll',
   },
   optionGroup: {
     backgroundColor: '#fff',
@@ -781,7 +793,7 @@ const styles = StyleSheet.create({
   relatedMenuItem: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: 'scroll',
     marginBottom: 16,
     ...Platform.select({
       web: {

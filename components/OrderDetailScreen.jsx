@@ -873,7 +873,7 @@ export default function OrderDetailScreen({ route, navigation }) {
       </View>
 
       {/* Development Controls (only in dev mode) */}
-      {__DEV__ && DevelopmentControls && (
+      {
         <DevelopmentControls
           currentStatus={currentStatus}
           setCurrentStatus={setCurrentStatus}
@@ -887,7 +887,7 @@ export default function OrderDetailScreen({ route, navigation }) {
             setHasShownReviews(true);
           }}
         />
-      )}
+      }
 
       <View style={styles.content}>
         {/* Section 1: Status Information */}
