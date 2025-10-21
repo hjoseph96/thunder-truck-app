@@ -15,6 +15,20 @@ import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// Determine grid columns based on screen width
+const getNumColumns = () => {
+  if (Platform.OS === 'web') {
+    if (screenWidth >= 1400) return 5; // Extra large desktop
+    if (screenWidth >= 1200) return 4; // Large desktop
+    if (screenWidth >= 900) return 3; // Desktop/Tablet landscape
+    if (screenWidth >= 600) return 2; // Tablet portrait
+    return 2; // Mobile
+  }
+  return 2; // Native always 2 columns
+};
+
+const isWeb = Platform.OS === 'web';
+
 export default function FoodTypeViewer({ navigation, route }) {
   const { foodType } = route.params;
   const [foodTrucks, setFoodTrucks] = useState([]);
@@ -24,12 +38,53 @@ export default function FoodTypeViewer({ navigation, route }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMorePages, setHasMorePages] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [numColumns, setNumColumns] = useState(getNumColumns());
 
   useEffect(() => {
     if (foodType) {
       loadFoodTrucksForType();
     }
   }, [foodType]);
+
+  // Handle window resize on web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleResize = () => {
+        const newNumColumns = getNumColumns();
+        if (newNumColumns !== numColumns) {
+          setNumColumns(newNumColumns);
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, [numColumns]);
+
+  // Handle infinite scroll on web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleScroll = () => {
+        const scrollContainer = document.querySelector('[data-scroll-container="food-trucks"]');
+        if (!scrollContainer) return;
+
+        const scrollTop = scrollContainer.scrollTop;
+        const scrollHeight = scrollContainer.scrollHeight;
+        const clientHeight = scrollContainer.clientHeight;
+
+        // Load more when user scrolls to within 300px of bottom
+        if (scrollHeight - scrollTop - clientHeight < 300 && !loadingMore && hasMorePages) {
+          loadMoreFoodTrucks();
+        }
+      };
+
+      const scrollContainer = document.querySelector('[data-scroll-container="food-trucks"]');
+      if (scrollContainer) {
+        scrollContainer.addEventListener('scroll', handleScroll);
+        return () => scrollContainer.removeEventListener('scroll', handleScroll);
+      }
+    }
+  }, [loadingMore, hasMorePages]);
 
   const loadFoodTrucksForType = async (page = 1, append = false) => {
     try {
@@ -104,9 +159,14 @@ export default function FoodTypeViewer({ navigation, route }) {
     navigation.goBack();
   };
 
-  const renderFoodTruckItem = ({ item: truck, index }) => (
+  const renderFoodTruckCard = (truck) => (
     <TouchableOpacity
-      style={styles.foodTruckCard}
+      key={truck.id}
+      style={[
+        styles.foodTruckCard,
+        isWeb && styles.foodTruckCardWeb,
+        isWeb && { width: `${100 / numColumns - 2}%` }
+      ]}
       onPress={() => handleFoodTruckPress(truck)}
       activeOpacity={0.7}
       accessibilityLabel={`Food truck ${truck.name}`}
@@ -142,6 +202,8 @@ export default function FoodTypeViewer({ navigation, route }) {
       </View>
     </TouchableOpacity>
   );
+
+  const renderFoodTruckItem = ({ item: truck, index }) => renderFoodTruckCard(truck);
 
   const renderFooter = () => {
     if (!loadingMore) return null;
@@ -189,7 +251,10 @@ export default function FoodTypeViewer({ navigation, route }) {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
+      <View 
+        style={styles.content}
+        {...(isWeb && { 'data-scroll-container': 'food-trucks' })}
+      >
         {/* Cover Image */}
         <View style={styles.coverImageContainer}>
           <Image
@@ -229,7 +294,16 @@ export default function FoodTypeViewer({ navigation, route }) {
             </View>
           ) : foodTrucks.length === 0 ? (
             renderEmptyState()
+          ) : isWeb ? (
+            // Web: Use custom responsive grid
+            <View style={styles.webGridContainer}>
+              <View style={styles.webGrid}>
+                {foodTrucks.map((truck) => renderFoodTruckCard(truck))}
+              </View>
+              {renderFooter()}
+            </View>
           ) : (
+            // Native: Use FlatList with fixed columns
             <FlatList
               data={foodTrucks}
               renderItem={renderFoodTruckItem}
@@ -347,6 +421,14 @@ const styles = StyleSheet.create({
   foodTrucksSection: {
     padding: 20,
     flex: 1,
+    ...Platform.select({
+      web: {
+        maxWidth: 1600,
+        marginHorizontal: 'auto',
+        width: '100%',
+        paddingHorizontal: 40,
+      },
+    }),
   },
   sectionHeader: {
     marginBottom: 20,
@@ -408,6 +490,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
+  webGridContainer: {
+    width: '100%',
+  },
+  webGrid: {
+    display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 20,
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+  },
   foodTrucksGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -427,24 +520,59 @@ const styles = StyleSheet.create({
     elevation: 5,
     overflow: 'hidden',
   },
+  foodTruckCardWeb: {
+    marginBottom: 0,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        cursor: 'pointer',
+        ':hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+        },
+      },
+    }),
+  },
   truckImage: {
     width: '100%',
     height: 100,
+    ...Platform.select({
+      web: {
+        height: screenWidth >= 900 ? 160 : 120,
+      },
+    }),
   },
   truckInfo: {
     padding: 12,
+    ...Platform.select({
+      web: {
+        padding: screenWidth >= 900 ? 16 : 12,
+      },
+    }),
   },
   truckName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2D1E2F',
     marginBottom: 4,
+    ...Platform.select({
+      web: {
+        fontSize: screenWidth >= 900 ? 18 : 16,
+      },
+    }),
   },
   truckDescription: {
     fontSize: 12,
     color: '#666',
     marginBottom: 8,
     lineHeight: 16,
+    ...Platform.select({
+      web: {
+        fontSize: screenWidth >= 900 ? 14 : 12,
+        lineHeight: screenWidth >= 900 ? 20 : 16,
+      },
+    }),
   },
   truckDetails: {
     flexDirection: 'row',
