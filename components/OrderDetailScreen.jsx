@@ -22,6 +22,7 @@ import { courierTrackingManager } from '../lib/courier-tracking-service';
 import MenuItemReviewModal from './MenuItemReviewModal';
 import FoodTruckReviewModal from './FoodTruckReviewModal';
 import { useLocationManager } from '../lib/hooks/useLocationManager';
+import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
 
 // Development-only imports (will be tree-shaken in production builds)
 let DevelopmentControls = null;
@@ -288,12 +289,62 @@ export default function OrderDetailScreen({ route, navigation }) {
         //   fetchMenuItemImages(formattedOrder.formattedItems);
         // }
 
-        // Set food truck coordinates
+        // Set food truck coordinates with validation
         if (orderData.foodTruck?.latitude && orderData.foodTruck?.longitude) {
-          setTruckLocation({
+          const truckCoords = {
             latitude: orderData.foodTruck.latitude,
             longitude: orderData.foodTruck.longitude,
-          });
+          };
+          
+          // Use the truck coordinates immediately (optimistic)
+          setTruckLocation(truckCoords);
+          
+          // Validate in background - if invalid, update to fallback
+          // This prevents UI blocking while still ensuring valid locations
+          (async () => {
+            try {
+              // Get destination to test routing
+              const latLongString = orderData.orderAddresses?.[0]?.latlong;
+              let destinationCoords = null;
+              
+              if (latLongString) {
+                const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
+                if (matches && matches.length === 3) {
+                  destinationCoords = {
+                    longitude: parseFloat(matches[1]),
+                    latitude: parseFloat(matches[2]),
+                  };
+                }
+              }
+              
+              // If we have a destination, validate truck location can be routed to
+              if (destinationCoords) {
+                const routeData = await googleMapsRoutingService.fetchRoute(
+                  truckCoords,
+                  destinationCoords,
+                  { profile: 'driving' }
+                );
+                
+                // If routing fails or returns invalid route, use fallback
+                if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
+                  console.warn('[VALIDATION] Food truck location cannot be routed to - using fallback');
+                  console.warn('[VALIDATION] Invalid coords:', truckCoords);
+                  setTruckLocation({
+                    latitude: 40.7128,
+                    longitude: -73.9600,
+                  });
+                } else {
+                  console.log('[VALIDATION] ✅ Food truck location is valid');
+                }
+              }
+            } catch (error) {
+              console.warn('[VALIDATION] Location validation failed, using fallback:', error.message);
+              setTruckLocation({
+                latitude: 40.7128,
+                longitude: -73.9600,
+              });
+            }
+          })();
         }
 
         // Parse and set destination coordinates
