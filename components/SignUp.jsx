@@ -238,6 +238,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 30,
     paddingTop: 60,
+    ...Platform.select({
+      web: {
+        paddingTop: 120,
+        marginHorizontal: 555
+      },
+    }),
   },
   titleText: {
     fontSize: 32,

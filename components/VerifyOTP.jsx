@@ -45,7 +45,11 @@ export default function VerifyOTP({ navigation, route }) {
     const code = otpCode.join('');
     
     if (code.length !== 6) {
-      Alert.alert('Error', 'Please enter the complete 6-digit OTP code');
+      if (Platform.OS === 'web') {
+        console.error('Please enter the complete 6-digit OTP code');
+      } else {
+        Alert.alert('Error', 'Please enter the complete 6-digit OTP code');
+      }
       return;
     }
 
@@ -54,24 +58,37 @@ export default function VerifyOTP({ navigation, route }) {
       const result = await authService.verifyOtp(phoneNumber, code);
       
       if (result.success) {
-        Alert.alert(
-          'Success!', 
-          'Phone number verified successfully!',
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                // Navigate to ExplorerHome after successful verification
-                navigation.navigate('ExplorerHome');
+        // On web: navigate directly without Alert
+        if (Platform.OS === 'web') {
+          navigation.navigate('ExplorerHome');
+        } else {
+          // On mobile: show success Alert
+          Alert.alert(
+            'Success!', 
+            'Phone number verified successfully!',
+            [
+              {
+                text: 'Continue',
+                onPress: () => {
+                  navigation.navigate('ExplorerHome');
+                }
               }
-            }
-          ]
-        );
+            ]
+          );
+        }
       } else {
-        Alert.alert('Error', result.message || 'Verification failed');
+        if (Platform.OS === 'web') {
+          console.error('Error:', result.message || 'Verification failed');
+        } else {
+          Alert.alert('Error', result.message || 'Verification failed');
+        }
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred during verification');
+      if (Platform.OS === 'web') {
+        console.error('Error:', error.message || 'An error occurred during verification');
+      } else {
+        Alert.alert('Error', error.message || 'An error occurred during verification');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +103,11 @@ export default function VerifyOTP({ navigation, route }) {
       const result = await authService.requestOtp(phoneNumber);
       
       if (result.success) {
-        Alert.alert('Success', 'New OTP code sent to your phone');
+        if (Platform.OS === 'web') {
+          console.log('Success: New OTP code sent to your phone');
+        } else {
+          Alert.alert('Success', 'New OTP code sent to your phone');
+        }
         // Start resend timer (60 seconds)
         setResendTimer(60);
         const timer = setInterval(() => {
@@ -99,10 +120,18 @@ export default function VerifyOTP({ navigation, route }) {
           });
         }, 1000);
       } else {
-        Alert.alert('Error', result.message || 'Failed to resend OTP');
+        if (Platform.OS === 'web') {
+          console.error('Error:', result.message || 'Failed to resend OTP');
+        } else {
+          Alert.alert('Error', result.message || 'Failed to resend OTP');
+        }
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred while resending OTP');
+      if (Platform.OS === 'web') {
+        console.error('Error:', error.message || 'An error occurred while resending OTP');
+      } else {
+        Alert.alert('Error', error.message || 'An error occurred while resending OTP');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -225,6 +254,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 30,
     paddingTop: 60,
+    ...Platform.select({
+      web: {
+        paddingTop: 120,
+        marginHorizontal: 555
+      },
+    })
   },
   titleText: {
     fontSize: 32,
