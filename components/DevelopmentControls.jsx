@@ -17,9 +17,40 @@ import { updateCourierPosition } from '../lib/courier-mutations';
  *
  * To remove for production: Simply delete this file and its import in OrderDetailScreen.jsx
  */
+
+/**
+ * Validates that a location is on land (not water) by attempting to calculate a route
+ * @param {Object} location - Location object with latitude/longitude
+ * @param {Object} referenceLocation - A known good location to test routing against
+ * @returns {Promise<boolean>} - True if location appears to be valid (on land/road)
+ */
+const isValidLandLocation = async (location, referenceLocation) => {
+  try {
+    // Try to get a route to this location
+    // If the location is in water or otherwise unreachable, routing will fail
+    const routeData = await googleMapsRoutingService.fetchRoute(
+      referenceLocation,
+      location,
+      { profile: 'driving' }
+    );
+    
+    // Check if we got a valid route with coordinates
+    return routeData && routeData.coordinates && routeData.coordinates.length >= 2;
+  } catch (error) {
+    console.warn('[VALIDATION] Location validation failed:', error.message);
+    return false;
+  }
+};
+
 const _courierLocation = {
   latitude: 40.75163,
   longitude: -73.82624
+}
+
+// Default fallback food truck location (Williamsburg, Brooklyn - known good location on land)
+const _defaultTruckLocation = {
+  latitude: 40.7128,
+  longitude: -73.9903
 }
 
 // Match actual map animation timing
@@ -320,9 +351,18 @@ export default function DevelopmentControls({
     setCurrentStatus('delivering');
 
     try {
+      // Validate truck location again for delivery stage, use fallback if invalid
+      const isTruckValid = await isValidLandLocation(truckLocation, destinationLocation);
+      let activeTruckLocation = truckLocation;
+      
+      if (!isTruckValid) {
+        console.warn('[VALIDATION] Truck location invalid for delivery - using default location');
+        activeTruckLocation = _defaultTruckLocation;
+      }
+
       // Get real route from Google Maps API
       const routeData = await googleMapsRoutingService.fetchRoute(
-        truckLocation,
+        activeTruckLocation,
         destinationLocation,
         { profile: 'driving' },
       );
@@ -390,10 +430,27 @@ export default function DevelopmentControls({
       return;
     }
 
+    setIsSimulating(true);
+    setSimulationMessage('🔍 Validating locations...');
+
+    // Validate truck location is on land (not in water), use fallback if invalid
+    console.log('[VALIDATION] Checking if truck location is accessible...');
+    const isTruckValid = await isValidLandLocation(truckLocation, destinationLocation);
+    
+    let activeTruckLocation = truckLocation;
+    if (!isTruckValid) {
+      console.warn('[VALIDATION] Truck location validation failed - using default location instead');
+      activeTruckLocation = _defaultTruckLocation;
+      setSimulationMessage('⚠️ Using default truck location (original was in water)');
+      
+      // Brief delay to show the warning message
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      console.log('[VALIDATION] ✅ Truck location is valid');
+    }
+
     // Set initial courier position
     updateCourierPosition(_courierLocation.latitude, _courierLocation.longitude);
-
-    setIsSimulating(true);
 
     // Stage 1: Start movement to food truck (picking_up)
     setSimulationMessage('📍 Stage 1: Moving to restaurant...');
@@ -403,12 +460,12 @@ export default function DevelopmentControls({
       // Get real route from Google Maps API
       const routeData = await googleMapsRoutingService.fetchRoute(
         _courierLocation,
-        truckLocation,
+        activeTruckLocation,
         { profile: 'driving' },
       );
 
       if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
-        throw new Error('Failed to get route from Google Maps API');
+        throw new Error('Failed to get route from Google Maps API - truck may be in water');
       }
 
       const route = routeData.coordinates;
