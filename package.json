@@ -8,8 +8,9 @@
     "ios": "expo run:ios",
     "ios-sim": "xcrun simctl boot 'iPhone 13 Test' && sleep 2 && open -a Simulator && sleep 3 && expo start --ios --clear",
     "web": "expo start --web",
-    "build:web": "expo build:web",
-    "serve:web": "npx serve web-build"
+    "build": "expo export -p web",
+    "build:web": "expo export -p web",
+    "serve:web": "npx serve dist"
   },
   "dependencies": {
     "@apollo/client": "^3.13.9",
