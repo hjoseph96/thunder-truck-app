@@ -174,8 +174,10 @@ export default function FoodTypesHeader({ navigation }) {
   };
 
   const handleFoodTypePress = (foodType) => {
-    // Navigate to FoodTypeViewer with the selected food type
-    navigation.navigate('FoodTypeViewer', { foodType });
+    // Navigate to FoodTypeViewer with only ID (clean URL routing)
+    navigation.navigate('FoodTypeViewer', { 
+      foodTypeId: foodType.id
+    });
   };
 
   const handleRetry = () => {

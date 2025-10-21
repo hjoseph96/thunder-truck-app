@@ -21,7 +21,7 @@ import CartPopup from './CartPopup';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function FoodTruckViewer({ navigation, route }) {
-  const { foodTruck: initialFoodTruck } = route.params;
+  const { foodTruckId } = route.params;
   const [foodTruck, setFoodTruck] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,19 +32,19 @@ export default function FoodTruckViewer({ navigation, route }) {
   const [showCartPopup, setShowCartPopup] = useState(false);
 
   useEffect(() => {
-    if (initialFoodTruck?.id) {
+    if (foodTruckId) {
       loadFoodTruckData();
       loadCartData();
     }
-  }, [initialFoodTruck]);
+  }, [foodTruckId]);
 
   const loadFoodTruckData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch complete food truck data using GraphQL
-      const data = await getFoodTruckWithCache(initialFoodTruck.id);
+      // Fetch complete food truck data using GraphQL by ID
+      const data = await getFoodTruckWithCache(foodTruckId);
       console.log('Food truck data loaded:', data);
       
       setFoodTruck(data);
@@ -59,7 +59,7 @@ export default function FoodTruckViewer({ navigation, route }) {
   const loadCartData = async () => {
     try {
       setCartLoading(true);
-      const cart = await getCart(initialFoodTruck.id);
+      const cart = await getCart(foodTruckId);
       
       console.log('Loaded Cart Data: ', cart);
       setCartData(cart);
@@ -86,7 +86,7 @@ export default function FoodTruckViewer({ navigation, route }) {
       }
 
       await changeCartItemQuantity(cartItemId, newQuantity);
-      const updatedCart = await getCart(initialFoodTruck.id);
+      const updatedCart = await getCart(foodTruckId);
       setCartData(updatedCart);
     } catch (error) {
       console.error('Error updating cart item quantity:', error);
@@ -114,7 +114,7 @@ export default function FoodTruckViewer({ navigation, route }) {
       await addMenuItemToCart(menuItem.id, cartItemOptions);
       
       // Reload cart data to get updated cart
-      const updatedCart = await getCart(initialFoodTruck.id);
+      const updatedCart = await getCart(foodTruckId);
 
       console.log('Updated Cart Data: ', updatedCart);
       setCartData(updatedCart);
@@ -330,7 +330,7 @@ export default function FoodTruckViewer({ navigation, route }) {
         onClose={() => setShowCartPopup(false)}
         onQuantityChange={handleQuantityChange}
         onCheckout={(foodTruckId) => navigation.navigate('CheckoutForm', { foodTruckId })}
-        foodTruckId={initialFoodTruck.id}
+        foodTruckId={foodTruckId}
       />
     </View>
   );
@@ -507,6 +507,8 @@ const styles = StyleSheet.create({
     color: 'whitesmoke',
     ...Platform.select({
       web: {
+        marginVertical: '1rem',
+        marginHorizontal: 'auto',
         position: 'absolute',
         top: '40vh',
         left: 0,
@@ -516,6 +518,7 @@ const styles = StyleSheet.create({
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
         paddingBottom: 40,
+        width: '70vw'
       },
       default: {
         paddingBottom: 100,
@@ -590,6 +593,11 @@ const styles = StyleSheet.create({
   },
   menuSection: {
     marginBottom: 20,
+    ...Platform.select({
+      web: {
+        marginVertical: '1rem',
+      },
+    }),
   },
   menuTitle: {
     fontSize: 20,

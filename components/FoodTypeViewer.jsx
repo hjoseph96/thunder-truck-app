@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
+import { fetchFoodTypeById } from '../lib/food-types-service';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -28,9 +29,18 @@ const getNumColumns = () => {
 };
 
 const isWeb = Platform.OS === 'web';
-
 export default function FoodTypeViewer({ navigation, route }) {
-  const { foodType } = route.params;
+  // Extract params - handle both object (navigation) and ID (URL)
+  const params = route?.params || {};
+  const foodTypeId = params.foodTypeId || params.foodType?.id;
+  const foodTypeParam = params.foodType;
+  
+  console.log('FoodTypeViewer route params:', params);
+  console.log('FoodTypeViewer foodTypeId:', foodTypeId);
+  
+  const [foodType, setFoodType] = useState(
+    foodTypeParam || (foodTypeId ? { id: foodTypeId, title: 'Loading...' } : null)
+  );
   const [foodTrucks, setFoodTrucks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,12 +49,29 @@ export default function FoodTypeViewer({ navigation, route }) {
   const [hasMorePages, setHasMorePages] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [numColumns, setNumColumns] = useState(getNumColumns());
+  const scrollContainerRef = React.useRef(null);
 
   useEffect(() => {
-    if (foodType) {
+    console.log('FoodTypeViewer useEffect triggered. foodType:', foodType, 'foodTypeId:', foodTypeId);
+    if (foodType?.id || foodTypeId) {
+      // If we only have ID but not full food type data, fetch it
+      if (foodTypeId && (!foodType || foodType.title === 'Loading...')) {
+        fetchFoodTypeById(foodTypeId)
+          .then(fetchedFoodType => {
+            console.log('Fetched food type details:', fetchedFoodType);
+            setFoodType(fetchedFoodType);
+          })
+          .catch(err => {
+            console.error('Error fetching food type details:', err);
+            // Continue anyway with just the ID
+          });
+      }
       loadFoodTrucksForType();
+    } else {
+      setError('No food type specified');
+      setLoading(false);
     }
-  }, [foodType]);
+  }, [foodTypeId]);
 
   // Handle window resize on web
   useEffect(() => {
@@ -61,38 +88,21 @@ export default function FoodTypeViewer({ navigation, route }) {
     }
   }, [numColumns]);
 
-  // Handle infinite scroll on web
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      const handleScroll = () => {
-        const scrollContainer = document.querySelector('[data-scroll-container="food-trucks"]');
-        if (!scrollContainer) return;
-
-        const scrollTop = scrollContainer.scrollTop;
-        const scrollHeight = scrollContainer.scrollHeight;
-        const clientHeight = scrollContainer.clientHeight;
-
-        // Load more when user scrolls to within 300px of bottom
-        if (scrollHeight - scrollTop - clientHeight < 300 && !loadingMore && hasMorePages) {
-          loadMoreFoodTrucks();
-        }
-      };
-
-      const scrollContainer = document.querySelector('[data-scroll-container="food-trucks"]');
-      if (scrollContainer) {
-        scrollContainer.addEventListener('scroll', handleScroll);
-        return () => scrollContainer.removeEventListener('scroll', handleScroll);
-      }
-    }
-  }, [loadingMore, hasMorePages]);
-
   const loadFoodTrucksForType = async (page = 1, append = false) => {
+    const actualFoodTypeId = foodType?.id || foodTypeId;
+    const itemsPerPage = Platform.OS === 'web' ? 15 : 12;
+    
+    console.log('=== loadFoodTrucksForType START ===');
+    console.log('Page:', page, 'Append:', append, 'FoodTypeId:', actualFoodTypeId, 'ItemsPerPage:', itemsPerPage);
+    
     try {
       if (page === 1) {
         setLoading(true);
         setError(null);
+        console.log('Set loading to true for page 1');
       } else {
         setLoadingMore(true);
+        console.log('Set loadingMore to true for page', page);
       }
 
       // Get mock location for testing (replace with actual user location)
@@ -103,52 +113,154 @@ export default function FoodTypeViewer({ navigation, route }) {
         unit: 'miles'
       };
 
-      // Fetch food trucks filtered by this food type
-      const result = await fetchNearbyFoodTrucks({
+      const fetchParams = {
         ...location,
-        foodTypeId: foodType.id,
-        page: page
-      });
+        foodTypeId: actualFoodTypeId,
+        page: page,
+        perPage: itemsPerPage
+      };
 
-      console.log(`Food trucks for ${foodType.title} page ${page}:`, result);
+      console.log('Calling fetchNearbyFoodTrucks with:', fetchParams);
+
+      // Fetch food trucks filtered by this food type
+      const result = await fetchNearbyFoodTrucks(fetchParams);
+
+      console.log(`API Response for food type (${actualFoodTypeId}) page ${page}:`, result);
       
-      const newFoodTrucks = result.foodTrucks || [];
-      const newTotalCount = result.totalCount || 0;
+      const newFoodTrucks = result?.foodTrucks || [];
+      const newTotalCount = result?.totalCount || 0;
+      
+      console.log('New food trucks count:', newFoodTrucks.length, 'Total count:', newTotalCount);
+      
+      // Debug first truck's data structure
+      if (newFoodTrucks.length > 0) {
+        console.log('📊 Sample food truck data:', {
+          id: newFoodTrucks[0].id,
+          name: newFoodTrucks[0].name,
+          coverImageUrl: newFoodTrucks[0].coverImageUrl,
+          hasImage: !!newFoodTrucks[0].coverImageUrl
+        });
+      }
+      
+      // Warn if backend didn't respect perPage
+      if (newFoodTrucks.length > 0 && newFoodTrucks.length < itemsPerPage && page === 1 && newTotalCount > newFoodTrucks.length) {
+        console.warn(`⚠️ Backend returned ${newFoodTrucks.length} items but we requested ${itemsPerPage}. This may be a backend issue not respecting the perPage parameter.`);
+      }
+      
+      let updatedTrucksCount = 0;
       
       if (append) {
         // Append new food trucks to existing ones
-        setFoodTrucks(prevTrucks => [...prevTrucks, ...newFoodTrucks]);
+        setFoodTrucks(prevTrucks => {
+          const updated = [...prevTrucks, ...newFoodTrucks];
+          updatedTrucksCount = updated.length;
+          console.log('Appending', newFoodTrucks.length, 'trucks to existing', prevTrucks.length, '= total:', updatedTrucksCount);
+          return updated;
+        });
       } else {
         // Replace food trucks for first page
+        updatedTrucksCount = newFoodTrucks.length;
+        console.log('Replacing food trucks with', newFoodTrucks.length, 'trucks');
         setFoodTrucks(newFoodTrucks);
       }
       
       setTotalCount(newTotalCount);
       
-      // Check if there are more pages (assuming 12 per page from your schema)
-      setHasMorePages(newFoodTrucks.length === 12);
+      // Check if there are more pages - use totalCount as source of truth
+      const hasMore = updatedTrucksCount < newTotalCount;
+      console.log('Has more pages:', hasMore, `(loaded: ${updatedTrucksCount}, total available: ${newTotalCount})`);
+      setHasMorePages(hasMore);
       setCurrentPage(page);
+      
+      console.log('=== loadFoodTrucksForType SUCCESS ===');
     } catch (err) {
-      console.error('Error loading food trucks for type:', err);
+      console.error('=== loadFoodTrucksForType ERROR ===', err);
+      console.error('Error details:', err.message, err.stack);
       if (page === 1) {
         setError(err.message || 'Failed to load food trucks');
       }
     } finally {
+      console.log('=== loadFoodTrucksForType FINALLY ===');
+      console.log('Setting loading to false, loadingMore to false');
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
-  const loadMoreFoodTrucks = async () => {
+  // Define loadMoreFoodTrucks with useCallback after loadFoodTrucksForType
+  const loadMoreFoodTrucks = useCallback(async () => {
     if (!loadingMore && hasMorePages) {
       const nextPage = currentPage + 1;
+      console.log('loadMoreFoodTrucks called for page:', nextPage);
       await loadFoodTrucksForType(nextPage, true);
     }
-  };
+  }, [loadingMore, hasMorePages, currentPage]);
+
+  // Handle infinite scroll on web - MUST be after loadMoreFoodTrucks definition
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      console.log('⏭️ Skipping infinite scroll - not on web');
+      return;
+    }
+
+    let lastLoggedDistance = null;
+
+    const handleScroll = (event) => {
+      const container = event.target;
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+      // Only log when distance changes significantly (every 100px) to avoid spam
+      if (lastLoggedDistance === null || Math.abs(distanceFromBottom - lastLoggedDistance) > 100) {
+        console.log('📜 Scroll event on content container:', {
+          distanceFromBottom: Math.round(distanceFromBottom),
+          loadingMore,
+          hasMorePages,
+          shouldTrigger: distanceFromBottom < 500 && !loadingMore && hasMorePages
+        });
+        lastLoggedDistance = distanceFromBottom;
+      }
+
+      // Load more when user scrolls to within 500px of bottom
+      if (distanceFromBottom < 500 && !loadingMore && hasMorePages) {
+        console.log('🔄 Triggering infinite scroll load. Distance from bottom:', Math.round(distanceFromBottom));
+        loadMoreFoodTrucks();
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      const scrollContainer = scrollContainerRef.current;
+      
+      if (scrollContainer) {
+        console.log('✅ Infinite scroll attached to content container. Current state:', {
+          loadingMore,
+          hasMorePages,
+          foodTrucksCount: foodTrucks.length
+        });
+        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+      } else {
+        console.warn('⚠️ Scroll container ref not found');
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+      const scrollContainer = scrollContainerRef.current;
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+        console.log('🧹 Infinite scroll cleanup - removed listener from content container');
+      }
+    };
+  }, [loadingMore, hasMorePages, loadMoreFoodTrucks, foodTrucks.length]);
 
   const handleFoodTruckPress = (foodTruck) => {
-    // Navigate to FoodTruckViewer with the selected food truck
-    navigation.navigate('FoodTruckViewer', { foodTruck });
+    // Navigate to FoodTruckViewer with only ID (clean URL routing)
+    navigation.navigate('FoodTruckViewer', { 
+      foodTruckId: foodTruck.id
+    });
   };
 
   const handleRetry = () => {
@@ -159,49 +271,63 @@ export default function FoodTypeViewer({ navigation, route }) {
     navigation.goBack();
   };
 
-  const renderFoodTruckCard = (truck) => (
-    <TouchableOpacity
-      key={truck.id}
-      style={[
-        styles.foodTruckCard,
-        isWeb && styles.foodTruckCardWeb,
-        isWeb && { width: `${100 / numColumns - 2}%` }
-      ]}
-      onPress={() => handleFoodTruckPress(truck)}
-      activeOpacity={0.7}
-      accessibilityLabel={`Food truck ${truck.name}`}
-      accessibilityHint="Double tap to view food truck details"
-      // Hidden HTML attribute for web compatibility and data tracking
-      {...(Platform.OS === 'web' && { 'data-food-truck-id': truck.id })}
-    >
-      <Image
-        source={truck.coverImageUrl 
-          ? { uri: truck.coverImageUrl }
-          : require('../assets/images/blank-menu-item.png')
-        }
-        style={styles.truckImage}
-        resizeMode="cover"
-      />
-      <View style={styles.truckInfo}>
-        <Text style={styles.truckName} numberOfLines={1}>
-          {truck.name}
-        </Text>
-        <Text style={styles.truckDescription} numberOfLines={2}>
-          {truck.description || 'Delicious food truck'}
-        </Text>
-        <View style={styles.truckDetails}>
-          <Text style={styles.deliveryFee}>
-            ${truck.deliveryFee} delivery
+  const renderFoodTruckCard = (truck) => {
+    // Debug image URL
+    const imageUrl = truck.coverImageUrl;
+    const hasValidImage = imageUrl && imageUrl.trim() !== '';
+    
+    if (!hasValidImage) {
+      console.warn(`⚠️ Food truck "${truck.name}" (${truck.id}) has no coverImageUrl or empty URL`);
+    }
+    
+    return (
+      <TouchableOpacity
+        key={truck.id}
+        style={[
+          styles.foodTruckCard,
+          isWeb && styles.foodTruckCardWeb,
+          isWeb && { width: `${100 / numColumns - 2}%` }
+        ]}
+        onPress={() => handleFoodTruckPress(truck)}
+        activeOpacity={0.7}
+        accessibilityLabel={`Food truck ${truck.name}`}
+        accessibilityHint="Double tap to view food truck details"
+        // Hidden HTML attribute for web compatibility and data tracking
+        {...(Platform.OS === 'web' && { 'data-food-truck-id': truck.id })}
+      >
+        <Image
+          {...(Platform.OS === 'web' && { preload: 'auto' })}
+          source={hasValidImage 
+            ? { uri: imageUrl }
+            : require('../assets/images/blank-menu-item.png')
+          }
+          style={styles.truckImage}
+          resizeMode="cover"
+          onError={(error) => {
+            console.error(`❌ Failed to load image for ${truck.name}:`, imageUrl, error.nativeEvent);
+          }}
+        />
+        <View style={styles.truckInfo}>
+          <Text style={styles.truckName} numberOfLines={1}>
+            {truck.name}
           </Text>
-          {truck.isSubscriber && (
-            <View style={styles.subscriberBadge}>
-              <Text style={styles.subscriberText}>Premium</Text>
-            </View>
-          )}
+          <Text style={styles.truckDescription} numberOfLines={2}>
+            {truck.description || 'Delicious food truck'}
+          </Text>
+          <View style={styles.truckDetails}>
+            <Text style={styles.deliveryFee}>
+              ${truck.deliveryFee} delivery
+            </Text>
+            {truck.isSubscriber && (
+              <View style={styles.subscriberBadge}>
+                <Text style={styles.subscriberText}>Premium</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderFoodTruckItem = ({ item: truck, index }) => renderFoodTruckCard(truck);
 
@@ -219,17 +345,21 @@ export default function FoodTypeViewer({ navigation, route }) {
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>No food trucks found</Text>
       <Text style={styles.emptySubtext}>
-        No food trucks serving {foodType.title} are currently available in your area
+        No food trucks serving {foodType?.title || 'this type'} are currently available in your area
       </Text>
     </View>
   );
 
-  if (!foodType) {
+  // Show error if no food type ID is available
+  if (!foodType && !foodTypeId) {
     return (
       <View style={styles.container}>
         <StatusBar style="dark" />
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>No food type selected</Text>
+          <Text style={styles.errorText}>No food type specified</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.retryButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -247,25 +377,25 @@ export default function FoodTypeViewer({ navigation, route }) {
         >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{foodType.title}</Text>
+        <Text style={styles.headerTitle}>{foodType?.title || 'Food Type'}</Text>
         <View style={styles.placeholder} />
       </View>
 
       <View 
         style={styles.content}
-        {...(isWeb && { 'data-scroll-container': 'food-trucks' })}
+        ref={scrollContainerRef}
       >
         {/* Cover Image */}
         <View style={styles.coverImageContainer}>
           <Image
             source={{ 
-              uri: foodType.coverImageUrl || 'https://via.placeholder.com/400x200/cccccc/666666?text=No+Cover+Image'
+              uri: foodType?.coverImageUrl || 'https://via.placeholder.com/400x200/cccccc/666666?text=No+Cover+Image'
             }}
             style={styles.coverImage}
             resizeMode="cover"
           />
           <View style={styles.coverOverlay}>
-            <Text style={styles.coverTitle}>{foodType.title}</Text>
+            <Text style={styles.coverTitle}>{foodType?.title || 'Food Type'}</Text>
           </View>
         </View>
 
@@ -274,7 +404,7 @@ export default function FoodTypeViewer({ navigation, route }) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Available Food Trucks</Text>
             <Text style={styles.sectionSubtitle}>
-              {totalCount > 0 
+              {loading ? 'Searching...' : totalCount > 0 
                 ? `${totalCount} food truck${totalCount !== 1 ? 's' : ''} found`
                 : 'No food trucks found for this type'
               }
@@ -399,6 +529,11 @@ const styles = StyleSheet.create({
     position: 'relative',
     height: 250,
     width: '100%',
+    ...Platform.select({
+      web: {
+        height: '55vh',
+      },
+    }),
   },
   coverImage: {
     width: '100%',
@@ -500,6 +635,7 @@ const styles = StyleSheet.create({
     gap: 20,
     justifyContent: 'flex-start',
     alignItems: 'stretch',
+    padding: '20px 0 100px 0',
   },
   foodTrucksGrid: {
     flexDirection: 'row',
@@ -524,13 +660,10 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     ...Platform.select({
       web: {
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: 'pointer',
-        ':hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-        },
+        willChange: 'transform, box-shadow',
       },
     }),
   },

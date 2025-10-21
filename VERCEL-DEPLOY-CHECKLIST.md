@@ -13,6 +13,7 @@ The following files have been configured for Vercel deployment:
 - ✅ `public/robots.txt` - Search engine and LLM crawler configuration
 - ✅ `public/sitemap.xml` - XML sitemap for better indexing
 - ✅ `public/manifest.json` - PWA manifest for installable web app
+- ✅ `App.js` - URL routing configuration for web (deep linking)
 
 ## 🚀 Quick Deployment Steps
 
@@ -133,11 +134,28 @@ The build has been tested locally and produces:
 - Default center: Williamsburg, Brooklyn (40.7081, -73.9571)
 - Zoom level: 14
 
+## 🔗 URL Routing (Web)
+
+**URL Structure:**
+- `/` - Explorer Home (main page)
+- `/map` - Interactive map view
+- `/vendor/:id` - Food truck menu
+- `/vendor/:truckId/:itemId` - Menu item details
+- `/cart` - Shopping cart
+- `/cart/pay` - Payment screen
+- `/track/:orderId` - Order tracking
+- `/orders` - Order history
+- `/signin`, `/signup` - Authentication
+
+See `WEB-URL-ROUTING.md` for complete documentation.
+
 ## 🎯 Post-Deployment Checklist
 
 After deployment:
 - [ ] Verify the app loads at your Vercel URL
 - [ ] Test navigation between pages
+- [ ] Verify URL routing works (check browser address bar updates)
+- [ ] Test deep links (paste specific URLs)
 - [ ] Verify API connectivity
 - [ ] Test map functionality
 - [ ] Check Stripe payment integration
@@ -145,6 +163,7 @@ After deployment:
 - [ ] Add custom domain (optional)
 - [ ] Set up production Stripe keys
 - [ ] Configure analytics (optional)
+- [ ] Test browser back/forward navigation
 
 ## 🐛 Troubleshooting
 

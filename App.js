@@ -154,6 +154,37 @@ export default function App() {
     setNavigationRef(navigationRef.current);
   };
 
+  // Deep linking configuration for web URLs
+  // Enables proper URL routing with browser history and deep links
+  const linking = Platform.OS === 'web' ? {
+    prefixes: ['https://web.thundertruck.app', 'http://localhost:8081', 'http://localhost:19006'],
+    config: {
+      screens: {
+        LandingPage: 'welcome',
+        SignIn: 'signin',
+        SignUp: 'signup',
+        VerifyOTP: 'verify',
+        MarkdownViewer: 'document/:documentType',
+        ExplorerHome: '',
+        MapPage: 'map',
+        FoodTypeViewer: 'food-types/:foodTypeId',
+        FoodTruckViewer: 'vendor/:foodTruckId',
+        MenuItemViewer: 'vendor/:foodTruckId/item/:menuItemId',
+        CheckoutForm: 'cart',
+        PaymentScreen: 'cart/pay',
+        AddAddressForm: 'address/add',
+        UserAddressList: 'addresses',
+        EditUserName: 'profile/name',
+        EditUserPhoneNumber: 'profile/phone',
+        EditUserEmail: 'profile/email',
+        EditUserSpokenLanguages: 'profile/languages',
+        PaymentMethodManager: 'profile/payment-methods',
+        OrderIndex: 'orders',
+        OrderDetail: 'track/:orderId',
+      },
+    },
+  } : undefined;
+
   // Display loading indicator while checking auth or loading fonts
   // 1. First, check authentication status
   // 2. Then wait for fonts to load
@@ -171,7 +202,14 @@ export default function App() {
 
   return (
     <StripeProviderWrapper>
-      <NavigationContainer ref={navigationRef} onReady={onReady}>
+      <NavigationContainer 
+        ref={navigationRef} 
+        onReady={onReady}
+        linking={linking}
+        fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
+          <ActivityIndicator size="large" color="#fecd15" />
+        </View>}
+      >
         <Stack.Navigator
           initialRouteName={initialRoute}
           screenOptions={{

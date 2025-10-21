@@ -133,8 +133,10 @@ export default function ExplorerHome({ navigation }) {
 
   
   const handleFoodTruckPress = (foodTruck) => {
-    // Navigate to FoodTruckViewer with the selected food truck
-    navigation.navigate('FoodTruckViewer', { foodTruck });
+    // Navigate to FoodTruckViewer with only ID (clean URL routing)
+    navigation.navigate('FoodTruckViewer', { 
+      foodTruckId: foodTruck.id
+    });
   };
 
   const handleOnboardingClose = async (wasSuccessful = false) => {
