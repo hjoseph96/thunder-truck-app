@@ -224,6 +224,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins',
     color: '#2D1E2F',
     backgroundColor: '#FFF',
+    outlineStyle: 'none', // Remove outline on web
   },
   clearButton: {
     position: 'absolute',

@@ -341,6 +341,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins',
     minHeight: 120,
     backgroundColor: '#FAFAFA',
+    outlineStyle: 'none', // Remove outline on web
   },
   footer: {
     flexDirection: 'row',

@@ -499,7 +499,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontSize: 12,
     color: '#000',
-    paddingVertical: 0,
+    paddingVertical: 8,
+    outlineStyle: 'none', // Remove outline on web
   },
   micIcon: {
     marginLeft: 5,

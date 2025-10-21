@@ -393,6 +393,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Cairo',
     backgroundColor: '#f9f9f9',
+    outlineStyle: 'none', // Remove outline on web
   },
   nextButton: {
     backgroundColor: '#F9B319',

@@ -262,6 +262,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+    outlineStyle: 'none', // Remove outline on web
   },
   verifyButton: {
     backgroundColor: '#2D1E2F',

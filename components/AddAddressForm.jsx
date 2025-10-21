@@ -565,6 +565,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
     fontFamily: 'Cairo',
+    outlineStyle: 'none', // Remove outline on web
   },
   textArea: {
     height: 100,
