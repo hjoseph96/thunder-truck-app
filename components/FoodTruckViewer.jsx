@@ -48,6 +48,11 @@ export default function FoodTruckViewer({ navigation, route }) {
       console.log('Food truck data loaded:', data);
       
       setFoodTruck(data);
+      
+      // Update navigation params for page title on web
+      if (Platform.OS === 'web' && data?.name) {
+        navigation.setParams({ foodTruckName: data.name });
+      }
     } catch (err) {
       console.error('Error loading food truck data:', err);
       setError(err.message || 'Failed to load food truck data');

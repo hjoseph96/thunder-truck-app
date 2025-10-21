@@ -34,6 +34,43 @@ import { isAuthenticated } from './lib/token-manager';
 
 const Stack = createStackNavigator();
 
+// Helper function to get page title based on route
+const getPageTitle = (routeName, params = {}) => {
+  const titles = {
+    LandingPage: 'Welcome',
+    SignIn: 'Log In',
+    SignUp: 'Sign Up',
+    ExplorerHome: '',
+    MapPage: 'Discover',
+    FoodTypeViewer: params?.foodTypeName || 'Food Types',
+    FoodTruckViewer: params?.foodTruckName || 'Food Truck',
+    MenuItemViewer: params?.foodTruckName ? `${params.foodTruckName}'s Menu` : 'Menu',
+    CheckoutForm: 'Cart',
+    PaymentScreen: 'Payment',
+    AddAddressForm: 'Add Address',
+    UserAddressList: 'Addresses',
+    EditUserName: 'Edit Name',
+    EditUserPhoneNumber: 'Edit Phone',
+    EditUserEmail: 'Edit Email',
+    EditUserSpokenLanguages: 'Languages',
+    PaymentMethodManager: 'Payment Methods',
+    OrderIndex: 'Orders',
+    OrderDetail: 'Track Order',
+    MarkdownViewer: 'Document',
+    VerifyOTP: 'Verify',
+  };
+
+  const pageTitle = titles[routeName] || '';
+  return pageTitle ? `ThunderTruck | ${pageTitle}` : 'ThunderTruck';
+};
+
+// Update document title on web
+const updateDocumentTitle = (routeName, params) => {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    document.title = getPageTitle(routeName, params);
+  }
+};
+
 export default function App() {
   const navigationRef = useRef(null);
   const [webFontsReady, setWebFontsReady] = useState(Platform.OS !== 'web');
@@ -152,6 +189,24 @@ export default function App() {
   const onReady = () => {
     // Set the navigation reference for session management
     setNavigationRef(navigationRef.current);
+    
+    // Set initial page title on web
+    if (navigationRef.current) {
+      const currentRoute = navigationRef.current.getCurrentRoute();
+      if (currentRoute) {
+        updateDocumentTitle(currentRoute.name, currentRoute.params);
+      }
+    }
+  };
+
+  // Handle navigation state changes to update document title
+  const onNavigationStateChange = () => {
+    if (Platform.OS === 'web' && navigationRef.current) {
+      const currentRoute = navigationRef.current.getCurrentRoute();
+      if (currentRoute) {
+        updateDocumentTitle(currentRoute.name, currentRoute.params);
+      }
+    }
   };
 
   // Deep linking configuration for web URLs
@@ -205,6 +260,7 @@ export default function App() {
       <NavigationContainer 
         ref={navigationRef} 
         onReady={onReady}
+        onStateChange={onNavigationStateChange}
         linking={linking}
         fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
           <ActivityIndicator size="large" color="#fecd15" />
@@ -241,49 +297,49 @@ export default function App() {
             name="MarkdownViewer"
             component={MarkdownViewer}
             options={{
-              title: 'Document Viewer',
+              title: 'Document',
             }}
           />
           <Stack.Screen
             name="VerifyOTP"
             component={VerifyOTP}
             options={{
-              title: 'Verify OTP',
+              title: 'Verify',
             }}
           />
           <Stack.Screen
             name="ExplorerHome"
             component={ExplorerHome}
             options={{
-              title: 'Explorer Home',
+              title: 'ThunderTruck',
             }}
           />
           <Stack.Screen
             name="MapPage"
             component={MapPage}
             options={{
-              title: 'Map',
+              title: 'Discover',
             }}
           />
           <Stack.Screen
             name="FoodTypeViewer"
             component={FoodTypeViewer}
             options={{
-              title: 'Food Type Viewer',
+              title: 'Food Types',
             }}
           />
           <Stack.Screen
             name="FoodTruckViewer"
             component={FoodTruckViewer}
             options={{
-              title: 'Food Truck Viewer',
+              title: 'Food Truck',
             }}
           />
           <Stack.Screen
             name="MenuItemViewer"
             component={MenuItemViewer}
             options={{
-              title: 'Menu Item Viewer',
+              title: 'Menu',
             }}
           />
           <Stack.Screen
@@ -297,7 +353,7 @@ export default function App() {
             name="CheckoutForm"
             component={CheckoutForm}
             options={{
-              title: 'Checkout',
+              title: 'Cart',
             }}
           />
           <Stack.Screen

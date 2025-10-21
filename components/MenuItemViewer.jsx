@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getMenuItemWithCache } from '../lib/menu-item-service';
 import { getCart, addMenuItemToCart, changeCartItemQuantity } from '../lib/cart-service';
+import { getFoodTruckWithCache } from '../lib/food-truck-service';
 import CartPopup from './CartPopup';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -47,6 +48,21 @@ export default function MenuItemViewer({ navigation, route }) {
       loadMenuItem();
     }
   }, [menuItemId]);
+
+  // Load food truck name for page title on web
+  useEffect(() => {
+    if (Platform.OS === 'web' && foodTruckId) {
+      getFoodTruckWithCache(foodTruckId)
+        .then(foodTruck => {
+          if (foodTruck?.name) {
+            navigation.setParams({ foodTruckName: foodTruck.name });
+          }
+        })
+        .catch(err => {
+          console.error('Error loading food truck name for title:', err);
+        });
+    }
+  }, [foodTruckId]);
 
   const handleBackPress = () => {
     navigation.goBack();

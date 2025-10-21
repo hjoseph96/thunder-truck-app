@@ -60,6 +60,11 @@ export default function FoodTypeViewer({ navigation, route }) {
           .then(fetchedFoodType => {
             console.log('Fetched food type details:', fetchedFoodType);
             setFoodType(fetchedFoodType);
+            
+            // Update navigation params for page title on web
+            if (Platform.OS === 'web' && fetchedFoodType?.title) {
+              navigation.setParams({ foodTypeName: fetchedFoodType.title });
+            }
           })
           .catch(err => {
             console.error('Error fetching food type details:', err);
@@ -72,6 +77,13 @@ export default function FoodTypeViewer({ navigation, route }) {
       setLoading(false);
     }
   }, [foodTypeId]);
+
+  // Update page title when foodType changes
+  useEffect(() => {
+    if (Platform.OS === 'web' && foodType?.title) {
+      navigation.setParams({ foodTypeName: foodType.title });
+    }
+  }, [foodType?.title]);
 
   // Handle window resize on web
   useEffect(() => {
