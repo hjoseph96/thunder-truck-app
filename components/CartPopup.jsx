@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 
 const CartPopup = ({
@@ -133,12 +134,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     zIndex: 998,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+      },
+    }),
   },
   cartPopup: {
     position: 'absolute',
     bottom: 120,
     right: 20,
     zIndex: 999,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        bottom: 30,
+        right: 30,
+      },
+    }),
   },
   cartPopupContent: {
     backgroundColor: '#fff',
@@ -152,6 +165,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+    ...Platform.select({
+      web: {
+        width: 400,
+        height: 600,
+        maxHeight: '80vh',
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+      },
+    }),
   },
   cartPopupScroll: {
     flex: 1,
@@ -170,6 +193,11 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#fff',
+    ...Platform.select({
+      web: {
+        display: 'none',
+      },
+    }),
   },
   cartEmptyText: {
     fontSize: 14,

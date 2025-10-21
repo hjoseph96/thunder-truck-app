@@ -269,7 +269,6 @@ export default function UserProfileView({ visible, onClose, userData, navigation
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
@@ -286,6 +285,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E5E5',
     paddingVertical: 20,
     paddingHorizontal: 20,
+    borderTopRightRadius: 20,
+    borderTopLeftRadius: 20,
+    boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+    elevation: 10,
   },
   headerTitle: {
     fontSize: 24,

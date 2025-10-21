@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fetchUser } from '../lib/user-service';
@@ -228,13 +229,13 @@ const CheckoutForm = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Modern Professional Header */}
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <MaterialIcons name="arrow-back" size={24} color="#fbfad8" />
+          <MaterialIcons name="arrow-back" size={24} color="#2D1E2F" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Checkout</Text>
@@ -342,6 +343,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+      },
+    }),
   },
   loadingContainer: {
     flex: 1,
@@ -357,47 +366,80 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingBottom: 8,
-    paddingTop: 35,
-    backgroundColor: '#ffac33',
+    paddingTop: 50,
+    backgroundColor: '#2D1E2F',
+    color: '#D38105',
     borderBottomWidth: 1,
-    borderBottomColor: '#ee7623',
+    borderBottomColor: '#E5E7EB',
+    // Professional shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        paddingTop: 16,
+        flexShrink: 0,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 21,
-    fontWeight: '600',
-    backgroundColor: '#ffac33',
-    borderRadius: 16,
-    padding: 16,
-    color: '#fbfad8',
-    fontWeight: '900',
-    fontSize: 21,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    letterSpacing: -0.2
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#D38105',
+    letterSpacing: -0.3,
+    fontFamily: 'Cairo',
   },
   headerTitleContainer: {
-    width: 10,
-    backgroundColor: '#fbfad8',
-    borderRadius: 16,
     flex: 1,
-    zIndex: 100,
+    alignItems: 'center',
   },
   headerSpacer: {
     width: 40,
   },
   scrollView: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        top: 82,
+        left: 0,
+        right: 0,
+        bottom: 80,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+      },
+      default: {
+        paddingBottom: 100,
+      },
+    }),
   },
   scrollContent: {
     paddingBottom: 20,
+    ...Platform.select({
+      web: {
+        paddingBottom: 40,
+      },
+    }),
   },
   section: {
     backgroundColor: 'white',
@@ -502,18 +544,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: screenHeight * 0.1,
-    backgroundColor: '#ffac33',
+    backgroundColor: 'white',
     paddingHorizontal: 14,
     paddingTop: 10,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 'auto',
+        zIndex: 98,
+        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+        paddingVertical: 12,
+      },
+    }),
   },
   nextButton: {
-    backgroundColor: '#fbfad8',
+    backgroundColor: '#2D1E2F',
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',
     borderTopWidth: 2,
-    borderTopColor: '#ee7623',
+    borderTopColor: '#eee',
     borderTopRightRadius: 0,
     borderTopLeftRadius: 0,
   },

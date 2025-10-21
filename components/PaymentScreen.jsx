@@ -12,12 +12,13 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   useStripe,
   useConfirmPayment,
-  CardField,
   usePlatformPay,
-} from '@stripe/stripe-react-native';
+} from '../lib/stripe/stripe-hooks';
+import { CardField } from './payment/CardField';
 import { createPaymentIntent, createOrders, syncPaymentMethods } from '../lib/payment-service';
 import { fetchUser } from '../lib/user-service';
 import CreditCardIcon from './CreditCardIcon';
@@ -112,12 +113,21 @@ const PaymentScreen = ({ route, navigation }) => {
         },
       });
 
-      if (result.paymentIntent.status === 'Succeeded') {
+      if (result.error) {
+        Alert.alert('Payment Failed', result.error.message || 'Payment processing failed');
+        console.error('Payment error:', result.error);
+        return;
+      }
+
+      if (result.paymentIntent && (result.paymentIntent.status === 'succeeded' || result.paymentIntent.status === 'Succeeded')) {
         // Navigate to success screen or update UI
         handlePaymentSuccess(result.paymentIntent);
+      } else if (result.paymentIntent) {
+        Alert.alert('Payment Failed', `Payment status: ${result.paymentIntent.status}`);
+        console.error('Payment status:', result.paymentIntent.status);
       } else {
-        Alert.alert('Payment Failed', result.error.message);
-        console.error('Payment error:', result.error.message);
+        Alert.alert('Payment Failed', 'Unknown payment error occurred');
+        console.error('Payment error: No payment intent returned');
       }
     } catch (err) {
       Alert.alert('Error', 'Payment processing failed');
@@ -329,7 +339,6 @@ const PaymentScreen = ({ route, navigation }) => {
         foodTruckId: foodTruckId,
         promotionId: null,
         deliveryMethodId: selectedDeliveryMethod.id,
-        foodTruckId: items[0].foodTruckData.id,
         subtotalCents: parseInt(orderSubtotal * 100),
         deliveryFeeCents: parseInt(orderDeliveryFee * 100),
         tipCents: 0,
@@ -348,12 +357,18 @@ const PaymentScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Professional Header */}
+      {/* Modern Professional Header */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Complete Your Order</Text>
-          <Text style={styles.headerSubtitle}>Review your order details</Text>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#2D1E2F" />
+        </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Payment</Text>
         </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
@@ -390,7 +405,7 @@ const PaymentScreen = ({ route, navigation }) => {
             <View style={styles.addressDeliveryInstructions}>
               <TextInput
                 style={styles.addressDeliveryInstructionsText}
-                value={deliveryAddress?.deliveryInstructions}
+                value={deliveryAddress?.deliveryInstructions || ''}
                 onChangeText={(value) =>
                   handleAddressUpdate({ ...deliveryAddress, deliveryInstructions: value })
                 }
@@ -610,47 +625,90 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+      },
+    }),
   },
-  // Professional Header Styles
+  // Modern Professional Header Styles (Consistent with CheckoutForm)
   header: {
-    backgroundColor: '#FB9C12',
-    paddingTop: 50,
-    paddingBottom: 20,
+    backgroundColor: '#2D1E2F',
     paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#BF5B18',
-  },
-  headerContent: {
+    paddingVertical: 16,
+    paddingTop: 50,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        paddingTop: 16,
+        flexShrink: 0,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FCFAD6',
-    textAlign: 'center',
-    fontFamily: 'Cairo',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#D38105',
+    letterSpacing: -0.3,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#FCFAD6',
-    textAlign: 'center',
-    fontFamily: 'Cairo',
-    opacity: 0.9,
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerSpacer: {
     marginTop: 15,
   },
   scrollContainer: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        top: 82,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+      },
+      default: {
+        paddingBottom: 40,
+      },
+    }),
   },
   contentContainer: {
     paddingBottom: 40,
+    ...Platform.select({
+      web: {
+        paddingBottom: 60,
+      },
+    }),
   },
   section: {
     marginVertical: 24,

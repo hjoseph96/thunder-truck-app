@@ -8,6 +8,7 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -339,11 +340,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+      },
+    }),
   },
   header: {
     height: screenHeight * 0.4,
     position: 'relative',
     overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        flexShrink: 0,
+        height: '40vh',
+        zIndex: 100,
+        width: '100%',
+      },
+    }),
   },
   coverImage: {
     width: '100%',
@@ -412,12 +433,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
     marginLeft: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
     letterSpacing: 0.3,
     bottom: 60,
     position: 'absolute',
+    ...Platform.select({
+      web: {
+        textShadow: '1px 1px 3px rgba(0, 0, 0, 0.8)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
   foodTruckMeta: {
     flexDirection: 'row',
@@ -461,15 +489,38 @@ const styles = StyleSheet.create({
     color: '#fecd15',
     fontSize: 16,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: {
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
 
   content: {
     flex: 1,
     padding: 20,
     color: 'whitesmoke',
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        top: '40vh',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 40,
+      },
+      default: {
+        paddingBottom: 100,
+      },
+    }),
   },
   descriptionSection: {
     marginBottom: 20,
@@ -642,6 +693,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 1000,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        bottom: 30,
+        right: 30,
+      },
+    }),
   },
 });
 

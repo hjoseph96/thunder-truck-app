@@ -10,12 +10,24 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
+  Platform,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Ellipse, Text as SvgText } from 'react-native-svg';
 import { MaterialIcons } from '@expo/vector-icons';
-import { fetchOrder, formatOrderForDisplay } from '../lib/order-service';
+import { fetchOrder, formatOrderForDisplay, submitMenuItemReviews, submitFoodTruckReview } from '../lib/order-service';
+import { fetchMenuItem } from '../lib/menu-item-service';
 import MapWebview from '../components/MapWebview';
 import { courierTrackingManager } from '../lib/courier-tracking-service';
+import MenuItemReviewModal from './MenuItemReviewModal';
+import FoodTruckReviewModal from './FoodTruckReviewModal';
+import { useLocationManager } from '../lib/hooks/useLocationManager';
+
+// Development-only imports (will be tree-shaken in production builds)
+let DevelopmentControls = null;
+if (__DEV__) {
+  DevelopmentControls = require('./DevelopmentControls').default;
+}
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -95,6 +107,16 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [courierID, setCourierID] = useState(null);
   const [courierLocation, setCourierLocation] = useState(null);
+  const [menuItemImages, setMenuItemImages] = useState({});
+  
+  // Review system state
+  const [showMenuItemReviewModal, setShowMenuItemReviewModal] = useState(false);
+  const [showFoodTruckReviewModal, setShowFoodTruckReviewModal] = useState(false);
+  const [reviewTimer, setReviewTimer] = useState(null);
+  const [hasShownReviews, setHasShownReviews] = useState(false);
+
+  // Location manager hook for user's current location
+  const { userLocation, locationPermissionGranted, moveToCurrentLocation } = useLocationManager();
 
   const mapRef = useRef(null);
 
@@ -102,7 +124,54 @@ export default function OrderDetailScreen({ route, navigation }) {
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
   const arrowRotation = useRef(new Animated.Value(0)).current;
 
-  const VALID_STATUSES = ['pending', 'preparing', 'delivering', 'completed', 'cancelled'];
+  const VALID_STATUSES = [
+    'pending',
+    'preparing',
+    'picking_up',
+    'delivering',
+    'completed',
+    'cancelled',
+  ];
+
+  // Function to fetch menu item images
+  const fetchMenuItemImages = async (orderItems) => {
+    if (!orderItems || orderItems.length === 0) return;
+
+    const imagePromises = orderItems.map(async (item) => {
+      if (!item.menuItemId) return null;
+      
+      try {
+        const menuItemData = await fetchMenuItem(item.menuItemId);
+        const imageUrl = menuItemData?.menuItem?.imageUrl;
+        
+        if (imageUrl) {
+          return {
+            menuItemId: item.menuItemId,
+            imageUrl: imageUrl,
+          };
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch image for menu item ${item.menuItemId}:`, error);
+      }
+      
+      return null;
+    });
+
+    try {
+      const imageResults = await Promise.all(imagePromises);
+      const imageMap = {};
+      
+      imageResults.forEach((result) => {
+        if (result) {
+          imageMap[result.menuItemId] = result.imageUrl;
+        }
+      });
+      
+      setMenuItemImages(imageMap);
+    } catch (error) {
+      console.error('Error fetching menu item images:', error);
+    }
+  };
 
   // Animation function for bottom sheet
   const toggleBottomSheet = () => {
@@ -132,6 +201,78 @@ export default function OrderDetailScreen({ route, navigation }) {
     setIsExpanded(!isExpanded);
   };
 
+  // Review system functions
+  const startReviewTimer = () => {
+    // Clear any existing timer
+    if (reviewTimer) {
+      clearTimeout(reviewTimer);
+    }
+
+    // Set timer for 20 minutes (20 * 60 * 1000 milliseconds)
+    const timer = setTimeout(() => {
+      if (currentStatus === 'completed' && !hasShownReviews) {
+        setShowMenuItemReviewModal(true);
+        setHasShownReviews(true);
+      }
+    }, 20 * 60 * 1000); // 20 minutes
+
+    setReviewTimer(timer);
+  };
+
+  const handleMenuItemReviewsSubmit = async (reviews) => {
+    try {
+      // TODO: Enable API call after backend implementation
+      // const result = await submitMenuItemReviews(orderId, reviews);
+      
+      // Simulate API call for now
+      console.log('Menu item reviews to be submitted:', {
+        orderId,
+        reviews
+      });
+      
+      // Simulate successful submission
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('Menu item reviews submitted successfully (simulated)');
+      
+      setShowMenuItemReviewModal(false);
+      setShowFoodTruckReviewModal(true);
+    } catch (error) {
+      console.error('Error submitting menu item reviews:', error);
+      // Keep modal open on error so user can retry
+    }
+  };
+
+  const handleFoodTruckReviewSubmit = async (review) => {
+    try {
+      // TODO: Enable API call after backend implementation
+      // const result = await submitFoodTruckReview(orderId, review);
+      
+      // Simulate API call for now
+      console.log('Food truck review to be submitted:', {
+        orderId,
+        review
+      });
+      
+      // Simulate successful submission
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('Food truck review submitted successfully (simulated)');
+      
+      setShowFoodTruckReviewModal(false);
+    } catch (error) {
+      console.error('Error submitting food truck review:', error);
+      // Keep modal open on error so user can retry
+    }
+  };
+
+  const handleCloseMenuItemReviewModal = () => {
+    setShowMenuItemReviewModal(false);
+    setShowFoodTruckReviewModal(true);
+  };
+
+  const handleCloseFoodTruckReviewModal = () => {
+    setShowFoodTruckReviewModal(false);
+  };
+
   useEffect(() => {
     const loadOrderDetails = async () => {
       setLoading(true);
@@ -140,6 +281,12 @@ export default function OrderDetailScreen({ route, navigation }) {
         const formattedOrder = formatOrderForDisplay(orderData);
         setOrder(formattedOrder);
         setCurrentStatus(formattedOrder.status);
+
+        // TODO: Enable menu item image fetching after backend implementation
+        // Fetch menu item images for order items
+        // if (formattedOrder.formattedItems && formattedOrder.formattedItems.length > 0) {
+        //   fetchMenuItemImages(formattedOrder.formattedItems);
+        // }
 
         // Set food truck coordinates
         if (orderData.foodTruck?.latitude && orderData.foodTruck?.longitude) {
@@ -153,10 +300,6 @@ export default function OrderDetailScreen({ route, navigation }) {
         const latLongString = orderData.orderAddresses?.[0]?.latlong;
         if (latLongString) {
           const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
-          console.log(
-            `[INFO] From: ${orderData.foodTruck.latitude}, ${orderData.foodTruck.longitude}`,
-          );
-          console.log(`[INFO] To: ${matches[2]}, ${matches[1]}`);
           if (matches && matches.length === 3) {
             setDestinationLocation({
               longitude: parseFloat(matches[1]),
@@ -184,36 +327,38 @@ export default function OrderDetailScreen({ route, navigation }) {
   }, [orderId]);
 
   useEffect(() => {
-    if (currentStatus === 'delivering' && courierID && mapRef.current) {
-      // Add courier to tracking system first
-      const initialLocation = truckLocation || {
-        latitude: 40.692673696555104,
-        longitude: -73.70093036718504,
-      };
+    // Handle courier tracking for both picking_up and delivering statuses
+    const isTrackingStatus = currentStatus === 'picking_up' || currentStatus === 'delivering';
 
+    if (isTrackingStatus && courierID && mapRef.current) {
+      // Determine destination based on current status:
+      // - picking_up: courier goes to food truck
+      // - delivering: courier goes to customer address
+      const courierDestination =
+        currentStatus === 'picking_up' ? truckLocation : destinationLocation;
+
+      // Only proceed if we have a valid destination
+      if (!courierDestination) {
+        console.warn(
+          `Cannot track courier: missing ${currentStatus === 'picking_up' ? 'truck' : 'destination'} location`,
+        );
+        return;
+      }
+
+      // Add courier to tracking system with appropriate destination
       courierTrackingManager.addCourier(
         courierID,
         `Courier for ${orderId}`,
         null,
         null,
-        destinationLocation,
+        courierDestination,
       );
+
       // Subscribe to courier tracking manager notifications
       const unsubscribe = courierTrackingManager.subscribe((event, data) => {
-        // console.log('Courier location updated:', data);
         // Only process events for this order's courier
         if (event === 'courierLocationUpdated' && data.courier && data.courier.id === courierID) {
-          // Only update the courier location state, NOT the truck location
-          // The truck should stay at the food truck's fixed position
-          // if (courierLocation == null) {
-          //   mapRef.current.addCourier(
-          //     courierID,
-          //     `Courier for ${orderId}`,
-          //     data.location,
-          //     [],
-          //     destinationLocation,
-          //   );
-          // }
+          // Update courier location state for map rendering
           setCourierLocation({
             latitude: data.location.latitude,
             longitude: data.location.longitude,
@@ -230,7 +375,22 @@ export default function OrderDetailScreen({ route, navigation }) {
         }
       };
     }
-  }, [currentStatus, courierID, truckLocation, destinationLocation]);
+  }, [currentStatus, courierID, truckLocation, destinationLocation, orderId]);
+
+  // Effect to handle review timer when order is completed
+  useEffect(() => {
+    if (currentStatus === 'completed' && !hasShownReviews) {
+      startReviewTimer();
+    }
+
+    // Cleanup timer on unmount or status change
+    return () => {
+      if (reviewTimer) {
+        clearTimeout(reviewTimer);
+        setReviewTimer(null);
+      }
+    };
+  }, [currentStatus, hasShownReviews]);
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -246,9 +406,15 @@ export default function OrderDetailScreen({ route, navigation }) {
           subtitle: 'Estimated arrival 12:05-12:25',
           color: '#FF6B35',
         };
+      case 'picking_up':
+        return {
+          title: 'Courier is picking up the order',
+          subtitle: estimatedTime || 'Your order will be on its way soon',
+          color: '#9C27B0',
+        };
       case 'delivering':
         return {
-          title: 'Heading your way...',
+          title: 'The order is headed your way!',
           subtitle: estimatedTime || 'Estimated arrival 12:05-12:25',
           color: '#2196F3',
         };
@@ -274,7 +440,8 @@ export default function OrderDetailScreen({ route, navigation }) {
   };
 
   const renderStatusImages = () => {
-    if (currentStatus === 'delivering') {
+    // Show map for both picking_up and delivering statuses
+    if (currentStatus === 'picking_up' || currentStatus === 'delivering') {
       return (
         <View style={styles.visualSectionLarge}>
           <MapWebview
@@ -283,6 +450,9 @@ export default function OrderDetailScreen({ route, navigation }) {
             truckLocation={truckLocation}
             destinationLocation={destinationLocation}
             courierLocation={courierLocation}
+            userLocation={userLocation}
+            locationPermissionGranted={locationPermissionGranted}
+            onGPSButtonPress={moveToCurrentLocation}
             fitToElements={true}
           />
         </View>
@@ -651,32 +821,22 @@ export default function OrderDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Demo Status Buttons */}
-      <View style={styles.statusButtonsContainer}>
-        <Text style={styles.demoLabel}>Demo: Test Order Statuses</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.statusButtonsScroll}
-        >
-          {VALID_STATUSES.map((status) => (
-            <TouchableOpacity
-              key={status}
-              style={[styles.statusButton, currentStatus === status && styles.statusButtonActive]}
-              onPress={() => setCurrentStatus(status)}
-            >
-              <Text
-                style={[
-                  styles.statusButtonText,
-                  currentStatus === status && styles.statusButtonTextActive,
-                ]}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      {/* Development Controls (only in dev mode) */}
+      {__DEV__ && DevelopmentControls && (
+        <DevelopmentControls
+          currentStatus={currentStatus}
+          setCurrentStatus={setCurrentStatus}
+          validStatuses={VALID_STATUSES}
+          courierLocation={courierLocation}
+          truckLocation={truckLocation}
+          destinationLocation={destinationLocation}
+          mapRef={mapRef}
+          onTriggerReviews={() => {
+            setShowMenuItemReviewModal(true);
+            setHasShownReviews(true);
+          }}
+        />
+      )}
 
       <View style={styles.content}>
         {/* Section 1: Status Information */}
@@ -749,6 +909,31 @@ export default function OrderDetailScreen({ route, navigation }) {
                         />
                       </Svg>
                     </View>
+                    {/* Menu item image */}
+                    {item.menuItemId && (
+                      <View style={styles.itemImageContainer}>
+                        {/* TODO: Enable menu item images after backend implementation */}
+                        {/* {menuItemImages[item.menuItemId] ? (
+                          <Image
+                            source={{ uri: menuItemImages[item.menuItemId] }}
+                            style={styles.itemImage}
+                            resizeMode="cover"
+                            onError={() => {
+                              // Remove failed image from state to show placeholder
+                              setMenuItemImages(prev => {
+                                const updated = { ...prev };
+                                delete updated[item.menuItemId];
+                                return updated;
+                              });
+                            }}
+                          />
+                        ) : ( */}
+                          <View style={styles.itemImagePlaceholder}>
+                            <MaterialIcons name="restaurant" size={20} color="#999" />
+                          </View>
+                        {/* )} */}
+                      </View>
+                    )}
                     <View style={styles.itemInfo}>
                       <Text style={styles.itemName}>{item.menuItemName}</Text>
                     </View>
@@ -831,6 +1016,22 @@ export default function OrderDetailScreen({ route, navigation }) {
           </ScrollView>
         )}
       </Animated.View>
+
+      {/* Review Modals */}
+      <MenuItemReviewModal
+        visible={showMenuItemReviewModal}
+        onClose={handleCloseMenuItemReviewModal}
+        menuItems={order?.formattedItems || []}
+        onSubmitReviews={handleMenuItemReviewsSubmit}
+        menuItemImages={menuItemImages}
+      />
+
+      <FoodTruckReviewModal
+        visible={showFoodTruckReviewModal}
+        onClose={handleCloseFoodTruckReviewModal}
+        foodTruckName={order?.foodTruck?.name || 'Food Truck'}
+        onSubmitReview={handleFoodTruckReviewSubmit}
+      />
     </SafeAreaView>
   );
 }
@@ -839,6 +1040,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
@@ -849,6 +1058,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+      },
+    }),
   },
   helpText: {
     fontSize: 16,
@@ -856,50 +1073,16 @@ const styles = StyleSheet.create({
     color: '#2D1E2F',
     fontFamily: 'Poppins',
   },
-  statusButtonsContainer: {
-    backgroundColor: '#F8F9FA',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  demoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-    fontFamily: 'Poppins',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  statusButtonsScroll: {
-    flexDirection: 'row',
-  },
-  statusButton: {
-    backgroundColor: '#FFF',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  statusButtonActive: {
-    backgroundColor: '#2D1E2F',
-    borderColor: '#2D1E2F',
-  },
-  statusButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#666',
-    fontFamily: 'Poppins',
-  },
-  statusButtonTextActive: {
-    color: '#FFF',
-  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
     paddingBottom: 140, // Space for bottom sheet
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+      },
+    }),
   },
   loadingContainer: {
     flex: 1,
@@ -1057,6 +1240,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  itemImageContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginRight: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
+  },
+  itemImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   itemInfo: {
     flex: 1,

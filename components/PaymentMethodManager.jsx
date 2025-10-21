@@ -10,7 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripe } from '../lib/stripe/stripe-hooks';
 import { 
   fetchUser, 
   addPaymentMethod, 

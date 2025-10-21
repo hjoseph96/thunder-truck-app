@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, G, ClipPath, Rect, Defs } from 'react-native-svg';
 import UserProfileView from './UserProfileView';
 
@@ -89,35 +89,61 @@ export default function BottomNavigation({ navigation, userData }) {
 const styles = StyleSheet.create({
   bottomNav: {
     flexDirection: 'row',
-    paddingVertical: 9,
-    paddingHorizontal: 27,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 8,
-    position: 'relative',
     backgroundColor: '#2D1E2F',
-    borderTopColor: 'black',
-    borderTopWidth: 3,
-    boxShadow: '0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);'
+    borderTopColor: '#000',
+    borderTopWidth: 1,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 16,
+    // Fixed to bottom - platform specific
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 98,
+        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
+        borderTopWidth: 1,
+        width: '100%',
+      },
+      default: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+      },
+    }),
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 8,
   },
   exploreButton: {
     position: 'relative',
-    marginTop: -25,
+    marginTop: -30,
   },
   exploreButtonBackground: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#fecd15',
     alignItems: 'center',
     justifyContent: 'center',
+    // Shadow for the center button
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

@@ -9,6 +9,7 @@ import {
   Image,
   Dimensions,
   TextInput,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G, ClipPath, Rect, Defs } from 'react-native-svg';
@@ -21,6 +22,10 @@ import { getNearbyFoodTrucksWithCache, getMockLocation } from '../lib/food-truck
 import { getStoredUserData } from '../lib/token-manager';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Determine if running on web
+const isWeb = Platform.OS === 'web';
+const isMobile = !isWeb;
 
 export default function ExplorerHome({ navigation }) {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -162,7 +167,7 @@ export default function ExplorerHome({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      {/* Header */}
+      {/* Header - Fixed on web */}
       <View style={styles.header}>
         
         {/* Search Bar */}
@@ -185,7 +190,7 @@ export default function ExplorerHome({ navigation }) {
         </View>
       </View>
 
-      {/* Location Bar */}
+      {/* Location Bar - Fixed on web */}
       <View style={styles.locationBar}>
         <TouchableOpacity style={styles.locationContent} onPress={() => navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, onAddressSelect: updateSelectedAddress })}>
           <MaterialIcons name="location-on" size={24} color="red" style={styles.locationIcon} />
@@ -207,19 +212,15 @@ export default function ExplorerHome({ navigation }) {
               <Path fillRule="evenodd" clipRule="evenodd" d="M12 1.25C12.1989 1.25 12.3897 1.32902 12.5303 1.46967C12.671 1.61032 12.75 1.80109 12.75 2V3.282C14.8038 3.45905 16.7293 4.35539 18.1869 5.81306C19.6446 7.27073 20.541 9.19616 20.718 11.25H22C22.1989 11.25 22.3897 11.329 22.5303 11.4697C22.671 11.6103 22.75 11.8011 22.75 12C22.75 12.1989 22.671 12.3897 22.5303 12.5303C22.3897 12.671 22.1989 12.75 22 12.75H20.718C20.541 14.8038 19.6446 16.7293 18.1869 18.1869C16.7293 19.6446 14.8038 20.541 12.75 20.718V22C12.75 22.1989 12.671 22.3897 12.5303 22.5303C12.3897 22.671 12.1989 22.75 12 22.75C11.8011 22.75 11.6103 22.671 11.4697 22.5303C11.329 22.3897 11.25 22.1989 11.25 22V20.718C9.19616 20.541 7.27073 19.6446 5.81306 18.1869C4.35539 16.7293 3.45905 14.8038 3.282 12.75H2C1.80109 12.75 1.61032 12.671 1.46967 12.5303C1.32902 12.3897 1.25 12.1989 1.25 12C1.25 11.8011 1.32902 11.6103 1.46967 11.4697C1.61032 11.329 1.80109 11.25 2 11.25H3.282C3.45905 9.19616 4.35539 7.27073 5.81306 5.81306C7.27073 4.35539 9.19616 3.45905 11.25 3.282V2C11.25 1.80109 11.329 1.61032 11.4697 1.46967C11.6103 1.32902 11.8011 1.25 12 1.25ZM4.75 12C4.75 12.9521 4.93753 13.8948 5.30187 14.7745C5.66622 15.6541 6.20025 16.4533 6.87348 17.1265C7.5467 17.7997 8.34593 18.3338 9.22554 18.6981C10.1052 19.0625 11.0479 19.25 12 19.25C12.9521 19.25 13.8948 19.0625 14.7745 18.6981C15.6541 18.3338 16.4533 17.7997 17.1265 17.1265C17.7997 16.4533 18.3338 15.6541 18.6981 14.7745C19.0625 13.8948 19.25 12.9521 19.25 12C19.25 10.0772 18.4862 8.23311 17.1265 6.87348C15.7669 5.51384 13.9228 4.75 12 4.75C10.0772 4.75 8.23311 5.51384 6.87348 6.87348C5.51384 8.23311 4.75 10.0772 4.75 12Z" fill="red"/>
             </Svg>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('WebSocketTest')}
-            style={styles.webSocketTestButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.webSocketTestText}>WS</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Main Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Main Content - Scrollable container */}
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         
         {/* Hero Image */}
         <Carousel
@@ -253,7 +254,7 @@ export default function ExplorerHome({ navigation }) {
         <View style={styles.categoriesContainer}>
           {/* What's on your mind */}
           <View style={styles.questionHeader}>
-            <Text style={styles.questionText}>Hungry? Let’s roll.</Text>
+            <Text style={styles.questionText}>Hungry? Let's roll.</Text>
           </View>
 
           {/* Food Types Header */}
@@ -290,30 +291,29 @@ export default function ExplorerHome({ navigation }) {
                   style={styles.categoryItem}
                   onPress={() => handleFoodTruckPress(foodTruck)}
                 >
-                                          <Image
-                       source={{ 
-                         uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/100x100/cccccc/666666?text=No+Image'
-                       }}
-                       style={styles.categoryImage}
-                       resizeMode="cover"
-                     />
-                                     <Text style={styles.categoryText}>{foodTruck.name}</Text>
-                   <Text style={styles.foodTruckSubtext}>
-                     {foodTruck.foodTypes?.map(ft => ft.title).join(', ') || 'Various cuisines'}
-                   </Text>
-                   <Text style={styles.deliveryFeeText}>
-                     ${foodTruck.deliveryFee} delivery
-                   </Text>
+                  <Image
+                    source={{ 
+                      uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/100x100/cccccc/666666?text=No+Image'
+                    }}
+                    style={styles.categoryImage}
+                    resizeMode="cover"
+                  />
+                  <Text style={styles.categoryText}>{foodTruck.name}</Text>
+                  <Text style={styles.foodTruckSubtext}>
+                    {foodTruck.foodTypes?.map(ft => ft.title).join(', ') || 'Various cuisines'}
+                  </Text>
+                  <Text style={styles.deliveryFeeText}>
+                    ${foodTruck.deliveryFee} delivery
+                  </Text>
                 </TouchableOpacity>
               ))
             )}
           </View>
         </View>
 
-
       </ScrollView>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Sticky on web */}
       <BottomNavigation navigation={navigation} userData={userData} />
 
       {/* Onboarding Modal */}
@@ -330,12 +330,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+      },
+    }),
   },
   header: {
     backgroundColor: '#2D1E2F',
     paddingTop: 10,
     paddingBottom: 15,
     paddingHorizontal: 12,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        width: '100%',
+      },
+    }),
+  },
+  locationBar: {
+    backgroundColor: '#D4A574',
+    paddingHorizontal: 15,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 75,
+        left: 0,
+        right: 0,
+        zIndex: 99,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+        width: '100%',
+      },
+    }),
   },
   statusBar: {
     flexDirection: 'row',
@@ -387,14 +425,6 @@ const styles = StyleSheet.create({
   },
   micIcon: {
     marginLeft: 5,
-  },
-  locationBar: {
-    backgroundColor: '#D4A574',
-    paddingHorizontal: 15,
-    paddingVertical: 11,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   locationContent: {
     flexDirection: 'row',
@@ -449,20 +479,66 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        top: 155,
+        left: 0,
+        right: 0,
+        bottom: 80,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+      },
+      default: {
+        paddingBottom: 100,
+      },
+    }),
+  },
+  contentContainer: {
+    ...Platform.select({
+      web: {
+        paddingBottom: 40,
+        minHeight: '100%',
+      },
+      default: {
+        flexGrow: 1,
+      },
+    }),
   },
   heroImage: {
     width: screenWidth,
     height: 250,
+    ...Platform.select({
+      web: {
+        maxWidth: '100%',
+        height: 'auto',
+      },
+    }),
   },
   slideItem: {
     width: screenWidth,
     height: 250,
     justifyContent: 'center',
     alignItems: 'center',
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: 'auto',
+        minHeight: 250,
+      },
+    }),
   },
   slideImage: {
     width: screenWidth,
     height: 250,
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: 'auto',
+        minHeight: 250,
+      },
+    }),
   },
   pageIndicator: {
     flexDirection: 'row',
@@ -504,6 +580,14 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     paddingHorizontal: 27,
     marginTop: 30,
+    ...Platform.select({
+      web: {
+        maxWidth: 1200,
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        width: '100%',
+      },
+    }),
   },
   sectionHeader: {
     marginTop: 30,
@@ -530,15 +614,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 10,
+    ...Platform.select({
+      web: {
+        justifyContent: 'flex-start',
+        gap: 20,
+      },
+    }),
   },
   categoryItem: {
-    width: '48%', // Two items per row
+    width: '48%',
     alignItems: 'center',
     marginBottom: 20,
+    ...Platform.select({
+      web: {
+        width: 'calc(25% - 15px)',
+        minWidth: 180,
+      },
+    }),
   },
   categoryImage: {
     width: '100%',
-    height: 100, // Fixed height for category images
+    height: 100,
     marginBottom: 10,
     borderRadius: 8,
   },

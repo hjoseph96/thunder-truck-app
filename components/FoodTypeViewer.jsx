@@ -254,6 +254,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+      },
+    }),
   },
   header: {
     backgroundColor: '#2D1E2F',
@@ -263,6 +271,18 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        paddingTop: 20,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+        width: '100%',
+      },
+    }),
   },
   backButton: {
     padding: 10,
@@ -284,6 +304,22 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        top: 80,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 40,
+      },
+      default: {
+        paddingBottom: 20,
+      },
+    }),
   },
   coverImageContainer: {
     position: 'relative',

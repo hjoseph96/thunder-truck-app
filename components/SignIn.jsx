@@ -8,7 +8,6 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import PhoneInput from 'react-native-phone-number-input';
 import { authService } from '../lib/api-service';
 import { storeToken, storeUserData } from '../lib/token-manager';
 import { resetSessionExpiration } from '../lib/session-manager';
@@ -79,20 +78,8 @@ export default function SignIn({ navigation, route }) {
             console.error('Error storing authentication data:', storageError);
           }
         }
-        
-        Alert.alert(
-          'Success!', 
-          'Signed in successfully!',
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                // Navigate to ExplorerHome after successful sign in
-                navigation.navigate('ExplorerHome');
-              }
-            }
-          ]
-        );
+        // Navigate to ExplorerHome after successful sign in
+        navigation.navigate('ExplorerHome');
       } else {
         Alert.alert('Error', result.message || 'Sign in failed');
       }
