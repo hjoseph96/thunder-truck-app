@@ -1,0 +1,58 @@
+# Node modules
+node_modules
+
+# Native builds
+android/
+ios/
+
+# Build outputs
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Development
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (keep README files)
+README-*.md
+POLYLINE-*.md
+
+# Config files that aren't needed for deployment
+.prettierrc
+.eslintrc*
+metro.config.js
+react-native.config.js
+
+# Test files
+__tests__/
+*.test.js
+*.test.jsx
+*.spec.js
+*.spec.jsx
+
+# EAS Build
+eas.json
+
+# Development scripts
+start-ios.sh
+example-usage.js
+
