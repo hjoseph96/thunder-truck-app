@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
+  Platform,
 } from 'react-native';
 import { authService } from '../lib/api-service';
 import { getMarkdownContent } from '../lib/markdown-loader';
@@ -45,12 +46,20 @@ export default function SignUp({ navigation }) {
 
   const handleSignUp = async () => {
     if (!phoneNumber) {
-      Alert.alert('Error', 'Please enter your phone number');
+      if (Platform.OS === 'web') {
+        console.error('Please enter your phone number');
+      } else {
+        Alert.alert('Error', 'Please enter your phone number');
+      }
       return;
     }
 
     if (phoneNumber.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+      if (Platform.OS === 'web') {
+        console.error('Please enter a valid 10-digit phone number');
+      } else {
+        Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+      }
       return;
     }
     
@@ -60,26 +69,41 @@ export default function SignUp({ navigation }) {
       const result = await authService.requestOtp(`+1${phoneNumber}`);
       
       if (result.success) {
-        Alert.alert(
-          'OTP Sent!', 
-          result.message,
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                // Navigate to VerifyOTP component after successful OTP request
-                navigation.navigate('VerifyOTP', {
-                  phoneNumber: `+1${phoneNumber}`
-                });
+        // On web: navigate directly without Alert
+        if (Platform.OS === 'web') {
+          navigation.navigate('VerifyOTP', {
+            phoneNumber: `+1${phoneNumber}`
+          });
+        } else {
+          // On mobile: show Alert with confirmation
+          Alert.alert(
+            'OTP Sent!', 
+            result.message,
+            [
+              {
+                text: 'Continue',
+                onPress: () => {
+                  navigation.navigate('VerifyOTP', {
+                    phoneNumber: `+1${phoneNumber}`
+                  });
+                }
               }
-            }
-          ]
-        );
+            ]
+          );
+        }
       } else {
-        Alert.alert('Error', result.message || 'Failed to send OTP');
+        if (Platform.OS === 'web') {
+          console.error('Error:', result.message || 'Failed to send OTP');
+        } else {
+          Alert.alert('Error', result.message || 'Failed to send OTP');
+        }
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred while requesting OTP');
+      if (Platform.OS === 'web') {
+        console.error('Error:', error.message || 'An error occurred while requesting OTP');
+      } else {
+        Alert.alert('Error', error.message || 'An error occurred while requesting OTP');
+      }
     } finally {
       setIsLoading(false);
     }
