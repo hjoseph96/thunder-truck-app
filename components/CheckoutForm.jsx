@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'hidden',
+        width: '100%',
       },
     }),
   },
@@ -382,10 +382,13 @@ const styles = StyleSheet.create({
     elevation: 8,
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         top: 0,
+        left: 0,
+        right: 0,
         zIndex: 100,
         paddingTop: 16,
+        flexShrink: 0,
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
       },
     }),
@@ -416,14 +419,27 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
+        position: 'absolute',
+        top: 82,
+        left: 0,
+        right: 0,
+        bottom: 80,
         overflowY: 'auto',
         overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+      },
+      default: {
         paddingBottom: 100,
       },
     }),
   },
   scrollContent: {
     paddingBottom: 20,
+    ...Platform.select({
+      web: {
+        paddingBottom: 40,
+      },
+    }),
   },
   section: {
     backgroundColor: 'white',
@@ -533,8 +549,10 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         bottom: 0,
+        left: 0,
+        right: 0,
         height: 'auto',
         zIndex: 98,
         boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',

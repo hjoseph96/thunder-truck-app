@@ -113,12 +113,21 @@ const PaymentScreen = ({ route, navigation }) => {
         },
       });
 
-      if (result.paymentIntent.status === 'Succeeded') {
+      if (result.error) {
+        Alert.alert('Payment Failed', result.error.message || 'Payment processing failed');
+        console.error('Payment error:', result.error);
+        return;
+      }
+
+      if (result.paymentIntent && (result.paymentIntent.status === 'succeeded' || result.paymentIntent.status === 'Succeeded')) {
         // Navigate to success screen or update UI
         handlePaymentSuccess(result.paymentIntent);
+      } else if (result.paymentIntent) {
+        Alert.alert('Payment Failed', `Payment status: ${result.paymentIntent.status}`);
+        console.error('Payment status:', result.paymentIntent.status);
       } else {
-        Alert.alert('Payment Failed', result.error.message);
-        console.error('Payment error:', result.error.message);
+        Alert.alert('Payment Failed', 'Unknown payment error occurred');
+        console.error('Payment error: No payment intent returned');
       }
     } catch (err) {
       Alert.alert('Error', 'Payment processing failed');
@@ -396,7 +405,7 @@ const PaymentScreen = ({ route, navigation }) => {
             <View style={styles.addressDeliveryInstructions}>
               <TextInput
                 style={styles.addressDeliveryInstructionsText}
-                value={deliveryAddress?.deliveryInstructions}
+                value={deliveryAddress?.deliveryInstructions || ''}
                 onChangeText={(value) =>
                   handleAddressUpdate({ ...deliveryAddress, deliveryInstructions: value })
                 }
@@ -621,7 +630,7 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'hidden',
+        width: '100%',
       },
     }),
   },
@@ -643,10 +652,13 @@ const styles = StyleSheet.create({
     elevation: 8,
     ...Platform.select({
       web: {
-        position: 'sticky',
+        position: 'fixed',
         top: 0,
+        left: 0,
+        right: 0,
         zIndex: 100,
         paddingTop: 16,
+        flexShrink: 0,
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
       },
     }),
@@ -676,14 +688,27 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
+        position: 'absolute',
+        top: 82,
+        left: 0,
+        right: 0,
+        bottom: 0,
         overflowY: 'auto',
         overflowX: 'hidden',
-        paddingBottom: 100,
+        WebkitOverflowScrolling: 'touch',
+      },
+      default: {
+        paddingBottom: 40,
       },
     }),
   },
   contentContainer: {
     paddingBottom: 40,
+    ...Platform.select({
+      web: {
+        paddingBottom: 60,
+      },
+    }),
   },
   section: {
     marginVertical: 24,
