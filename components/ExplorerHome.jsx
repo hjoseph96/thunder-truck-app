@@ -181,6 +181,15 @@ export default function ExplorerHome({ navigation }) {
     );
   };
 
+  // Calculate responsive carousel width for web
+  const getCarouselWidth = () => {
+    if (Platform.OS === 'web') {
+      // Max 1400px - 80px (40px padding on each side)
+      return Math.min(screenWidth - 80, 1320);
+    }
+    return screenWidth;
+  };
+
   const onSnapToItem = (index) => {
     // Use modulo to safely access animations for looping carousel
     const prevIndex = currentSlide % slideAnimations.length;
@@ -303,8 +312,8 @@ export default function ExplorerHome({ navigation }) {
             ref={carouselRef}
             data={slideImages}
             renderItem={renderSlideItem}
-            sliderWidth={screenWidth}
-            itemWidth={screenWidth}
+            sliderWidth={getCarouselWidth()}
+            itemWidth={getCarouselWidth()}
             onSnapToItem={onSnapToItem}
             loop
             autoplay
@@ -597,6 +606,10 @@ const styles = StyleSheet.create({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        paddingHorizontal: 40,
+        maxWidth: 1400,
+        marginLeft: 'auto',
+        marginRight: 'auto',
       },
     }),
   },
@@ -639,6 +652,7 @@ const styles = StyleSheet.create({
         minHeight: '50vh',
         maxHeight: '50vh',
         objectFit: 'cover',
+        borderRadius: 12,
       },
     }),
   },
