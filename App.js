@@ -36,6 +36,7 @@ const Stack = createStackNavigator();
 export default function App() {
   const navigationRef = useRef(null);
   const [webFontsReady, setWebFontsReady] = useState(Platform.OS !== 'web');
+  const [mobileFontsReady, setMobileFontsReady] = useState(false);
 
   // Load Cairo fonts for mobile platforms only
   // Web platform uses Google Fonts CDN loaded via CSS injection
@@ -49,6 +50,22 @@ export default function App() {
           'Cairo-Bold': require('./assets/fonts/Cairo-Bold.ttf'),
         }
   );
+
+  // Fallback timeout for mobile fonts - if fonts don't load within 3 seconds, render anyway
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      if (fontsLoaded) {
+        setMobileFontsReady(true);
+      } else {
+        const timeoutId = setTimeout(() => {
+          console.warn('Mobile fonts timeout - rendering with system fonts');
+          setMobileFontsReady(true);
+        }, 3000);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [fontsLoaded]);
 
   // Inject Google Fonts for web platform to support Inter and Poppins fonts
   // These fonts are used throughout the app but don't exist in assets folder
@@ -108,9 +125,11 @@ export default function App() {
   };
 
   // Display loading indicator while fonts are being loaded
-  // Mobile: Wait for Cairo fonts to load via expo-font
-  // Web: Wait for Google Fonts CSS to load and apply
-  if (!fontsLoaded || !webFontsReady) {
+  // Mobile: Wait for Cairo fonts to load via expo-font (with 3s timeout fallback)
+  // Web: Wait for Google Fonts CSS to load and apply (with 2s timeout fallback)
+  const fontsAreReady = Platform.OS === 'web' ? webFontsReady : mobileFontsReady;
+  
+  if (!fontsAreReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
         <ActivityIndicator size="large" color="#fecd15" />
