@@ -11,6 +11,8 @@ import {
   Platform,
 } from 'react-native';
 import { authService } from '../lib/api-service';
+import { storeToken, storeUserData } from '../lib/token-manager';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,6 +62,12 @@ export default function VerifyOTP({ navigation, route }) {
       if (result.success) {
         // On web: navigate directly without Alert
         if (Platform.OS === 'web') {
+
+          await storeToken(result.token);
+          if (result.user) {
+            await storeUserData(result.user);
+          }
+
           navigation.navigate('ExplorerHome');
         } else {
           // On mobile: show success Alert

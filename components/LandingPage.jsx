@@ -1,8 +1,28 @@
 import React from 'react';
-import { View, StyleSheet, Image, Text, Dimensions, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Image, Text, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Inject hover styles for web
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const styleId = 'landing-page-hover-styles';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      [data-landing-primary-btn]:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+      }
+      [data-landing-secondary-btn]:hover {
+        background-color: rgba(45, 30, 47, 0.05) !important;
+        transform: translateY(-2px) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
 
 export default function LandingPage({ navigation }) {
   return (
@@ -11,7 +31,7 @@ export default function LandingPage({ navigation }) {
 
       {/* Custom striped background */}
       <View style={styles.stripedBackground}>
-        {Array.from({ length: 20 }).map((_, index) => (
+        {Array.from({ length: Platform.OS === 'web' ? 40 : 20 }).map((_, index) => (
           <View
             key={index}
             style={[
@@ -26,32 +46,56 @@ export default function LandingPage({ navigation }) {
       </View>
 
       <View style={styles.contentContainer}>
-        <Image
-          source={require('../assets/images/thunder-truck-text-logo.png')}
-          style={styles.textLogoImage}
-          resizeMode="contain"
-        />
+        <View style={styles.logoSection}>
+          <Image
+            source={require('../assets/images/thunder-truck-text-logo.png')}
+            style={styles.textLogoImage}
+            resizeMode="contain"
+          />
 
-        <Image
-          source={require('../assets/images/thunder-truck-hero-image.png')}
-          style={styles.logoImage}
-          resizeMode="cover"
-        />
+          <Image
+            source={require('../assets/images/thunder-truck-hero-image.png')}
+            style={styles.logoImage}
+            resizeMode="cover"
+          />
+        </View>
 
-        {/* Future navigation button - you can customize this */}
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => {
-            navigation.navigate('SignIn');
-          }}
-        >
-          <Text style={styles.navButtonText}>Get Started</Text>
-        </TouchableOpacity>
+        <View style={styles.ctaSection}>
+          {Platform.OS === 'web' && (
+            <Text style={styles.tagline}>
+              Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time.
+            </Text>
+          )}
+          
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => {
+              navigation.navigate('SignIn');
+            }}
+            {...(Platform.OS === 'web' && { 'data-landing-primary-btn': true })}
+          >
+            <Text style={styles.navButtonText}>Get Started</Text>
+          </TouchableOpacity>
+          
+          {Platform.OS === 'web' && (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                navigation.navigate('SignUp');
+              }}
+              data-landing-secondary-btn={true}
+            >
+              <Text style={styles.secondaryButtonText}>Create Account</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      <View style={styles.arrowContainer}>
-        <Text style={styles.arrowText}>▲</Text>
-      </View>
+      {Platform.OS !== 'web' && (
+        <View style={styles.arrowContainer}>
+          <Text style={styles.arrowText}>▲</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -60,6 +104,14 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
     backgroundColor: '#fecd15', // Yellow background
+    ...Platform.select({
+      web: {
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    }),
   },
   stripedBackground: {
     position: 'absolute',
@@ -82,15 +134,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 86,
     zIndex: 1,
+    ...Platform.select({
+      web: {
+        maxWidth: 1200,
+        width: '100%',
+        paddingHorizontal: 40,
+        flexDirection: 'row',
+        gap: 80,
+        justifyContent: 'space-between',
+      },
+    }),
+  },
+  logoSection: {
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        flex: 1,
+        maxWidth: 500,
+      },
+    }),
   },
   textLogoImage: {
     width: 250,
     height: 250,
+    ...Platform.select({
+      web: {
+        width: 350,
+        height: 350,
+      },
+    }),
   },
   logoImage: {
     width: 250,
     height: 250,
     marginBottom: 30,
+    ...Platform.select({
+      web: {
+        width: 400,
+        height: 400,
+        marginBottom: 0,
+      },
+    }),
+  },
+  ctaSection: {
+    alignItems: 'center',
+    width: '100%',
+    ...Platform.select({
+      web: {
+        flex: 1,
+        maxWidth: 500,
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        paddingLeft: 40,
+      },
+    }),
+  },
+  tagline: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#2D1E2F',
+    textAlign: 'left',
+    marginBottom: 40,
+    lineHeight: 36,
+    fontFamily: 'Poppins',
   },
   navButton: {
     backgroundColor: '#2D1E2F',
@@ -107,11 +213,51 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
+    ...Platform.select({
+      web: {
+        paddingHorizontal: 50,
+        paddingVertical: 18,
+        borderRadius: 30,
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'pointer',
+        width: '100%',
+        maxWidth: 300,
+      },
+    }),
   },
   navButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+    ...Platform.select({
+      web: {
+        fontSize: 20,
+        fontWeight: '700',
+        textAlign: 'center',
+        fontFamily: 'Poppins',
+      },
+    }),
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 50,
+    paddingVertical: 18,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#2D1E2F',
+    marginTop: 20,
+    width: '100%',
+    maxWidth: 300,
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    cursor: 'pointer',
+  },
+  secondaryButtonText: {
+    color: '#2D1E2F',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    fontFamily: 'Poppins',
   },
   arrowContainer: {
     position: 'absolute',
