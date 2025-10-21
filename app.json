@@ -50,10 +50,19 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.thundertruck.app"
+      "package": "com.thundertruck.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCyPj7XRPG-53Q9C4QFdFXgtgTE7ODidGM"
+        }
+      }
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro",
+      "config": {
+        "googleMapsApiKey": "AIzaSyCyPj7XRPG-53Q9C4QFdFXgtgTE7ODidGM"
+      }
     },
     "plugins": [
       [

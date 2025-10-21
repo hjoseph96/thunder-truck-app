@@ -266,6 +266,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2D1E2F',
     flex: 1,
+    paddingVertical: 8,
+    outlineStyle: 'none', // Remove outline on web
   },
   signUpButton: {
     backgroundColor: '#2D1E2F',
