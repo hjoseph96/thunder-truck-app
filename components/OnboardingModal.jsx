@@ -13,6 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { setCustomerDetails } from '../lib/customer-service';
 import { fetchSpokenLanguages } from '../lib/user-service';
 import SpokenLanguagesSelector from './SpokenLanguagesSelector';
+import { storeUserData } from '../lib/token-manager';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -143,6 +144,8 @@ export default function OnboardingModal({ visible, onClose, userData }) {
         // Show success animation
         setShowSuccess(true);
         startSuccessAnimation();
+
+        await storeUserData(result.user);
 
         // Close modal after 2 seconds and pass success flag
         setTimeout(() => {
