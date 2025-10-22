@@ -35,6 +35,43 @@ import { isAuthenticated } from './lib/token-manager';
 
 const Stack = createStackNavigator();
 
+// Helper function to get page title based on route
+const getPageTitle = (routeName, params = {}) => {
+  const titles = {
+    LandingPage: 'Welcome',
+    SignIn: 'Log In',
+    SignUp: 'Sign Up',
+    ExplorerHome: '',
+    MapPage: 'Discover',
+    FoodTypeViewer: params?.foodTypeName || 'Food Types',
+    FoodTruckViewer: params?.foodTruckName || 'Food Truck',
+    MenuItemViewer: params?.foodTruckName ? `${params.foodTruckName}'s Menu` : 'Menu',
+    CheckoutForm: 'Cart',
+    PaymentScreen: 'Payment',
+    AddAddressForm: 'Add Address',
+    UserAddressList: 'Addresses',
+    EditUserName: 'Edit Name',
+    EditUserPhoneNumber: 'Edit Phone',
+    EditUserEmail: 'Edit Email',
+    EditUserSpokenLanguages: 'Languages',
+    PaymentMethodManager: 'Payment Methods',
+    OrderIndex: 'Orders',
+    OrderDetail: 'Track Order',
+    MarkdownViewer: 'Document',
+    VerifyOTP: 'Verify',
+  };
+
+  const pageTitle = titles[routeName] || '';
+  return pageTitle ? `ThunderTruck | ${pageTitle}` : 'ThunderTruck';
+};
+
+// Update document title on web
+const updateDocumentTitle = (routeName, params) => {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    document.title = getPageTitle(routeName, params);
+  }
+};
+
 export default function App() {
   const navigationRef = useRef(null);
   const [webFontsReady, setWebFontsReady] = useState(Platform.OS !== 'web');
@@ -81,9 +118,11 @@ export default function App() {
         
         if (authenticated) {
           // User has valid token, go directly to ExplorerHome
+          console.log('✅ User authenticated - setting initial route to ExplorerHome');
           setInitialRoute('ExplorerHome');
         } else {
           // No token found, show LandingPage
+          console.log('❌ User not authenticated - setting initial route to LandingPage');
           setInitialRoute('LandingPage');
         }
       } catch (error) {
@@ -96,11 +135,28 @@ export default function App() {
     };
     
     checkAuth();
+
+    // On web, listen for localStorage changes (e.g., when user clears storage)
+    // Note: storage event only fires for changes in OTHER tabs
+    // For same-tab changes, we rely on proper logout flow using clearAuthData()
+    if (Platform.OS === 'web') {
+      const handleStorageChange = async (e) => {
+        // Check if token was removed in another tab
+        if (e.key === 'thunder_truck_jwt_token' && !e.newValue) {
+          console.log('Token removed from localStorage (other tab), reloading page');
+          window.location.reload();
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+      };
+    }
   }, []);
 
-  // Inject Google Fonts for web platform to support Inter and Poppins fonts
-  // These fonts are used throughout the app but don't exist in assets folder
-  // Cairo fonts are also loaded from Google Fonts on web to avoid TTF decoding issues
+  // Inject Google Fonts and Global CSS for web platform
   useEffect(() => {
     if (Platform.OS === 'web') {
       // Create link element for Google Fonts preconnect (performance optimization)
@@ -116,8 +172,6 @@ export default function App() {
       document.head.appendChild(preconnectGstaticLink);
 
       // Load Inter, Poppins, and Cairo fonts from Google Fonts
-      // Multiple weights are loaded to match the fontWeight values used in components
-      // Cairo is included here to avoid TTF file decoding errors on web
       const fontLink = document.createElement('link');
       fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&display=swap';
       fontLink.rel = 'stylesheet';
@@ -133,6 +187,49 @@ export default function App() {
       }, 2000);
       
       document.head.appendChild(fontLink);
+
+      // Inject global CSS for scrolling
+      const styleId = 'thundertruck-global-styles';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          /* Global scrolling for React Native Web */
+          body {
+            overflow-y: scroll;
+          }
+          
+          #root {
+            overflow-y: scroll !important;
+          }
+          
+          /* Make all flex containers scrollable */
+          .r-flex-13awgt0 {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+          }
+          
+          /* Target React Native Web view containers */
+          .css-view-g5y9jx {
+          }
+          
+          /* Nested containers */
+          #root > div,
+          #root > div > div {
+            height: 100%;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+          }
+          
+          /* Data attribute scroll containers */
+          [data-scroll-container] {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
 
       return () => {
         // Cleanup font links and timeout when component unmounts
@@ -153,20 +250,39 @@ export default function App() {
   const onReady = () => {
     // Set the navigation reference for session management
     setNavigationRef(navigationRef.current);
+    
+    // Set initial page title on web
+    if (navigationRef.current) {
+      const currentRoute = navigationRef.current.getCurrentRoute();
+      if (currentRoute) {
+        updateDocumentTitle(currentRoute.name, currentRoute.params);
+      }
+    }
+  };
+
+  // Handle navigation state changes to update document title
+  const onNavigationStateChange = () => {
+    if (Platform.OS === 'web' && navigationRef.current) {
+      const currentRoute = navigationRef.current.getCurrentRoute();
+      if (currentRoute) {
+        updateDocumentTitle(currentRoute.name, currentRoute.params);
+      }
+    }
   };
 
   // Deep linking configuration for web URLs
   // Enables proper URL routing with browser history and deep links
+  // Note: We check authentication state to determine if root should go to ExplorerHome or LandingPage
   const linking = Platform.OS === 'web' ? {
     prefixes: ['https://web.thundertruck.app', 'http://localhost:8081', 'http://localhost:19006'],
     config: {
       screens: {
-        LandingPage: 'welcome',
+        LandingPage: '',  // Root path for unauthenticated users
         SignIn: 'signin',
         SignUp: 'signup',
         VerifyOTP: 'verify',
         MarkdownViewer: 'document/:documentType',
-        ExplorerHome: '',
+        ExplorerHome: 'home',  // Changed from '' to 'home' to avoid conflict
         MapPage: 'map',
         FoodTypeViewer: 'food-types/:foodTypeId',
         FoodTruckViewer: 'vendor/:foodTruckId',
@@ -194,6 +310,14 @@ export default function App() {
   // Web: Wait for Google Fonts CSS to load and apply (with 2s timeout fallback)
   const fontsAreReady = Platform.OS === 'web' ? webFontsReady : mobileFontsReady;
   
+  console.log('App render state:', {
+    isCheckingAuth,
+    fontsAreReady,
+    initialRoute,
+    webFontsReady,
+    mobileFontsReady
+  });
+  
   if (isCheckingAuth || !fontsAreReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
@@ -202,11 +326,14 @@ export default function App() {
     );
   }
 
+  console.log('🚀 Rendering NavigationContainer with initialRoute:', initialRoute);
+
   return (
     <StripeProviderWrapper>
       <NavigationContainer 
         ref={navigationRef} 
         onReady={onReady}
+        onStateChange={onNavigationStateChange}
         linking={linking}
         fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
           <ActivityIndicator size="large" color="#fecd15" />
@@ -243,49 +370,49 @@ export default function App() {
             name="MarkdownViewer"
             component={MarkdownViewer}
             options={{
-              title: 'Document Viewer',
+              title: 'Document',
             }}
           />
           <Stack.Screen
             name="VerifyOTP"
             component={VerifyOTP}
             options={{
-              title: 'Verify OTP',
+              title: 'Verify',
             }}
           />
           <Stack.Screen
             name="ExplorerHome"
             component={ExplorerHome}
             options={{
-              title: 'Explorer Home',
+              title: 'ThunderTruck',
             }}
           />
           <Stack.Screen
             name="MapPage"
             component={MapPage}
             options={{
-              title: 'Map',
+              title: 'Discover',
             }}
           />
           <Stack.Screen
             name="FoodTypeViewer"
             component={FoodTypeViewer}
             options={{
-              title: 'Food Type Viewer',
+              title: 'Food Types',
             }}
           />
           <Stack.Screen
             name="FoodTruckViewer"
             component={FoodTruckViewer}
             options={{
-              title: 'Food Truck Viewer',
+              title: 'Food Truck',
             }}
           />
           <Stack.Screen
             name="MenuItemViewer"
             component={MenuItemViewer}
             options={{
-              title: 'Menu Item Viewer',
+              title: 'Menu',
             }}
           />
           <Stack.Screen
@@ -299,7 +426,7 @@ export default function App() {
             name="CheckoutForm"
             component={CheckoutForm}
             options={{
-              title: 'Checkout',
+              title: 'Cart',
             }}
           />
           <Stack.Screen

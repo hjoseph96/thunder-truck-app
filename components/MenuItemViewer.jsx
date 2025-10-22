@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getMenuItemWithCache } from '../lib/menu-item-service';
 import { getCart, addMenuItemToCart, changeCartItemQuantity } from '../lib/cart-service';
+import { getFoodTruckWithCache } from '../lib/food-truck-service';
 import CartPopup from './CartPopup';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -47,6 +48,21 @@ export default function MenuItemViewer({ navigation, route }) {
       loadMenuItem();
     }
   }, [menuItemId]);
+
+  // Load food truck name for page title on web
+  useEffect(() => {
+    if (Platform.OS === 'web' && foodTruckId) {
+      getFoodTruckWithCache(foodTruckId)
+        .then(foodTruck => {
+          if (foodTruck?.name) {
+            navigation.setParams({ foodTruckName: foodTruck.name });
+          }
+        })
+        .catch(err => {
+          console.error('Error loading food truck name for title:', err);
+        });
+    }
+  }, [foodTruckId]);
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -355,9 +371,10 @@ export default function MenuItemViewer({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Content Section */}
-        <View style={styles.contentSection}>
+      {Platform.OS === 'web' ? (
+        <View style={styles.content}>
+          {/* Content Section */}
+          <View style={styles.contentSection}>
             <View style={styles.headerRow}>
                 <Text style={styles.menuItemName}>{menuItem.name}</Text>
                 <Text style={styles.menuItemPrice}>+${menuItem.price}</Text>
@@ -367,29 +384,66 @@ export default function MenuItemViewer({ navigation, route }) {
                 {menuItem.description}
             </Text>
           )}
+          </View>
+          
+          <View>
+              {/* Option Groups */}
+              {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
+                menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
+              )}
+              
+              {/* Related Menu Items */}
+              {renderRelatedMenuItems()}
+              
+          {/* Add to Cart Button */}
+          <TouchableOpacity 
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+            disabled={cartLoading}
+          >
+              <Text style={styles.addToCartButtonText}>
+                {cartLoading ? 'Adding...' : 'Add to Cart'}
+              </Text>
+          </TouchableOpacity>
         </View>
-        
-        <View>
-            {/* Option Groups */}
-            {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
-              menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
+        </View>
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Content Section */}
+          <View style={styles.contentSection}>
+              <View style={styles.headerRow}>
+                  <Text style={styles.menuItemName}>{menuItem.name}</Text>
+                  <Text style={styles.menuItemPrice}>+${menuItem.price}</Text>
+              </View>
+            {menuItem.description && (
+              <Text style={styles.menuItemDescription}>
+                  {menuItem.description}
+              </Text>
             )}
-            
-            {/* Related Menu Items */}
-            {renderRelatedMenuItems()}
-            
-        {/* Add to Cart Button */}
-        <TouchableOpacity 
-          style={styles.addToCartButton}
-          onPress={handleAddToCart}
-          disabled={cartLoading}
-        >
-            <Text style={styles.addToCartButtonText}>
-              {cartLoading ? 'Adding...' : 'Add to Cart'}
-            </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          </View>
+          
+          <View>
+              {/* Option Groups */}
+              {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
+                menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
+              )}
+              
+              {/* Related Menu Items */}
+              {renderRelatedMenuItems()}
+              
+          {/* Add to Cart Button */}
+          <TouchableOpacity 
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+            disabled={cartLoading}
+          >
+              <Text style={styles.addToCartButtonText}>
+                {cartLoading ? 'Adding...' : 'Add to Cart'}
+              </Text>
+          </TouchableOpacity>
+        </View>
+        </ScrollView>
+      )}
     
     {/* Fixed Cart Icon */}
     <TouchableOpacity 
@@ -423,7 +477,9 @@ const styles = StyleSheet.create({
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        overflow: 'hidden',
+        overflowY: 'scroll',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
       },
     }),
   },
@@ -486,9 +542,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
     ...Platform.select({
       web: {
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        paddingBottom: 100,
+        paddingBottom: 120,
+        minHeight: '100%',
       },
     }),
   },
@@ -500,9 +555,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-    overflow: 'scroll',
     borderBottomColor: '#eee',
     borderBottomWidth: 1,
+    ...Platform.select({
+      web: {
+        paddingBottom: 100,
+        marginBottom: 20,
+      },
+    }),
   },
   headerRow: {
     display: 'flex',

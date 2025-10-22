@@ -523,7 +523,7 @@ export default function DevelopmentControls({
     <View style={styles.container}>
       {/* Demo Status Buttons */}
       <View style={styles.statusButtonsContainer}>
-        <Text style={styles.demoLabel}>Demo: Test Order Statuses</Text>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

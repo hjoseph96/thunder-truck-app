@@ -24,11 +24,8 @@ import FoodTruckReviewModal from './FoodTruckReviewModal';
 import { useLocationManager } from '../lib/hooks/useLocationManager';
 import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
 
-// Development-only imports (will be tree-shaken in production builds)
-let DevelopmentControls = null;
-if (__DEV__) {
-  DevelopmentControls = require('./DevelopmentControls').default;
-}
+// Import DevelopmentControls for all environments
+import DevelopmentControls from './DevelopmentControls';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -872,22 +869,20 @@ export default function OrderDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Development Controls (only in dev mode) */}
-      {__DEV__ && DevelopmentControls && (
-        <DevelopmentControls
-          currentStatus={currentStatus}
-          setCurrentStatus={setCurrentStatus}
-          validStatuses={VALID_STATUSES}
-          courierLocation={courierLocation}
-          truckLocation={truckLocation}
-          destinationLocation={destinationLocation}
-          mapRef={mapRef}
-          onTriggerReviews={() => {
-            setShowMenuItemReviewModal(true);
-            setHasShownReviews(true);
-          }}
-        />
-      )}
+      {/* Development Controls */}
+      <DevelopmentControls
+        currentStatus={currentStatus}
+        setCurrentStatus={setCurrentStatus}
+        validStatuses={VALID_STATUSES}
+        courierLocation={courierLocation}
+        truckLocation={truckLocation}
+        destinationLocation={destinationLocation}
+        mapRef={mapRef}
+        onTriggerReviews={() => {
+          setShowMenuItemReviewModal(true);
+          setHasShownReviews(true);
+        }}
+      />
 
       <View style={styles.content}>
         {/* Section 1: Status Information */}

@@ -49,7 +49,6 @@ export default function FoodTypeViewer({ navigation, route }) {
   const [hasMorePages, setHasMorePages] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [numColumns, setNumColumns] = useState(getNumColumns());
-  const scrollContainerRef = React.useRef(null);
 
   useEffect(() => {
     console.log('FoodTypeViewer useEffect triggered. foodType:', foodType, 'foodTypeId:', foodTypeId);
@@ -60,6 +59,11 @@ export default function FoodTypeViewer({ navigation, route }) {
           .then(fetchedFoodType => {
             console.log('Fetched food type details:', fetchedFoodType);
             setFoodType(fetchedFoodType);
+            
+            // Update navigation params for page title on web
+            if (Platform.OS === 'web' && fetchedFoodType?.title) {
+              navigation.setParams({ foodTypeName: fetchedFoodType.title });
+            }
           })
           .catch(err => {
             console.error('Error fetching food type details:', err);
@@ -72,6 +76,13 @@ export default function FoodTypeViewer({ navigation, route }) {
       setLoading(false);
     }
   }, [foodTypeId]);
+
+  // Update page title when foodType changes
+  useEffect(() => {
+    if (Platform.OS === 'web' && foodType?.title) {
+      navigation.setParams({ foodTypeName: foodType.title });
+    }
+  }, [foodType?.title]);
 
   // Handle window resize on web
   useEffect(() => {
@@ -196,65 +207,92 @@ export default function FoodTypeViewer({ navigation, route }) {
     }
   }, [loadingMore, hasMorePages, currentPage]);
 
-  // Handle infinite scroll on web - MUST be after loadMoreFoodTrucks definition
+  // Handle infinite scroll on web using IntersectionObserver
   useEffect(() => {
     if (Platform.OS !== 'web') {
       console.log('⏭️ Skipping infinite scroll - not on web');
       return;
     }
 
-    let lastLoggedDistance = null;
-
-    const handleScroll = (event) => {
-      const container = event.target;
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-
-      // Only log when distance changes significantly (every 100px) to avoid spam
-      if (lastLoggedDistance === null || Math.abs(distanceFromBottom - lastLoggedDistance) > 100) {
-        console.log('📜 Scroll event on content container:', {
-          distanceFromBottom: Math.round(distanceFromBottom),
-          loadingMore,
-          hasMorePages,
-          shouldTrigger: distanceFromBottom < 500 && !loadingMore && hasMorePages
-        });
-        lastLoggedDistance = distanceFromBottom;
-      }
-
-      // Load more when user scrolls to within 500px of bottom
-      if (distanceFromBottom < 500 && !loadingMore && hasMorePages) {
-        console.log('🔄 Triggering infinite scroll load. Distance from bottom:', Math.round(distanceFromBottom));
-        loadMoreFoodTrucks();
-      }
-    };
-
     // Small delay to ensure DOM is ready
     const timeoutId = setTimeout(() => {
-      const scrollContainer = scrollContainerRef.current;
+      const sentinel = document.getElementById('infinite-scroll-sentinel');
       
-      if (scrollContainer) {
-        console.log('✅ Infinite scroll attached to content container. Current state:', {
-          loadingMore,
+      if (!sentinel) {
+        console.warn('⚠️ Infinite scroll sentinel not found in DOM. State:', {
           hasMorePages,
           foodTrucksCount: foodTrucks.length
         });
-        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-      } else {
-        console.warn('⚠️ Scroll container ref not found');
+        return;
       }
-    }, 500);
+
+      console.log('✅ Setting up IntersectionObserver for infinite scroll. Current state:', {
+        loadingMore,
+        hasMorePages,
+        foodTrucksCount: foodTrucks.length
+      });
+
+      // Create intersection observer to detect when sentinel comes into view
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const [entry] = entries;
+          
+          console.log('👁️ Sentinel state:', {
+            isIntersecting: entry.isIntersecting,
+            loadingMore,
+            hasMorePages,
+            shouldLoad: entry.isIntersecting && !loadingMore && hasMorePages
+          });
+
+          if (entry.isIntersecting && !loadingMore && hasMorePages) {
+            console.log('🔄 Sentinel visible! Triggering infinite scroll load.');
+            loadMoreFoodTrucks();
+          }
+        },
+        {
+          root: null, // viewport
+          rootMargin: '500px', // Trigger 500px before sentinel is visible
+          threshold: 0.01
+        }
+      );
+
+      observer.observe(sentinel);
+
+      // Manual check: If sentinel is already visible on mount, trigger load
+      // This handles the case where the page loads with sentinel in viewport
+      const checkInitialVisibility = () => {
+        const rect = sentinel.getBoundingClientRect();
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        const isVisible = rect.top < viewportHeight + 500; // Account for rootMargin
+        
+        console.log('🔍 Initial sentinel visibility check:', {
+          sentinelTop: Math.round(rect.top),
+          viewportHeight,
+          isVisible,
+          loadingMore,
+          hasMorePages
+        });
+
+        if (isVisible && !loadingMore && hasMorePages) {
+          console.log('🎯 Sentinel already visible on mount! Triggering initial load.');
+          loadMoreFoodTrucks();
+        }
+      };
+
+      // Check after a brief delay to ensure layout is complete
+      setTimeout(checkInitialVisibility, 100);
+
+      // Cleanup function
+      return () => {
+        observer.disconnect();
+        console.log('🧹 IntersectionObserver disconnected');
+      };
+    }, 500); // Increased timeout for more reliable DOM access
 
     return () => {
       clearTimeout(timeoutId);
-      const scrollContainer = scrollContainerRef.current;
-      if (scrollContainer) {
-        scrollContainer.removeEventListener('scroll', handleScroll);
-        console.log('🧹 Infinite scroll cleanup - removed listener from content container');
-      }
     };
-  }, [loadingMore, hasMorePages, loadMoreFoodTrucks, foodTrucks.length]);
+  }, [loadingMore, hasMorePages, loadMoreFoodTrucks, foodTrucks.length]); // Added foodTrucks.length to re-run when data changes
 
   const handleFoodTruckPress = (foodTruck) => {
     // Navigate to FoodTruckViewer with only ID (clean URL routing)
@@ -381,10 +419,7 @@ export default function FoodTypeViewer({ navigation, route }) {
         <View style={styles.placeholder} />
       </View>
 
-      <View 
-        style={styles.content}
-        ref={scrollContainerRef}
-      >
+      <View style={styles.content}>
         {/* Cover Image */}
         <View style={styles.coverImageContainer}>
           <Image
@@ -431,6 +466,18 @@ export default function FoodTypeViewer({ navigation, route }) {
                 {foodTrucks.map((truck) => renderFoodTruckCard(truck))}
               </View>
               {renderFooter()}
+              {/* Infinite scroll sentinel for IntersectionObserver */}
+              {hasMorePages && (
+                <View 
+                  nativeID="infinite-scroll-sentinel"
+                  style={{
+                    height: 20,
+                    width: '100%',
+                    backgroundColor: 'transparent',
+                    marginTop: 20,
+                  }}
+                />
+              )}
             </View>
           ) : (
             // Native: Use FlatList with fixed columns
