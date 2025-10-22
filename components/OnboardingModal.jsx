@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { setCustomerDetails } from '../lib/customer-service';
+import { fetchSpokenLanguages } from '../lib/user-service';
 import SpokenLanguagesSelector from './SpokenLanguagesSelector';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -77,15 +78,44 @@ export default function OnboardingModal({ visible, onClose, userData }) {
   ];
 
   useEffect(() => {
-    // Auto-fill form data if user data exists
-    if (userData) {
-      setFormData({
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        email: userData.email || '',
-        spokenLanguages: userData.spokenLanguages || [],
-      });
-    }
+    // Auto-fill form data if user data exists, and set English as default if no languages selected
+    const initializeFormData = async () => {
+      // First, set form data from userData if available
+      if (userData) {
+        const userLanguages = userData.spokenLanguages?.map(lang => lang.id) || [];
+        setFormData({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          spokenLanguages: userLanguages,
+        });
+        
+        // If user has languages already, don't set default
+        if (userLanguages.length > 0) {
+          return;
+        }
+      }
+      
+      // Set English as default language if no languages are selected
+      try {
+        const languages = await fetchSpokenLanguages();
+        // Find English by isoCode (could be 'en', 'en-US', or similar)
+        const english = languages.find(lang => 
+          lang.isoCode?.toLowerCase().startsWith('en')
+        );
+        
+        if (english) {
+          setFormData(prev => ({
+            ...prev,
+            spokenLanguages: [english.id],
+          }));
+        }
+      } catch (error) {
+        console.error('Error setting default language:', error);
+      }
+    };
+
+    initializeFormData();
   }, [userData]);
 
   const handleNext = async () => {
