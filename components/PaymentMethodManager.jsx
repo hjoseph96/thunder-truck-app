@@ -8,9 +8,11 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useStripe } from '../lib/stripe/stripe-hooks';
+import StripeCardElementWeb from './StripeCardElementWeb';
 import { 
   fetchUser, 
   addPaymentMethod, 
@@ -25,6 +27,8 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
   const [loading, setLoading] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState(null);
+  const [showWebCardForm, setShowWebCardForm] = useState(false);
+  const [webSetupIntentSecret, setWebSetupIntentSecret] = useState(null);
 
   useEffect(() => {
     if (visible) {
@@ -62,8 +66,9 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
     }
   };
 
-  const handleAddPaymentMethod = async () => {
+  const handleAddPaymentMethodMobile = async () => {
     if (!userData?.stripeCustomerId) {
+      console.log('📱 Mobile - No Stripe customer ID found');
       Alert.alert('Error', 'No Stripe customer ID found');
       return;
     }
@@ -73,14 +78,14 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
 
       // 1. Get ephemeral key from your GraphQL backend
       const ephemeralKey = await createEphemeralKey();
-      console.log('Created ephemeral key:', ephemeralKey);
+      console.log('📱 Mobile - Created ephemeral key:', ephemeralKey);
 
       // 2. Get setup intent from your GraphQL backend
       const clientSecret = await createSetupIntent();
-      console.log('Created setup intent client secret:', clientSecret);
+      console.log('📱 Mobile - Created setup intent client secret:', clientSecret);
 
       // 3. Initialize payment sheet with proper values
-      console.log('Initializing payment sheet with:', {
+      console.log('📱 Mobile - Initializing payment sheet with:', {
         merchantDisplayName: 'ThunderTruck',
         customerId: userData.stripeCustomerId,
         customerEphemeralKeySecret: ephemeralKey,
@@ -91,38 +96,31 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
       const { error } = await initPaymentSheet({
         merchantDisplayName: 'ThunderTruck',
         customerId: userData.stripeCustomerId,
-        customerEphemeralKeySecret: ephemeralKey, // Now properly formatted
-        setupIntentClientSecret: clientSecret, // Now properly formatted
+        customerEphemeralKeySecret: ephemeralKey,
+        setupIntentClientSecret: clientSecret,
         allowsDelayedPaymentMethods: true,
       });
 
       if (error) {
-        console.error('Error initializing payment sheet:', error);
+        console.error('📱 Mobile - Error initializing payment sheet:', error);
         Alert.alert('Error', 'Failed to initialize payment method setup');
         return;
       }
 
-      console.log('Payment sheet initialized successfully');
+      console.log('📱 Mobile - Payment sheet initialized successfully');
 
       // 4. Present payment sheet
       const { paymentOption, error: presentError } = await presentPaymentSheet();
 
       if (presentError) {
         if (presentError.code !== 'Canceled') {
-          console.error('Error presenting payment sheet:', presentError);
+          console.error('📱 Mobile - Error presenting payment sheet:', presentError);
           Alert.alert('Error', 'Failed to add payment method');
         }
         return;
       }
 
-      // For setup intents, paymentOption is typically null even on success
-      // The payment method is automatically attached to the customer in Stripe
-      // We don't get the payment method details in paymentOption for setup intents
-      console.log('Payment sheet completed successfully:', { paymentOption, presentError });
-      
-      // Note: paymentOption will be null for setup intents, this is expected behavior
-      // The payment method has been successfully added to the customer in Stripe
-      // We can verify this by reloading the user data which will fetch updated payment methods
+      console.log('📱 Mobile - Payment sheet completed successfully:', { paymentOption, presentError });
 
       // 5. Success - payment method was added to Stripe
       Alert.alert(
@@ -139,7 +137,7 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
         ]
       );
     } catch (error) {
-      console.error('Error adding payment method:', error);
+      console.error('📱 Mobile - Error adding payment method:', error);
       
       // Show helpful error message for setup
       if (error.message.includes('Failed to create ephemeral key')) {
@@ -159,6 +157,65 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddPaymentMethodWeb = async () => {
+    if (!userData?.stripeCustomerId) {
+      console.error('🌐 Web - No Stripe customer ID found');
+      Alert.alert('Error', 'No Stripe customer ID found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('🌐 Web - Creating setup intent for customer:', userData.stripeCustomerId);
+
+      // Get setup intent from your GraphQL backend
+      const clientSecret = await createSetupIntent();
+      console.log('🌐 Web - Created setup intent client secret:', clientSecret);
+
+      // Set the client secret and show the card form modal
+      setWebSetupIntentSecret(clientSecret);
+      setShowWebCardForm(true);
+    } catch (error) {
+      console.error('🌐 Web - Error adding payment method:', error);
+      Alert.alert('Error', 'Failed to initialize payment method setup');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWebCardSuccess = async (setupIntent) => {
+    console.log('🌐 Web - Card setup successful:', setupIntent);
+    setShowWebCardForm(false);
+    setWebSetupIntentSecret(null);
+    
+    // Reload payment methods
+    await loadUserData();
+    onPaymentMethodAdded?.();
+    
+    console.log('✅ Payment method added successfully');
+  };
+
+  const handleWebCardError = (error) => {
+    console.error('🌐 Web - Card setup error:', error);
+    Alert.alert('Error', error.message || 'Failed to add payment method');
+    setShowWebCardForm(false);
+    setWebSetupIntentSecret(null);
+  };
+
+  const handleWebCardCancel = () => {
+    console.log('🌐 Web - Card setup cancelled');
+    setShowWebCardForm(false);
+    setWebSetupIntentSecret(null);
+  };
+
+  const handleAddPaymentMethod = async () => {
+    if (Platform.OS === 'web') {
+      await handleAddPaymentMethodWeb();
+    } else {
+      await handleAddPaymentMethodMobile();
     }
   };
 
@@ -348,6 +405,27 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
           )}
         </ScrollView>
       </View>
+
+      {/* Web Card Form Modal */}
+      {Platform.OS === 'web' && showWebCardForm && webSetupIntentSecret && (
+        <Modal
+          visible={showWebCardForm}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={handleWebCardCancel}
+        >
+          <View style={styles.webCardModalOverlay}>
+            <View style={styles.webCardModalContent}>
+              <StripeCardElementWeb
+                clientSecret={webSetupIntentSecret}
+                onSuccess={handleWebCardSuccess}
+                onError={handleWebCardError}
+                onCancel={handleWebCardCancel}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
     </Modal>
   );
 };
@@ -550,6 +628,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     fontFamily: 'Cairo',
+  },
+  webCardModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+      },
+    }),
+  },
+  webCardModalContent: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 0,
+    ...Platform.select({
+      web: {
+        maxWidth: 550,
+        width: '90%',
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+      },
+    }),
   },
 });
 
