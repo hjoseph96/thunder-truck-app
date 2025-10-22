@@ -91,7 +91,7 @@ export default function EditUserPhoneNumber({ navigation, route }) {
         Toast.show({
           type: 'error',
           text1: 'Error',
-          text2: result.message || 'Failed to update phone number',
+          text2: 'Failed to update phone number. Please try again.',
           visibilityTime: 4000,
         });
       }
@@ -99,7 +99,7 @@ export default function EditUserPhoneNumber({ navigation, route }) {
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: error.message || 'An error occurred while updating your phone number',
+        text2: 'An error occurred while updating your phone number. Please try again.',
         visibilityTime: 4000,
       });
     } finally {

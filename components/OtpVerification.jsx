@@ -68,10 +68,10 @@ export default function OtpVerification({ navigation, route }) {
           ]
         );
       } else {
-        Alert.alert('Error', result.message || 'Verification failed');
+        Alert.alert('Error', 'Verification failed. Please try again.');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred during verification');
+      Alert.alert('Error', 'An error occurred during verification. Please try again.');
     } finally {
       setIsLoading(false);
     }

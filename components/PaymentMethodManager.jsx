@@ -232,7 +232,7 @@ const PaymentMethodManager = ({ visible, onClose, onPaymentMethodAdded, onDefaul
 
         onDefaultPaymentMethodChanged?.();
       } else {
-        Alert.alert('Error', result.message || 'Failed to set default payment method');
+        Alert.alert('Error', 'Failed to set default payment method. Please try again.');
       }
     } catch (error) {
       console.error('Error setting default payment method:', error);

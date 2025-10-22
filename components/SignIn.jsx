@@ -82,10 +82,10 @@ export default function SignIn({ navigation, route }) {
         // Navigate to ExplorerHome after successful sign in
         navigation.navigate('ExplorerHome');
       } else {
-        Alert.alert('Error', result.message || 'Sign in failed');
+        Alert.alert('Error', 'Sign in failed. Please try again.');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'An error occurred during sign in');
+      Alert.alert('Error', 'An error occurred during sign in. Please try again.');
     } finally {
       setIsLoading(false);
     }

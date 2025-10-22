@@ -146,7 +146,7 @@ export default function EditUserSpokenLanguages({ navigation, route }) {
         Toast.show({
           type: 'error',
           text1: 'Error',
-          text2: result.message || 'Failed to update spoken languages',
+          text2: 'Failed to update spoken languages. Please try again.',
           visibilityTime: 4000,
         });
       }
@@ -154,7 +154,7 @@ export default function EditUserSpokenLanguages({ navigation, route }) {
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: error.message || 'An error occurred while updating your spoken languages',
+        text2: 'An error occurred while updating your spoken languages. Please try again.',
         visibilityTime: 4000,
       });
     } finally {

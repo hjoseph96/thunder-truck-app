@@ -93,16 +93,16 @@ export default function SignUp({ navigation }) {
         }
       } else {
         if (Platform.OS === 'web') {
-          console.error('Error:', result.message || 'Failed to send OTP');
+          console.error('Error:', 'Failed to send OTP. Please try again.');
         } else {
-          Alert.alert('Error', result.message || 'Failed to send OTP');
+          Alert.alert('Error', 'Failed to send OTP. Please try again.');
         }
       }
     } catch (error) {
       if (Platform.OS === 'web') {
-        console.error('Error:', error.message || 'An error occurred while requesting OTP');
+        console.error('Error:', 'An error occurred while requesting OTP. Please try again.');
       } else {
-        Alert.alert('Error', error.message || 'An error occurred while requesting OTP');
+        Alert.alert('Error', 'An error occurred while requesting OTP. Please try again.');
       }
     } finally {
       setIsLoading(false);
