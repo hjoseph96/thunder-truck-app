@@ -450,12 +450,7 @@ const PaymentScreen = ({ route, navigation }) => {
                 placeholder="Any special drop off instructions?"
                 placeholderTextColor="#999"
                 multiline
-                numberOfLines={9}
-                {...(Platform.OS === 'web' && {
-                  style: {
-                    numberOfLines: 3, // Ensure only 3 lines are visible on web
-                  },
-                })}
+                numberOfLines={ Platform.OS === 'web' ? 3 : 9}
                 maxLength={300}
               />
             </View>
