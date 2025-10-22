@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
-        backgroundColor: '#f5f7fa',
+        backgroundColor: '#535355',
       },
       default: {
         backgroundColor: '#fecd15',

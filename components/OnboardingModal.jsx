@@ -251,6 +251,9 @@ export default function OnboardingModal({ visible, onClose, userData }) {
           autoCapitalize={step.field === 'email' ? 'none' : 'words'}
           keyboardType={step.field === 'email' ? 'email-address' : 'default'}
           autoCorrect={false}
+          onSubmitEditing={handleNext}
+          returnKeyType={currentStep === steps.length - 1 ? 'done' : 'next'}
+          blurOnSubmit={false}
         />
       </View>
     );

@@ -135,6 +135,7 @@ export default function SignIn({ navigation, route }) {
               maxLength={14}
               returnKeyType="done"
               selectTextOnFocus={true}
+              onSubmitEditing={handleSignIn}
             />
           </View>
         </View>
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
-        backgroundColor: '#f5f7fa',
+        backgroundColor: '#535355',
       },
       default: {
         backgroundColor: '#fecd15',

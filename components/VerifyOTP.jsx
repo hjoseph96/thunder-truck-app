@@ -231,7 +231,14 @@ export default function VerifyOTP({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fecd15',
+    ...Platform.select({
+      web: {
+        backgroundColor: '#535355',
+      },
+      default: {
+        backgroundColor: '#fecd15',
+      },
+    }),
   },
   header: {
     backgroundColor: '#28282B',
