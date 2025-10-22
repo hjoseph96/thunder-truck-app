@@ -366,7 +366,7 @@ export default function OrderDetailScreen({ route, navigation }) {
     if (orderId) {
       loadOrderDetails();
       setCourierID(
-        order?.courier_id == null ? '2e68f661-d271-44c4-9a00-23d99d77f251' : order?.courier_id,
+        order?.courier_id == null ? 'f72f3261-fbcf-4d2c-9b1d-d2e3112eb9f2' : order?.courier_id,
       );
     } else {
       setLoading(false);
