@@ -117,15 +117,12 @@ export default function App() {
         
         if (authenticated) {
           // User has valid token, go directly to ExplorerHome
+          console.log('✅ User authenticated - setting initial route to ExplorerHome');
           setInitialRoute('ExplorerHome');
         } else {
           // No token found, show LandingPage
+          console.log('❌ User not authenticated - setting initial route to LandingPage');
           setInitialRoute('LandingPage');
-
-          if (navigationRef.current) {
-            await clearAuthData();
-            navigationRef.current.navigate('LandingPage');
-          }
         }
       } catch (error) {
         console.error('Error checking authentication:', error);
@@ -271,6 +268,14 @@ export default function App() {
   // Web: Wait for Google Fonts CSS to load and apply (with 2s timeout fallback)
   const fontsAreReady = Platform.OS === 'web' ? webFontsReady : mobileFontsReady;
   
+  console.log('App render state:', {
+    isCheckingAuth,
+    fontsAreReady,
+    initialRoute,
+    webFontsReady,
+    mobileFontsReady
+  });
+  
   if (isCheckingAuth || !fontsAreReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' }}>
@@ -278,6 +283,8 @@ export default function App() {
       </View>
     );
   }
+
+  console.log('🚀 Rendering NavigationContainer with initialRoute:', initialRoute);
 
   return (
     <StripeProviderWrapper>
