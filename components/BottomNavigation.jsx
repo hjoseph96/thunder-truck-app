@@ -158,6 +158,7 @@ const styles = StyleSheet.create({
         paddingLeft: 20,
         paddingRight: 20,
         height: 64,
+        overflowY: 'visible !important',
       },
       default: {
         position: 'absolute',
@@ -190,6 +191,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         cursor: 'pointer',
+        overflowY: 'visible',
       },
     }),
   },
@@ -200,6 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fecd15',
     alignItems: 'center',
     justifyContent: 'center',
+    overflowY: 'visible',
     // Shadow for the center button
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

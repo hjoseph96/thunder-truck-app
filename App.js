@@ -155,9 +155,7 @@ export default function App() {
     }
   }, []);
 
-  // Inject Google Fonts for web platform to support Inter and Poppins fonts
-  // These fonts are used throughout the app but don't exist in assets folder
-  // Cairo fonts are also loaded from Google Fonts on web to avoid TTF decoding issues
+  // Inject Google Fonts and Global CSS for web platform
   useEffect(() => {
     if (Platform.OS === 'web') {
       // Create link element for Google Fonts preconnect (performance optimization)
@@ -173,8 +171,6 @@ export default function App() {
       document.head.appendChild(preconnectGstaticLink);
 
       // Load Inter, Poppins, and Cairo fonts from Google Fonts
-      // Multiple weights are loaded to match the fontWeight values used in components
-      // Cairo is included here to avoid TTF file decoding errors on web
       const fontLink = document.createElement('link');
       fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Cairo:wght@300;400;500;600;700&display=swap';
       fontLink.rel = 'stylesheet';
@@ -190,6 +186,49 @@ export default function App() {
       }, 2000);
       
       document.head.appendChild(fontLink);
+
+      // Inject global CSS for scrolling
+      const styleId = 'thundertruck-global-styles';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          /* Global scrolling for React Native Web */
+          body {
+            overflow-y: scroll;
+          }
+          
+          #root {
+            overflow-y: scroll !important;
+          }
+          
+          /* Make all flex containers scrollable */
+          .r-flex-13awgt0 {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+          }
+          
+          /* Target React Native Web view containers */
+          .css-view-g5y9jx {
+          }
+          
+          /* Nested containers */
+          #root > div,
+          #root > div > div {
+            height: 100%;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+          }
+          
+          /* Data attribute scroll containers */
+          [data-scroll-container] {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
 
       return () => {
         // Cleanup font links and timeout when component unmounts

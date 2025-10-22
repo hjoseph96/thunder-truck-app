@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useToast } from 'react-native-toast-notifications';
 import {
   useStripe,
   useConfirmPayment,
@@ -32,6 +33,7 @@ const PaymentScreen = ({ route, navigation }) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { confirmPayment, loading } = useConfirmPayment();
   const { isPlatformPaySupported, confirmPlatformPayPayment } = usePlatformPay();
+  const toast = useToast();
   const {
     selectedAddress,
     userData,
@@ -50,6 +52,20 @@ const PaymentScreen = ({ route, navigation }) => {
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState(null);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+
+  // Helper function to show alerts/toasts based on platform
+  const showAlert = (title, message, type = 'danger') => {
+    if (Platform.OS === 'web') {
+      toast.show(message, {
+        type: type, // 'success', 'warning', 'danger', 'info'
+        placement: 'top',
+        duration: 4000,
+        animationType: 'slide-in',
+      });
+    } else {
+      Alert.alert(title, message);
+    }
+  };
 
   // Helper functions
   const handleAddressUpdate = (updatedAddress) => {
@@ -90,7 +106,7 @@ const PaymentScreen = ({ route, navigation }) => {
 
   const handleCardPayment = async () => {
     if (!defaultPaymentMethod?.stripePaymentMethodId) {
-      Alert.alert('Error', 'No default payment method selected');
+      showAlert('Error', 'No default payment method selected', 'danger');
       return;
     }
 
@@ -101,7 +117,7 @@ const PaymentScreen = ({ route, navigation }) => {
       const paymentIntentData = await createPaymentIntent(totalInCents);
 
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
-        Alert.alert('Error', 'Failed to get payment intent from server');
+        showAlert('Error', 'Failed to get payment intent from server', 'danger');
         return;
       }
 
@@ -114,7 +130,7 @@ const PaymentScreen = ({ route, navigation }) => {
       });
 
       if (result.error) {
-        Alert.alert('Payment Failed', result.error.message || 'Payment processing failed');
+        showAlert('Payment Failed', result.error.message || 'Payment processing failed', 'danger');
         console.error('Payment error:', result.error);
         return;
       }
@@ -123,14 +139,14 @@ const PaymentScreen = ({ route, navigation }) => {
         // Navigate to success screen or update UI
         handlePaymentSuccess(result.paymentIntent);
       } else if (result.paymentIntent) {
-        Alert.alert('Payment Failed', `Payment status: ${result.paymentIntent.status}`);
+        showAlert('Payment Failed', `Payment status: ${result.paymentIntent.status}`, 'danger');
         console.error('Payment status:', result.paymentIntent.status);
       } else {
-        Alert.alert('Payment Failed', 'Unknown payment error occurred');
+        showAlert('Payment Failed', 'Unknown payment error occurred', 'danger');
         console.error('Payment error: No payment intent returned');
       }
     } catch (err) {
-      Alert.alert('Error', 'Payment processing failed');
+      showAlert('Error', 'Payment processing failed', 'danger');
       console.error('Payment error:', err);
     }
   };
@@ -143,7 +159,7 @@ const PaymentScreen = ({ route, navigation }) => {
     try {
       // Check if Apple Pay is supported
       if (!isPlatformPaySupported) {
-        Alert.alert('Apple Pay Not Available', 'Apple Pay is not supported on this device');
+        showAlert('Apple Pay Not Available', 'Apple Pay is not supported on this device', 'warning');
         return;
       }
 
@@ -152,7 +168,7 @@ const PaymentScreen = ({ route, navigation }) => {
       const paymentIntentData = await createPaymentIntent(totalInCents);
 
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
-        Alert.alert('Error', 'Failed to get payment intent from server');
+        showAlert('Error', 'Failed to get payment intent from server', 'danger');
         console.error('Missing client secret for Apple Pay:', paymentIntentData);
         return;
       }
@@ -179,14 +195,14 @@ const PaymentScreen = ({ route, navigation }) => {
 
       if (error) {
         console.log('Apple Pay Failed:', error);
-        Alert.alert('Apple Pay Failed', error.message);
+        showAlert('Apple Pay Failed', error.message, 'danger');
       } else {
-        Alert.alert('Success', 'Apple Pay payment completed!');
+        showAlert('Success', 'Apple Pay payment completed!', 'success');
         handlePaymentSuccess(paymentIntentData);
       }
     } catch (err) {
       console.log('Apple Pay Error:', err);
-      Alert.alert('Error', 'Apple Pay failed: ' + err.message);
+      showAlert('Error', 'Apple Pay failed: ' + err.message, 'danger');
     }
   };
 
@@ -203,7 +219,7 @@ const PaymentScreen = ({ route, navigation }) => {
       const paymentIntentData = await createPaymentIntent(totalInCents);
 
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
-        Alert.alert('Error', 'Failed to get payment intent from server');
+        showAlert('Error', 'Failed to get payment intent from server', 'danger');
         console.error('Missing client secret for Google Pay:', paymentIntentData);
         return;
       }
@@ -215,12 +231,12 @@ const PaymentScreen = ({ route, navigation }) => {
       });
 
       if (error) {
-        Alert.alert('Google Pay Failed', error.message);
+        showAlert('Google Pay Failed', error.message, 'danger');
       } else {
-        Alert.alert('Success', 'Google Pay payment completed!');
+        showAlert('Success', 'Google Pay payment completed!', 'success');
       }
     } catch (err) {
-      Alert.alert('Error', 'Google Pay failed');
+      showAlert('Error', 'Google Pay failed', 'danger');
     }
   };
 
@@ -259,7 +275,7 @@ const PaymentScreen = ({ route, navigation }) => {
       }
     } catch (error) {
       console.error('Error creating orders:', error);
-      Alert.alert('Order Error', 'Failed to create your order. Please try again.');
+      showAlert('Order Error', 'Failed to create your order. Please try again.', 'danger');
     }
   };
 

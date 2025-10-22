@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -104,6 +104,48 @@ const AddAddressForm = ({ navigation }) => {
   const [submittedAddressMarker, setSubmittedAddressMarker] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const mapRef = useRef(null);
+
+  // Inject CSS for web to ensure dropdowns render on top
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const styleId = 'add-address-dropdown-styles';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          /* Ensure dropdown lists render on top of everything */
+          [data-dropdown-list] {
+            position: absolute !important;
+            z-index: 9999 !important;
+            isolation: isolate !important;
+          }
+          
+          /* Ensure dropdown containers create proper stacking context */
+          [data-dropdown-container] {
+            position: relative !important;
+            isolation: isolate !important;
+          }
+          
+          /* Ensure dropdown items are interactive */
+          [data-dropdown-item] {
+            cursor: pointer !important;
+          }
+          
+          [data-dropdown-item]:hover {
+            background-color: #f5f5f5 !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      return () => {
+        const existingStyle = document.getElementById(styleId);
+        if (existingStyle) {
+          existingStyle.remove();
+        }
+      };
+    }
+  }, []);
 
   // Function to parse latlong string from response
   const parseLatLong = (latlongString) => {
@@ -235,20 +277,30 @@ const AddAddressForm = ({ navigation }) => {
     }
   };
 
-  const renderDropdown = (items, selectedValue, onSelect, placeholder) => (
-    <View style={styles.dropdownContainer}>
-      <TouchableOpacity
-        style={[styles.dropdownButton, errors[placeholder.toLowerCase()] && styles.errorInput]}
-        onPress={() => {
-          if (placeholder === 'Building Type') {
-            setShowBuildingTypeDropdown(!showBuildingTypeDropdown);
-            setShowStateDropdown(false);
-          } else if (placeholder === 'State') {
-            setShowStateDropdown(!showStateDropdown);
-            setShowBuildingTypeDropdown(false);
-          }
-        }}
+  const renderDropdown = (items, selectedValue, onSelect, placeholder) => {
+    const isOpen = (placeholder === 'Building Type' && showBuildingTypeDropdown) || 
+                   (placeholder === 'State' && showStateDropdown);
+    
+    return (
+      <View 
+        style={[
+          styles.dropdownContainer,
+          isOpen && Platform.OS === 'web' && { zIndex: 10000 }
+        ]}
+        {...(Platform.OS === 'web' && { 'data-dropdown-container': true })}
       >
+        <TouchableOpacity
+          style={[styles.dropdownButton, errors[placeholder.toLowerCase()] && styles.errorInput]}
+          onPress={() => {
+            if (placeholder === 'Building Type') {
+              setShowBuildingTypeDropdown(!showBuildingTypeDropdown);
+              setShowStateDropdown(false);
+            } else if (placeholder === 'State') {
+              setShowStateDropdown(!showStateDropdown);
+              setShowBuildingTypeDropdown(false);
+            }
+          }}
+        >
         <Text style={[styles.dropdownText, !selectedValue && styles.placeholderText]}>
           {selectedValue ? items.find(item => item.code === selectedValue || item.value === selectedValue)?.name || selectedValue : placeholder}
         </Text>
@@ -257,7 +309,10 @@ const AddAddressForm = ({ navigation }) => {
 
       {(showBuildingTypeDropdown && placeholder === 'Building Type') ||
        (showStateDropdown && placeholder === 'State') ? (
-        <View style={styles.dropdownList}>
+        <View 
+          style={styles.dropdownList}
+          {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
+        >
           <ScrollView style={styles.dropdownScrollView}>
             {items.map((item, index) => (
               <TouchableOpacity
@@ -268,6 +323,7 @@ const AddAddressForm = ({ navigation }) => {
                   setShowBuildingTypeDropdown(false);
                   setShowStateDropdown(false);
                 }}
+                {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
               >
                 <Text style={styles.dropdownItemText}>
                   {placeholder === 'State' ? item.code : item.name || item.label}
@@ -277,8 +333,9 @@ const AddAddressForm = ({ navigation }) => {
           </ScrollView>
         </View>
       ) : null}
-    </View>
-  );
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -488,6 +545,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
     overflow: 'scroll',
+    ...Platform.select({
+      web: {
+        height: '100vh',
+        overflow: 'scroll',
+      },
+    }),
   },
   topBackButton: {
     position: 'absolute',
@@ -543,7 +606,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         paddingTop: 150,
-        overflow: 'scroll',
+        paddingBottom: 40,
       },
     }),
   },
@@ -582,6 +645,11 @@ const styles = StyleSheet.create({
   dropdownContainer: {
     position: 'relative',
     zIndex: 1000,
+    ...Platform.select({
+      web: {
+        zIndex: 1000,
+      },
+    }),
   },
   dropdownButton: {
     borderWidth: 1,
@@ -593,6 +661,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        userSelect: 'none',
+      },
+    }),
   },
   dropdownText: {
     fontSize: 16,
@@ -615,6 +689,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
     maxHeight: 200,
     zIndex: 1001,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        zIndex: 9999,
+        position: 'absolute',
+      },
+    }),
   },
   dropdownScrollView: {
     maxHeight: 200,
@@ -624,6 +705,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        transition: 'background-color 0.2s ease',
+      },
+    }),
   },
   dropdownItemText: {
     fontSize: 16,
