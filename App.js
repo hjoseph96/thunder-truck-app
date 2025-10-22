@@ -232,16 +232,17 @@ export default function App() {
 
   // Deep linking configuration for web URLs
   // Enables proper URL routing with browser history and deep links
+  // Note: We check authentication state to determine if root should go to ExplorerHome or LandingPage
   const linking = Platform.OS === 'web' ? {
     prefixes: ['https://web.thundertruck.app', 'http://localhost:8081', 'http://localhost:19006'],
     config: {
       screens: {
-        LandingPage: 'welcome',
+        LandingPage: '',  // Root path for unauthenticated users
         SignIn: 'signin',
         SignUp: 'signup',
         VerifyOTP: 'verify',
         MarkdownViewer: 'document/:documentType',
-        ExplorerHome: '',
+        ExplorerHome: 'home',  // Changed from '' to 'home' to avoid conflict
         MapPage: 'map',
         FoodTypeViewer: 'food-types/:foodTypeId',
         FoodTruckViewer: 'vendor/:foodTruckId',
