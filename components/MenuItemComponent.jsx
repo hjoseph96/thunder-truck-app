@@ -16,7 +16,8 @@ const MenuItemComponent = ({
   onPress,
   onAddToCart,
   navigation,
-  menuItem
+  menuItem,
+  fullHeight = false
 }) => {
   const [scaleValue] = useState(new Animated.Value(1));
   const [imageLoading, setImageLoading] = useState(true);
@@ -110,7 +111,7 @@ const MenuItemComponent = ({
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, fullHeight && styles.fullHeightContainer]}
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
@@ -195,6 +196,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  fullHeightContainer: {
+    height: '100%',
+    minHeight: 'auto',
   },
   textContainer: {
     flex: 1,
