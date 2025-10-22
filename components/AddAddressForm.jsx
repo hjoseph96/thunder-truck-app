@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -356,10 +355,6 @@ const AddAddressForm = ({ navigation }) => {
           style={styles.dropdownList}
           {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
         >
-        <View 
-          style={styles.dropdownList}
-          {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
-        >
           <ScrollView style={styles.dropdownScrollView}>
             {items.map((item, index) => (
               <TouchableOpacity
@@ -371,10 +366,9 @@ const AddAddressForm = ({ navigation }) => {
                   setShowStateDropdown(false);
                 }}
                 {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
-                {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
               >
                 <Text style={styles.dropdownItemText}>
-                  {item.name || item.label}
+                  {placeholder === 'State' ? item.code : item.name || item.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -673,7 +667,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     flex: 1,
-<<<<<<< HEAD
     ...Platform.select({
       web: {
         position: 'absolute',
@@ -703,14 +696,7 @@ const styles = StyleSheet.create({
       },
       default: {
         flexGrow: 1,
-=======
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    ...Platform.select({
-      web: {
-        paddingTop: 150,
-        paddingBottom: 40,
-      },
+      }
     }),
   },
   fieldContainer: {
