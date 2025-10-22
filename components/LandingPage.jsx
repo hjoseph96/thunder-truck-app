@@ -38,7 +38,7 @@ export default function LandingPage({ navigation }) {
               styles.stripe,
               {
                 left: index * 40 - 100,
-                backgroundColor: '#D4A574', // Light brown stripes
+                backgroundColor: '#FCD11d', // Light brown stripes
               },
             ]}
           />
@@ -54,7 +54,7 @@ export default function LandingPage({ navigation }) {
           />
 
           <Image
-            source={require('../assets/images/thunder-truck-hero-image.png')}
+            source={require('../assets/images/thundertruck_emblem.png')}
             style={styles.logoImage}
             resizeMode="cover"
           />
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   arrowText: {
-    color: '#D4A574', // Light brown arrow to match stripes
+    color: '#D97706', // Dark orange/gold arrow to match stripes
     fontSize: 32,
     fontWeight: 'bold',
   },

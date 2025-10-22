@@ -114,13 +114,14 @@ export default function App() {
       try {
         const authenticated = await isAuthenticated();
         console.log('Auth check on startup:', authenticated);
+        debugger
         
         if (authenticated) {
           // User has valid token, go directly to ExplorerHome
           setInitialRoute('ExplorerHome');
         } else {
           // No token found, show LandingPage
-          setInitialRoute('LandingPage');
+          navigationRef.current.navigate('LandingPage');
         }
       } catch (error) {
         console.error('Error checking authentication:', error);
@@ -132,6 +133,25 @@ export default function App() {
     };
     
     checkAuth();
+
+    // On web, listen for localStorage changes (e.g., when user clears storage)
+    // Note: storage event only fires for changes in OTHER tabs
+    // For same-tab changes, we rely on proper logout flow using clearAuthData()
+    if (Platform.OS === 'web') {
+      const handleStorageChange = async (e) => {
+        // Check if token was removed in another tab
+        if (e.key === 'thunder_truck_jwt_token' && !e.newValue) {
+          console.log('Token removed from localStorage (other tab), reloading page');
+          window.location.reload();
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+      };
+    }
   }, []);
 
   // Inject Google Fonts for web platform to support Inter and Poppins fonts
