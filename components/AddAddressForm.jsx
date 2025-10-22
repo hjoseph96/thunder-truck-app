@@ -274,7 +274,7 @@ const AddAddressForm = ({ navigation }) => {
                 }}
               >
                 <Text style={styles.dropdownItemText}>
-                  {placeholder === 'State' ? item.code : item.name || item.label}
+                  {item.name || item.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -600,18 +600,22 @@ const styles = StyleSheet.create({
   },
   fieldContainer: {
     marginBottom: 16,
-    position: 'relative',
-    zIndex: 1,
+    overflow: 'visible',
   },
   fieldContainerActive: {
+    position: 'relative',
     zIndex: 100,
+    overflow: 'visible',
   },
   rowContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    position: 'relative',
+    zIndex: 1,
   },
   halfWidth: {
     width: '48%',
+    overflow: 'visible',
   },
   fieldLabel: {
     fontSize: 16,
@@ -637,11 +641,6 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     position: 'relative',
-    ...(Platform.OS === 'web' ? {
-      zIndex: 'auto',
-    } : {
-      zIndex: 1000,
-    }),
   },
   dropdownContainerActive: {
     zIndex: 1000,
@@ -698,6 +697,7 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
+    width: '100%',
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ddd',
@@ -706,6 +706,11 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
     maxHeight: 200,
     zIndex: 1001,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
   },
   dropdownScrollView: {
     maxHeight: 200,
