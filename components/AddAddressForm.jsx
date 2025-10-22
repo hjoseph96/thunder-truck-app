@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Map from './Map';
@@ -234,8 +235,12 @@ const AddAddressForm = ({ navigation }) => {
     }
   };
 
-  const renderDropdown = (items, selectedValue, onSelect, placeholder) => (
-    <View style={styles.dropdownContainer}>
+  const renderDropdown = (items, selectedValue, onSelect, placeholder) => {
+    const isOpen = (placeholder === 'Building Type' && showBuildingTypeDropdown) || 
+                   (placeholder === 'State' && showStateDropdown);
+    
+    return (
+      <View style={[styles.dropdownContainer, isOpen && styles.dropdownContainerActive]}>
       <TouchableOpacity
         style={[styles.dropdownButton, errors[placeholder.toLowerCase()] && styles.errorInput]}
         onPress={() => {
@@ -277,7 +282,8 @@ const AddAddressForm = ({ navigation }) => {
         </View>
       ) : null}
     </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -291,7 +297,7 @@ const AddAddressForm = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Header with Map */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Add Address</Text>
@@ -329,9 +335,14 @@ const AddAddressForm = ({ navigation }) => {
       )}
 
       {/* Form Section */}
-      <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.formContainer} 
+        contentContainerStyle={styles.formContentContainer}
+        showsVerticalScrollIndicator={Platform.OS === 'web'}
+        nestedScrollEnabled
+      >
         {/* Building Type */}
-        <View style={styles.fieldContainer}>
+        <View style={[styles.fieldContainer, showBuildingTypeDropdown && styles.fieldContainerActive]}>
           <Text style={styles.fieldLabel}>Building Type *</Text>
           {renderDropdown(
             buildingTypes,
@@ -394,7 +405,7 @@ const AddAddressForm = ({ navigation }) => {
 
         {/* State and ZIP Row */}
         <View style={styles.rowContainer}>
-          <View style={[styles.fieldContainer, styles.halfWidth]}>
+          <View style={[styles.fieldContainer, styles.halfWidth, showStateDropdown && styles.fieldContainerActive]}>
             <Text style={styles.fieldLabel}>State *</Text>
             {renderDropdown(
               US_STATES,
@@ -486,6 +497,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: '100%',
+        overflow: 'hidden',
+      },
+    }),
   },
   topBackButton: {
     position: 'absolute',
@@ -513,6 +533,11 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 16,
     backgroundColor: '#FB9C12',
+    ...Platform.select({
+      web: {
+        height: 82, // 50 + 16 + 16 (title height)
+      },
+    }),
   },
   backButton: {
     padding: 8,
@@ -533,14 +558,53 @@ const styles = StyleSheet.create({
   mapContainer: {
     height: 200,
     backgroundColor: '#e0e0e0',
+    ...Platform.select({
+      web: {
+        marginBottom: 20,
+      },
+    }),
   },
   formContainer: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        top: 402, // header (82) + map (300 actual rendered height) + margin (20)
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        paddingHorizontal: 16,
+        paddingTop: 20,
+      },
+      default: {
+        paddingHorizontal: 16,
+        paddingTop: 20,
+        paddingBottom: 100,
+      },
+    }),
+  },
+  formContentContainer: {
+    ...Platform.select({
+      web: {
+        paddingBottom: 40,
+        minHeight: '100%',
+        paddingTop: 0,
+      },
+      default: {
+        flexGrow: 1,
+      },
+    }),
   },
   fieldContainer: {
     marginBottom: 16,
+    position: 'relative',
+    zIndex: 1,
+  },
+  fieldContainerActive: {
+    zIndex: 100,
   },
   rowContainer: {
     flexDirection: 'row',
@@ -573,6 +637,13 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     position: 'relative',
+    ...(Platform.OS === 'web' ? {
+      zIndex: 'auto',
+    } : {
+      zIndex: 1000,
+    }),
+  },
+  dropdownContainerActive: {
     zIndex: 1000,
   },
   dropdownButton: {
@@ -594,6 +665,34 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#999',
   },
+  dropdownOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 9998,
+  },
+  dropdownListWeb: {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    maxHeight: 400,
+    width: '80%',
+    maxWidth: 500,
+    zIndex: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   dropdownList: {
     position: 'absolute',
     top: '100%',
@@ -610,6 +709,9 @@ const styles = StyleSheet.create({
   },
   dropdownScrollView: {
     maxHeight: 200,
+    ...(Platform.OS === 'web' && {
+      maxHeight: 400,
+    }),
   },
   dropdownItem: {
     paddingHorizontal: 16,
