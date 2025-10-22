@@ -103,7 +103,11 @@ const AddAddressForm = ({ navigation }) => {
   const [showStateDropdown, setShowStateDropdown] = useState(false);
   const [submittedAddressMarker, setSubmittedAddressMarker] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [keyboardBuffer, setKeyboardBuffer] = useState('');
+  const [highlightedStateIndex, setHighlightedStateIndex] = useState(-1);
   const mapRef = useRef(null);
+  const stateScrollViewRef = useRef(null);
+  const keyboardTimerRef = useRef(null);
 
   // Inject CSS for web to ensure dropdowns render on top
   useEffect(() => {
@@ -188,6 +192,75 @@ const AddAddressForm = ({ navigation }) => {
       };
     }
   }, []);
+
+  // Keyboard navigation for State dropdown
+  useEffect(() => {
+    if (Platform.OS === 'web' && showStateDropdown && typeof document !== 'undefined') {
+      const handleKeyDown = (e) => {
+        // Only handle letter keys and Enter
+        if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+          e.preventDefault();
+          
+          // Clear previous timer
+          if (keyboardTimerRef.current) {
+            clearTimeout(keyboardTimerRef.current);
+          }
+          
+          // Add to keyboard buffer
+          const newBuffer = keyboardBuffer + e.key.toLowerCase();
+          setKeyboardBuffer(newBuffer);
+          
+          // Find first state that starts with the buffer
+          const matchIndex = US_STATES.findIndex(state => 
+            state.code.toLowerCase().startsWith(newBuffer)
+          );
+          
+          if (matchIndex !== -1) {
+            setHighlightedStateIndex(matchIndex);
+          }
+          
+          // Clear buffer after 1 second of no typing
+          keyboardTimerRef.current = setTimeout(() => {
+            setKeyboardBuffer('');
+          }, 1000);
+        } else if (e.key === 'Enter' && highlightedStateIndex !== -1) {
+          e.preventDefault();
+          const selectedState = US_STATES[highlightedStateIndex];
+          handleInputChange('state', selectedState.code);
+          setShowStateDropdown(false);
+          setHighlightedStateIndex(-1);
+          setKeyboardBuffer('');
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          setShowStateDropdown(false);
+          setHighlightedStateIndex(-1);
+          setKeyboardBuffer('');
+        }
+      };
+      
+      document.addEventListener('keydown', handleKeyDown);
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+        if (keyboardTimerRef.current) {
+          clearTimeout(keyboardTimerRef.current);
+        }
+      };
+    }
+  }, [showStateDropdown, keyboardBuffer, highlightedStateIndex]);
+
+  // Auto-scroll to highlighted state
+  useEffect(() => {
+    if (highlightedStateIndex !== -1 && stateScrollViewRef.current && Platform.OS === 'web') {
+      // Scroll to the highlighted item
+      const itemHeight = 48; // Approximate height of each dropdown item
+      const scrollPosition = highlightedStateIndex * itemHeight;
+      
+      if (stateScrollViewRef.current.scrollTo) {
+        stateScrollViewRef.current.scrollTo({ y: scrollPosition, animated: true });
+      }
+    }
+  }, [highlightedStateIndex]);
 
   // Function to parse latlong string from response
   const parseLatLong = (latlongString) => {
@@ -322,6 +395,7 @@ const AddAddressForm = ({ navigation }) => {
   const renderDropdown = (items, selectedValue, onSelect, placeholder) => {
     const isOpen = (placeholder === 'Building Type' && showBuildingTypeDropdown) || 
                    (placeholder === 'State' && showStateDropdown);
+    const isStateDropdown = placeholder === 'State';
     
     return (
       <View 
@@ -337,9 +411,16 @@ const AddAddressForm = ({ navigation }) => {
             if (placeholder === 'Building Type') {
               setShowBuildingTypeDropdown(!showBuildingTypeDropdown);
               setShowStateDropdown(false);
+              setHighlightedStateIndex(-1);
+              setKeyboardBuffer('');
             } else if (placeholder === 'State') {
               setShowStateDropdown(!showStateDropdown);
               setShowBuildingTypeDropdown(false);
+              if (!showStateDropdown) {
+                // Opening dropdown, reset keyboard state
+                setHighlightedStateIndex(-1);
+                setKeyboardBuffer('');
+              }
             }
           }}
         >
@@ -355,23 +436,37 @@ const AddAddressForm = ({ navigation }) => {
           style={styles.dropdownList}
           {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
         >
-          <ScrollView style={styles.dropdownScrollView}>
-            {items.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.dropdownItem}
-                onPress={() => {
-                  onSelect(item.code || item.value);
-                  setShowBuildingTypeDropdown(false);
-                  setShowStateDropdown(false);
-                }}
-                {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
-              >
-                <Text style={styles.dropdownItemText}>
-                  {placeholder === 'State' ? item.code : item.name || item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <ScrollView 
+            style={styles.dropdownScrollView}
+            ref={isStateDropdown ? stateScrollViewRef : null}
+          >
+            {items.map((item, index) => {
+              const isHighlighted = isStateDropdown && highlightedStateIndex === index;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.dropdownItem,
+                    isHighlighted && styles.dropdownItemHighlighted
+                  ]}
+                  onPress={() => {
+                    onSelect(item.code || item.value);
+                    setShowBuildingTypeDropdown(false);
+                    setShowStateDropdown(false);
+                    setHighlightedStateIndex(-1);
+                    setKeyboardBuffer('');
+                  }}
+                  {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
+                >
+                  <Text style={[
+                    styles.dropdownItemText,
+                    isHighlighted && styles.dropdownItemTextHighlighted
+                  ]}>
+                    {placeholder === 'State' ? item.code : item.name || item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       ) : null}
@@ -855,10 +950,12 @@ const styles = StyleSheet.create({
         transition: 'background-color 0.2s ease',
       },
     }),
+  },
+  dropdownItemHighlighted: {
+    backgroundColor: '#F9B319',
     ...Platform.select({
       web: {
-        cursor: 'pointer',
-        transition: 'background-color 0.2s ease',
+        backgroundColor: '#F9B319',
       },
     }),
   },
@@ -866,6 +963,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#132a13',
     fontFamily: 'Cairo',
+  },
+  dropdownItemTextHighlighted: {
+    color: '#000',
+    fontWeight: '600',
   },
   disabledInput: {
     backgroundColor: '#f5f5f5',
