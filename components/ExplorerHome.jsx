@@ -67,6 +67,11 @@ export default function ExplorerHome({ navigation }) {
 
       if (user?.userAddresses?.length > 0 && !selectedAddress) {
         const defaultAddress = user.userAddresses.find(address => address.isDefault);
+
+        if (!defaultAddress) {
+          defaultAddress = user.userAddresses[0];
+        }
+
         setSelectedAddress(defaultAddress);
       }
 
