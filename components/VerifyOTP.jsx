@@ -281,10 +281,18 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     ...Platform.select({
       web: {
-        paddingTop: 120,
-        marginHorizontal: 555
+        maxWidth: 500,
+        width: '100%',
+        marginHorizontal: 'auto',
+        marginTop: 80,
+        marginBottom: 40,
+        backgroundColor: '#eee',
+        borderRadius: 16,
+        padding: 40,
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06)',
+        alignSelf: 'center',
       },
-    })
+    }),
   },
   titleText: {
     fontSize: 32,

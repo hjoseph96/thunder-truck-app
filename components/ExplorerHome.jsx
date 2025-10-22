@@ -606,7 +606,8 @@ const styles = StyleSheet.create({
     width: '100%',
     ...Platform.select({
       web: {
-        margin: '100px 0',
+        marginTop: 100,
+        marginBottom: 100,
         minHeight: '50vh',
         display: 'flex',
         alignItems: 'center',
