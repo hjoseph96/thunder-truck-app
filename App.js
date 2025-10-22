@@ -114,13 +114,13 @@ export default function App() {
       try {
         const authenticated = await isAuthenticated();
         console.log('Auth check on startup:', authenticated);
-        debugger
         
         if (authenticated) {
           // User has valid token, go directly to ExplorerHome
           setInitialRoute('ExplorerHome');
         } else {
           // No token found, show LandingPage
+          setInitialRoute('LandingPage');
           navigationRef.current.navigate('LandingPage');
         }
       } catch (error) {
