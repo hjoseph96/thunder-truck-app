@@ -564,6 +564,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
       },
     }),
+    overflow: 'scroll',
   },
   topBackButton: {
     position: 'absolute',
@@ -624,6 +625,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     flex: 1,
+<<<<<<< HEAD
     ...Platform.select({
       web: {
         position: 'absolute',
@@ -653,6 +655,14 @@ const styles = StyleSheet.create({
       },
       default: {
         flexGrow: 1,
+=======
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    ...Platform.select({
+      web: {
+        paddingTop: 150,
+        overflow: 'scroll',
+>>>>>>> e0e2510 (feat(stripe): Get Stripe working for web version)
       },
     }),
   },
