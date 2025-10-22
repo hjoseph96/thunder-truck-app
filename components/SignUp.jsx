@@ -207,7 +207,14 @@ export default function SignUp({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fecd15',
+    ...Platform.select({
+      web: {
+        backgroundColor: '#f5f7fa',
+      },
+      default: {
+        backgroundColor: '#fecd15',
+      },
+    }),
   },
   header: {
     backgroundColor: '#28282B',
