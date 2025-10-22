@@ -25,7 +25,7 @@ export default function FoodTruckViewer({ navigation, route }) {
   const [foodTruck, setFoodTruck] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Cart-related state
   const [cartData, setCartData] = useState(null);
   const [cartLoading, setCartLoading] = useState(false);
@@ -46,9 +46,9 @@ export default function FoodTruckViewer({ navigation, route }) {
       // Fetch complete food truck data using GraphQL by ID
       const data = await getFoodTruckWithCache(foodTruckId);
       console.log('Food truck data loaded:', data);
-      
+
       setFoodTruck(data);
-      
+
       // Update navigation params for page title on web
       if (Platform.OS === 'web' && data?.name) {
         navigation.setParams({ foodTruckName: data.name });
@@ -65,7 +65,7 @@ export default function FoodTruckViewer({ navigation, route }) {
     try {
       setCartLoading(true);
       const cart = await getCart(foodTruckId);
-      
+
       console.log('Loaded Cart Data: ', cart);
       setCartData(cart);
     } catch (error) {
@@ -113,11 +113,11 @@ export default function FoodTruckViewer({ navigation, route }) {
   const handleAddToCart = async (menuItem) => {
     try {
       setCartLoading(true);
-      
+
       // Add menu item to cart (no options for now, can be extended later)
       const cartItemOptions = [];
       await addMenuItemToCart(menuItem.id, cartItemOptions);
-      
+
       // Reload cart data to get updated cart
       const updatedCart = await getCart(foodTruckId);
 
@@ -159,8 +159,8 @@ export default function FoodTruckViewer({ navigation, route }) {
             </Text>
           </View>
         </View>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.featuredScrollContent}
         >
@@ -176,6 +176,7 @@ export default function FoodTruckViewer({ navigation, route }) {
                 onAddToCart={() => handleAddToCart(item)}
                 navigation={navigation}
                 menuItem={{...item, foodTruckId: foodTruck.id}}
+                fullHeight={Platform.OS === 'web'}
               />
             </View>
           ))}
@@ -193,10 +194,10 @@ export default function FoodTruckViewer({ navigation, route }) {
         {foodTruck.menu.categories.map((category) => {
           // Filter menu items to only show those with coverImageUrl
           const itemsWithImages = category.menuItems.filter(item => item.coverImageUrl !== null);
-          
+
           // Only render category if it has items with images
           if (itemsWithImages.length === 0) return null;
-          
+
           return (
             <View key={category.id} style={styles.categorySection}>
               <View style={styles.categoryHeader}>
@@ -268,21 +269,21 @@ export default function FoodTruckViewer({ navigation, route }) {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header with Cover Image */}
       <View style={styles.header}>
         <Image
-          source={{ 
+          source={{
             uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/400x200/cccccc/666666?text=No+Cover+Image'
           }}
           style={styles.coverImage}
           resizeMode="cover"
         />
-        
+
         {/* Logo Circle */}
         <View style={styles.logoContainer}>
           <Image
-            source={{ 
+            source={{
               uri: foodTruck.logoUrl || 'https://via.placeholder.com/80x80/cccccc/666666?text=Logo'
             }}
             style={styles.logoImage}
@@ -298,7 +299,7 @@ export default function FoodTruckViewer({ navigation, route }) {
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
-          
+
           <View style={styles.headerInfo}>
             <Text style={styles.foodTruckName}>{foodTruck.name}</Text>
             <View style={styles.foodTruckMeta}>
@@ -585,11 +586,31 @@ const styles = StyleSheet.create({
   },
   featuredScrollContent: {
     paddingHorizontal: 5,
+    paddingVertical: 10,
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'row',
+        gap: 15,
+        alignItems: 'stretch', // Make all items same height
+      },
+    }),
   },
   featuredItemWrapper: {
     width: screenWidth * 0.8,
     marginRight: 15,
     alignItems: 'center',
+    ...Platform.select({
+      web: {
+        width: 'calc(25% - 12px)', // 4 items per row (25% each minus gap)
+        minWidth: '250px', // Minimum width for smaller screens
+        maxWidth: '300px', // Maximum width to prevent items from being too large
+        marginRight: 0, // Remove marginRight on web since we use gap
+        flex: '0 0 auto', // Don't grow or shrink, maintain size
+        display: 'flex',
+        flexDirection: 'column',
+      },
+    }),
   },
   featuredItemCategory: {
     fontSize: 12,
@@ -715,4 +736,3 @@ const styles = StyleSheet.create({
     }),
   },
 });
-
