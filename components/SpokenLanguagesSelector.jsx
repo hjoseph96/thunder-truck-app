@@ -24,7 +24,22 @@ const SpokenLanguagesSelector = ({ selectedLanguages, onSelectionChange, style }
     try {
       setLoading(true);
       const fetchedLanguages = await fetchSpokenLanguages();
-      setLanguages(fetchedLanguages);
+      
+      // Sort languages with English at the top
+      const sortedLanguages = fetchedLanguages.sort((a, b) => {
+        // Check if either language is English
+        const aIsEnglish = a.isoCode?.toLowerCase().startsWith('en');
+        const bIsEnglish = b.isoCode?.toLowerCase().startsWith('en');
+        
+        // If a is English, it comes first
+        if (aIsEnglish && !bIsEnglish) return -1;
+        // If b is English, it comes first
+        if (!aIsEnglish && bIsEnglish) return 1;
+        // Otherwise, sort alphabetically by name
+        return a.name.localeCompare(b.name);
+      });
+      
+      setLanguages(sortedLanguages);
     } catch (error) {
       console.error('Error loading languages:', error);
     } finally {
