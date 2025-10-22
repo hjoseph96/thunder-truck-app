@@ -121,7 +121,11 @@ export default function App() {
         } else {
           // No token found, show LandingPage
           setInitialRoute('LandingPage');
-          navigationRef.current.navigate('LandingPage');
+
+          if (navigationRef.current) {
+            await clearAuthData();
+            navigationRef.current.navigate('LandingPage');
+          }
         }
       } catch (error) {
         console.error('Error checking authentication:', error);
