@@ -33,6 +33,14 @@ export default function VerifyOTP({ navigation, route }) {
     if (text && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+    
+    // Auto-verify when all 6 digits are entered
+    if (text && index === 5) {
+      const code = newOtpCode.join('');
+      if (code.length === 6) {
+        handleVerifyOtp();
+      }
+    }
   };
 
   // Handle backspace
@@ -193,6 +201,8 @@ export default function VerifyOTP({ navigation, route }) {
               maxLength={1}
               selectTextOnFocus
               autoFocus={index === 0}
+              returnKeyType={index === 5 ? "done" : "next"}
+              onSubmitEditing={index === 5 ? handleVerifyOtp : undefined}
             />
           ))}
         </View>

@@ -163,6 +163,7 @@ export default function SignUp({ navigation }) {
               maxLength={14}
               returnKeyType="done"
               selectTextOnFocus={true}
+              onSubmitEditing={handleSignUp}
             />
           </View>
         </View>
