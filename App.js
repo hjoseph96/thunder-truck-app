@@ -28,6 +28,7 @@ import EditUserSpokenLanguages from './components/EditUserSpokenLanguages';
 import PaymentMethodManager from './components/PaymentMethodManager';
 import OrderIndexScreen from './components/OrderIndexScreen';
 import OrderDetailScreen from './components/OrderDetailScreen';
+import OrderBreakdownView from './components/OrderBreakdownView';
 
 import { toastConfig } from './config/toast-config';
 import { isAuthenticated } from './lib/token-manager';
@@ -296,6 +297,7 @@ export default function App() {
         EditUserSpokenLanguages: 'profile/languages',
         PaymentMethodManager: 'profile/payment-methods',
         OrderIndex: 'orders',
+        OrderBreakdownView: 'orders/breakdown',
         OrderDetail: 'track/:orderId',
       },
     },
@@ -475,6 +477,13 @@ export default function App() {
             component={OrderIndexScreen}
             options={{
               title: 'Orders',
+            }}
+          />
+          <Stack.Screen
+            name="OrderBreakdownView"
+            component={OrderBreakdownView}
+            options={{
+              title: 'Order Breakdown',
             }}
           />
           <Stack.Screen
