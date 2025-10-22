@@ -252,9 +252,31 @@ const PaymentScreen = ({ route, navigation }) => {
         setShowSuccessAnimation(true);
 
         setTimeout(() => {
-          navigation.navigate('OrderDetail', {
-            orderId: createdOrdersData.orderId || createdOrdersData.orders[0].id,
-          });
+          const orders = createdOrdersData.orders || [];
+          
+          // Backend returns array where:
+          // - First item (index 0) = Parent order (no foodTruck)
+          // - Remaining items (index 1+) = Individual vendor orders (have foodTruck)
+          const vendorOrders = orders.slice(1); // Skip parent order at index 0
+          
+          // Check if there are multiple vendor orders (multi-vendor purchase)
+          if (vendorOrders.length > 1) {
+            // Navigate to OrderBreakdownView with vendor order IDs only
+            const vendorOrderIds = vendorOrders.map(order => order.id);
+            navigation.navigate('OrderBreakdownView', {
+              orderIds: vendorOrderIds,
+            });
+          } else if (vendorOrders.length === 1) {
+            // Single vendor order - navigate directly to OrderDetailScreen
+            navigation.navigate('OrderDetail', {
+              orderId: vendorOrders[0].id,
+            });
+          } else {
+            // Fallback: if no vendor orders, use parent order (shouldn't happen)
+            navigation.navigate('OrderDetail', {
+              orderId: createdOrdersData.orderId || orders[0]?.id,
+            });
+          }
         }, 2000); // Wait for success animation to complete
       }
     } catch (error) {

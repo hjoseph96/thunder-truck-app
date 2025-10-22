@@ -998,7 +998,9 @@ export default function OrderDetailScreen({ route, navigation }) {
                 <Text style={styles.expandedSectionTitle}>Order Details</Text>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Order ID</Text>
-                  <Text style={styles.infoValue}>#{order.id}</Text>
+                  <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail">
+                    #{order.id.length > 12 ? `${order.id.slice(0, 8)}...${order.id.slice(-4)}` : order.id}
+                  </Text>
                 </View>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Subtotal</Text>
