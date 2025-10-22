@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Map from './Map';
@@ -486,6 +487,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    overflow: 'scroll',
   },
   topBackButton: {
     position: 'absolute',
@@ -538,6 +540,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 20,
+    ...Platform.select({
+      web: {
+        paddingTop: 150,
+        overflow: 'scroll',
+      },
+    }),
   },
   fieldContainer: {
     marginBottom: 16,
