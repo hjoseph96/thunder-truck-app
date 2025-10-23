@@ -174,10 +174,12 @@ export default function App() {
       const metaTags = [
         // Open Graph
         createMetaTag('og:type', 'website'),
-        createMetaTag('og:url', 'https://web.thundertruck.app'),
+        createMetaTag('og:url', window.location.origin),
         createMetaTag('og:title', 'ThunderTruck: Order Street Food Ahead and Track Real-Time Delivery'),
         createMetaTag('og:description', 'Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.'),
-        createMetaTag('og:image', 'https://web.thundertruck.app/images/thundertruck_icon.png'),
+        createMetaTag('og:image', `${window.location.origin}/images/thundertruck_icon.png`),
+        createMetaTag('og:image:secure_url', `${window.location.origin}/images/thundertruck_icon.png`),
+        createMetaTag('og:image:type', 'image/png'),
         createMetaTag('og:image:width', '1200'),
         createMetaTag('og:image:height', '630'),
         createMetaTag('og:image:alt', 'ThunderTruck - Order street food with real-time delivery tracking'),
@@ -186,10 +188,10 @@ export default function App() {
         
         // Twitter Card
         createMetaTag('twitter:card', 'summary_large_image', false),
-        createMetaTag('twitter:url', 'https://web.thundertruck.app', false),
+        createMetaTag('twitter:url', window.location.origin, false),
         createMetaTag('twitter:title', 'ThunderTruck: Order Street Food Ahead and Track Real-Time Delivery', false),
         createMetaTag('twitter:description', 'Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.', false),
-        createMetaTag('twitter:image', 'https://web.thundertruck.app/images/thundertruck_icon.png', false),
+        createMetaTag('twitter:image', `${window.location.origin}/images/thundertruck_icon.png`, false),
         createMetaTag('twitter:image:alt', 'ThunderTruck - Order street food with real-time delivery tracking', false),
         createMetaTag('twitter:creator', '@thundertruck', false),
         createMetaTag('twitter:site', '@thundertruck', false),
@@ -217,7 +219,7 @@ export default function App() {
       // Add canonical link
       const canonical = document.createElement('link');
       canonical.rel = 'canonical';
-      canonical.href = 'https://web.thundertruck.app';
+      canonical.href = window.location.origin;
       document.head.appendChild(canonical);
 
       // Add apple touch icon
@@ -234,8 +236,8 @@ export default function App() {
         "@type": "Organization",
         "name": "ThunderTruck",
         "alternateName": "ThunderTruck App",
-        "url": "https://web.thundertruck.app",
-        "logo": "https://web.thundertruck.app/images/thundertruck_icon.png",
+        "url": window.location.origin,
+        "logo": `${window.location.origin}/images/thundertruck_icon.png`,
         "description": "Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.",
         "slogan": "Street food, minus the lines",
         "foundingDate": "2024",
@@ -266,7 +268,7 @@ export default function App() {
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "ThunderTruck",
-        "url": "https://web.thundertruck.app",
+        "url": window.location.origin,
         "applicationCategory": "FoodApplication",
         "operatingSystem": "Web, iOS, Android",
         "offers": {
@@ -280,7 +282,7 @@ export default function App() {
           "ratingCount": "1250"
         },
         "description": "Order street food ahead and track your delivery in real time. Find food trucks near you, browse menus, and enjoy your favorites delivered to your location.",
-        "screenshot": "https://web.thundertruck.app/images/thunder-truck-hero-image.png",
+        "screenshot": `${window.location.origin}/images/thundertruck_icon.png`,
         "featureList": [
           "Real-time food truck location tracking",
           "Order ahead and skip the lines",
@@ -299,9 +301,9 @@ export default function App() {
         "@context": "https://schema.org",
         "@type": "LocalBusiness",
         "name": "ThunderTruck",
-        "image": "https://web.thundertruck.app/images/thundertruck_icon.png",
-        "@id": "https://web.thundertruck.app",
-        "url": "https://web.thundertruck.app",
+        "image": `${window.location.origin}/images/thundertruck_icon.png`,
+        "@id": window.location.origin,
+        "url": window.location.origin,
         "telephone": "+1-800-THUNDER",
         "priceRange": "$",
         "address": {

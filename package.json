@@ -8,8 +8,9 @@
     "ios": "expo run:ios",
     "ios-sim": "xcrun simctl boot 'iPhone 13 Test' && sleep 2 && open -a Simulator && sleep 3 && expo start --ios --clear",
     "web": "expo start --web",
-    "build": "expo export -p web",
-    "build:web": "expo export -p web",
+    "build": "expo export -p web && npm run copy:assets",
+    "build:web": "expo export -p web && npm run copy:assets",
+    "copy:assets": "cp -r public/* dist/",
     "serve:web": "npx serve dist"
   },
   "dependencies": {
