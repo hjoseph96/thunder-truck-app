@@ -22,6 +22,11 @@ import BottomNavigation from './BottomNavigation';
 import { getNearbyFoodTrucksWithCache, getMockLocation } from '../lib/food-trucks-service';
 import { getStoredUserData } from '../lib/token-manager';
 
+// Import CSS for web responsive grid
+if (Platform.OS === 'web') {
+  require('../assets/stylesheets/explorer-home.css');
+}
+
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Determine if running on web
@@ -342,7 +347,10 @@ export default function ExplorerHome({ navigation }) {
 
 
         {/* Food Categories */}
-        <View style={styles.categoriesContainer}>
+        <View 
+          style={styles.categoriesContainer}
+          {...(isWeb && { className: 'explorer-categories-container' })}
+        >
           {/* What's on your mind */}
           <View style={styles.questionHeader}>
             <Text style={styles.questionText}>Hungry? Let's roll.</Text>
@@ -358,7 +366,10 @@ export default function ExplorerHome({ navigation }) {
           </View>
 
           {/* Grid Layout for Food Trucks */}
-          <View style={styles.categoriesGrid}>
+          <View 
+            style={styles.categoriesGrid}
+            {...(isWeb && { className: 'explorer-grid' })}
+          >
             {loadingFoodTrucks ? (
               <View style={styles.loadingContainer}>
                 <Text style={styles.loadingText}>Loading nearby food trucks...</Text>
@@ -380,6 +391,7 @@ export default function ExplorerHome({ navigation }) {
                 <TouchableOpacity
                   key={index}
                   style={styles.categoryItem}
+                  {...(isWeb && { className: 'explorer-grid-item' })}
                   onPress={() => handleFoodTruckPress(foodTruck)}
                 >
                   <Image
@@ -704,7 +716,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
     ...Platform.select({
       web: {
-        maxWidth: 1200,
+        maxWidth: 1400,
         marginLeft: 'auto',
         marginRight: 'auto',
         width: '100%',
@@ -736,23 +748,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: 10,
-    ...Platform.select({
-      web: {
-        justifyContent: 'flex-start',
-        gap: 20,
-      },
-    }),
   },
   categoryItem: {
     width: '48%',
     alignItems: 'center',
     marginBottom: 20,
-    ...Platform.select({
-      web: {
-        width: 'calc(25% - 15px)',
-        minWidth: 180,
-      },
-    }),
   },
   categoryImage: {
     width: '100%',
