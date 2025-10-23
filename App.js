@@ -29,6 +29,7 @@ import PaymentMethodManager from './components/PaymentMethodManager';
 import OrderIndexScreen from './components/OrderIndexScreen';
 import OrderDetailScreen from './components/OrderDetailScreen';
 import OrderBreakdownView from './components/OrderBreakdownView';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import { toastConfig } from './config/toast-config';
 import { isAuthenticated } from './lib/token-manager';
@@ -382,117 +383,141 @@ export default function App() {
           />
           <Stack.Screen
             name="ExplorerHome"
-            component={ExplorerHome}
             options={{
               title: 'ThunderTruck',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={ExplorerHome} />}
+          </Stack.Screen>
           <Stack.Screen
             name="MapPage"
-            component={MapPage}
             options={{
               title: 'Discover',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={MapPage} />}
+          </Stack.Screen>
           <Stack.Screen
             name="FoodTypeViewer"
-            component={FoodTypeViewer}
             options={{
               title: 'Food Types',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={FoodTypeViewer} />}
+          </Stack.Screen>
           <Stack.Screen
             name="FoodTruckViewer"
-            component={FoodTruckViewer}
             options={{
               title: 'Food Truck',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={FoodTruckViewer} />}
+          </Stack.Screen>
           <Stack.Screen
             name="MenuItemViewer"
-            component={MenuItemViewer}
             options={{
               title: 'Menu',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={MenuItemViewer} />}
+          </Stack.Screen>
           <Stack.Screen
             name="PaymentScreen"
-            component={PaymentScreen}
             options={{
               title: 'Payment',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={PaymentScreen} />}
+          </Stack.Screen>
           <Stack.Screen
             name="CheckoutForm"
-            component={CheckoutForm}
             options={{
               title: 'Cart',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={CheckoutForm} />}
+          </Stack.Screen>
           <Stack.Screen
             name="AddAddressForm"
-            component={AddAddressForm}
             options={{
               title: 'Add Address',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={AddAddressForm} />}
+          </Stack.Screen>
           <Stack.Screen
             name="UserAddressList"
-            component={UserAddressList}
             options={{
               title: 'Select Address',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={UserAddressList} />}
+          </Stack.Screen>
 
           <Stack.Screen
             name="EditUserName"
-            component={EditUserName}
             options={{
               title: 'Your Name',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={EditUserName} />}
+          </Stack.Screen>
           <Stack.Screen
             name="EditUserPhoneNumber"
-            component={EditUserPhoneNumber}
             options={{
               title: 'Your Phone Number',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={EditUserPhoneNumber} />}
+          </Stack.Screen>
           <Stack.Screen
             name="EditUserEmail"
-            component={EditUserEmail}
             options={{
               title: 'Your Email',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={EditUserEmail} />}
+          </Stack.Screen>
           <Stack.Screen
             name="EditUserSpokenLanguages"
-            component={EditUserSpokenLanguages}
             options={{
               title: 'Your Languages',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={EditUserSpokenLanguages} />}
+          </Stack.Screen>
           <Stack.Screen
             name="OrderIndex"
-            component={OrderIndexScreen}
             options={{
               title: 'Orders',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={OrderIndexScreen} />}
+          </Stack.Screen>
           <Stack.Screen
             name="OrderBreakdownView"
-            component={OrderBreakdownView}
             options={{
               title: 'Order Breakdown',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={OrderBreakdownView} />}
+          </Stack.Screen>
           <Stack.Screen
             name="OrderDetail"
-            component={OrderDetailScreen}
             options={{
               title: 'Order Details',
             }}
-          />
+          >
+            {(props) => <ProtectedRoute {...props} component={OrderDetailScreen} />}
+          </Stack.Screen>
+          <Stack.Screen
+            name="PaymentMethodManager"
+            options={{
+              title: 'Payment Methods',
+            }}
+          >
+            {(props) => <ProtectedRoute {...props} component={PaymentMethodManager} />}
+          </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />

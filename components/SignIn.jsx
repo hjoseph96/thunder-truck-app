@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { authService } from '../lib/api-service';
-import { storeToken, storeUserData } from '../lib/token-manager';
+import { storeToken, storeUserData, isAuthenticated } from '../lib/token-manager';
 import { resetSessionExpiration } from '../lib/session-manager';
 
 const { width, height } = Dimensions.get('window');
@@ -21,6 +21,26 @@ export default function SignIn({ navigation, route }) {
   
   // Check for session expired message
   const sessionMessage = route?.params?.message;
+
+  // Redirect authenticated users to home
+  useEffect(() => {
+    // Only redirect if there's NO session expired message
+    // (user was explicitly logged out)
+    if (!sessionMessage) {
+      const checkAuthAndRedirect = async () => {
+        try {
+          const authenticated = await isAuthenticated();
+          if (authenticated) {
+            navigation.replace('ExplorerHome');
+          }
+        } catch (error) {
+          console.error('Error checking authentication:', error);
+        }
+      };
+
+      checkAuthAndRedirect();
+    }
+  }, [navigation, sessionMessage]);
 
   // Format phone number for display
   const formatPhoneNumber = (number) => {

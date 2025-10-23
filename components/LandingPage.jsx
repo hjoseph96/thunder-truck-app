@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, Image, Text, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { isAuthenticated } from '../lib/token-manager';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -25,6 +26,24 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 }
 
 export default function LandingPage({ navigation }) {
+  // Redirect authenticated users to home
+  useEffect(() => {
+    const checkAuthAndRedirect = async () => {
+      try {
+        const authenticated = await isAuthenticated();
+        if (authenticated) {
+          // User is already signed in, redirect to home
+          navigation.replace('ExplorerHome');
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        // If error, stay on landing page
+      }
+    };
+
+    checkAuthAndRedirect();
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,31 @@ import {
 } from 'react-native';
 import { authService } from '../lib/api-service';
 import { getMarkdownContent } from '../lib/markdown-loader';
+import { isAuthenticated } from '../lib/token-manager';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignUp({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect authenticated users to home
+  useEffect(() => {
+    const checkAuthAndRedirect = async () => {
+      try {
+        const authenticated = await isAuthenticated();
+        if (authenticated) {
+          // User is already signed in, redirect to home
+          navigation.replace('ExplorerHome');
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        // If error, stay on signup page
+      }
+    };
+
+    checkAuthAndRedirect();
+  }, [navigation]);
 
   // Format phone number for display
   const formatPhoneNumber = (number) => {
