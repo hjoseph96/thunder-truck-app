@@ -8,9 +8,10 @@
     "ios": "expo run:ios",
     "ios-sim": "xcrun simctl boot 'iPhone 13 Test' && sleep 2 && open -a Simulator && sleep 3 && expo start --ios --clear",
     "web": "expo start --web",
-    "build": "expo export -p web && npm run copy:assets",
-    "build:web": "expo export -p web && npm run copy:assets",
+    "build": "expo export -p web && npm run copy:assets && npm run inject:meta",
+    "build:web": "expo export -p web && npm run copy:assets && npm run inject:meta",
     "copy:assets": "cp -r public/* dist/",
+    "inject:meta": "node scripts/inject-meta-tags.js",
     "serve:web": "npx serve dist"
   },
   "dependencies": {
