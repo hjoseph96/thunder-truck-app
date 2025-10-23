@@ -23,41 +23,25 @@ const CheckoutForm = ({ route, navigation }) => {
   const [cartsData, setCartsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cartLoading, setCartLoading] = useState(false);
-  const [selectedAddress, setSelectedAddress] = useState(route.params?.selectedAddress || null);
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const [expandedDrawers, setExpandedDrawers] = useState({});
 
   useEffect(() => {
     loadCheckoutData();
   }, []);
 
-  // Handle initial selected address from route params
-  useEffect(() => {
-    if (route.params?.selectedAddress) {
-      setSelectedAddress(route.params.selectedAddress);
-      // Clear the route params to prevent re-setting
-      navigation.setParams({ selectedAddress: undefined });
-    }
-  }, [route.params?.selectedAddress, navigation]);
-
   useEffect(() => {
     console.log('Carts Data Length: ', cartsData.length);
   }, [cartsData]);
 
-  // Reload data when returning from AddAddressForm or handle selected address
+  // Reload data when screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Check if there's a selected address from route params
-      if (route.params?.selectedAddress) {
-        setSelectedAddress(route.params.selectedAddress);
-        // Clear the route params to prevent re-setting on subsequent focuses
-        navigation.setParams({ selectedAddress: undefined });
-      } else {
-        loadCheckoutData();
-      }
+      loadCheckoutData();
     });
 
     return unsubscribe;
-  }, [navigation, route.params]);
+  }, [navigation]);
 
   const loadCheckoutData = async () => {
     try {
@@ -67,23 +51,32 @@ const CheckoutForm = ({ route, navigation }) => {
       const user = await fetchUser();
       setUserData(user);
       
-      // Set default address if available
-      if (user?.userAddresses?.length > 0 && !selectedAddress) {
-        let defaultAddress = user.userAddresses.find(address => address.isDefault);
+      // Always set the address from user data
+      if (user?.userAddresses?.length > 0) {
+        // First, try to find the default address
+        let addressToSelect = user.userAddresses.find(address => address.isDefault);
         
-        if (!defaultAddress) {
-          defaultAddress = user.userAddresses[0];
-          console.log('No default address found, setting first address as default');
+        // If no default, use the first address
+        if (!addressToSelect && user.userAddresses.length > 0) {
+          addressToSelect = user.userAddresses[0];
+          console.log('No default address found, using first address');
+        } else {
+          addressToSelect = null;
+          console.log('No default address found, using null');
         }
-
-        setSelectedAddress(defaultAddress);
+        
+        setSelectedAddress(addressToSelect);
+      } else {
+        // No addresses available
+        setSelectedAddress(null);
+        console.log('No addresses found');
       }
       
       // Load all carts data
       const carts = await fetchCarts();
       setCartsData(carts);
       
-      // Initialize expanded drawers (all open by default)
+      // Initialize expanded drawers (all collapsed by default)
       if (carts && carts.length > 0) {
         const initialExpanded = {};
 
@@ -222,17 +215,6 @@ const CheckoutForm = ({ route, navigation }) => {
 
   const groupedItems = groupCartItemsByFoodTruck();
 
-  const paymentScreenParams = {
-    selectedAddress: selectedAddress,
-    userData: userData,
-    groupedItems: groupedItems,
-    cartIds: cartsData.map((cart) => cart.id),
-    orderTotal: calculateTotal(),
-    orderDeliveryFee: calculateDeliveryFee(),
-    orderSubtotal: calculateSubtotal(),
-    orderDiscountTotal: 8.00,
-  };
-
   return (
     <View style={styles.container}>
       {/* Modern Professional Header */}
@@ -336,7 +318,7 @@ const CheckoutForm = ({ route, navigation }) => {
       <View style={styles.bottomNav}>
         <TouchableOpacity 
           style={styles.nextButton}
-          onPress={() => navigation.navigate('PaymentScreen', paymentScreenParams)}
+          onPress={() => navigation.navigate('PaymentScreen')}
         >
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>

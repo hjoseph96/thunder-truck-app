@@ -22,6 +22,7 @@ import {
 import { CardField } from './payment/CardField';
 import { createPaymentIntent, createOrders, syncPaymentMethods } from '../lib/payment-service';
 import { fetchUser } from '../lib/user-service';
+import { fetchCarts } from '../lib/cart-service';
 import CreditCardIcon from './CreditCardIcon';
 import PaymentMethodManager from './PaymentMethodManager';
 import DeliveryMethodSelector from './DeliveryMethodSelector';
@@ -34,24 +35,16 @@ const PaymentScreen = ({ route, navigation }) => {
   const { confirmPayment, loading } = useConfirmPayment();
   const { isPlatformPaySupported, confirmPlatformPayPayment } = usePlatformPay();
   const toast = useToast();
-  const {
-    selectedAddress,
-    userData,
-    groupedItems,
-    orderTotal,
-    orderDeliveryFee,
-    orderSubtotal,
-    orderDiscountTotal,
-    cartIds,
-  } = route.params;
 
-  const [deliveryAddress, setDeliveryAddress] = useState(selectedAddress);
-  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState(
-    userData.defaultUserPaymentMethod,
-  );
+  // State for fetched data
+  const [userData, setUserData] = useState(null);
+  const [cartsData, setCartsData] = useState([]);
+  const [deliveryAddress, setDeliveryAddress] = useState(null);
+  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState(null);
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState(null);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
   // Helper function to show alerts/toasts based on platform
   const showAlert = (title, message, type = 'danger') => {
@@ -93,6 +86,99 @@ const PaymentScreen = ({ route, navigation }) => {
     // navigation.goBack();
   };
 
+  // Load payment data on mount
+  useEffect(() => {
+    loadPaymentData();
+  }, []);
+
+  const loadPaymentData = async () => {
+    try {
+      setPageLoading(true);
+      
+      // Load user data
+      const user = await fetchUser();
+      setUserData(user);
+      setDefaultPaymentMethod(user.defaultUserPaymentMethod);
+      
+      // Set default address
+      if (user?.userAddresses?.length > 0) {
+        const defaultAddr = user.userAddresses.find(addr => addr.isDefault) || user.userAddresses[0];
+        setDeliveryAddress(defaultAddr);
+      }
+      
+      // Load carts data
+      const carts = await fetchCarts();
+      setCartsData(carts);
+      
+    } catch (error) {
+      console.error('Error loading payment data:', error);
+      showAlert('Error', 'Failed to load payment information', 'danger');
+    } finally {
+      setPageLoading(false);
+    }
+  };
+
+  // Calculate cart IDs
+  const getCartIds = () => {
+    return cartsData.map(cart => cart.id);
+  };
+
+  // Group cart items by food truck
+  const groupCartItemsByFoodTruck = () => {
+    const grouped = {};
+    
+    cartsData.forEach(cart => {
+      if (cart.cartItems && cart.cartItems.length > 0) {
+        const foodTruckName = cart.foodTruck.name;
+        if (!grouped[foodTruckName]) {
+          grouped[foodTruckName] = [];
+        }
+        // Attach food truck data to each cart item
+        const itemsWithTruckData = cart.cartItems.map(item => ({
+          ...item,
+          foodTruckData: cart.foodTruck,
+        }));
+        grouped[foodTruckName].push(...itemsWithTruckData);
+      }
+    });
+    
+    return grouped;
+  };
+
+  // Calculate subtotal
+  const calculateSubtotal = () => {
+    let subtotal = 0;
+    cartsData.forEach(cart => {
+      if (cart.cartItems) {
+        cart.cartItems.forEach(item => {
+          subtotal += item.menuItem.price * item.quantity;
+        });
+      }
+    });
+    return subtotal;
+  };
+
+  // Calculate delivery fee
+  const calculateDeliveryFee = () => {
+    // Calculate 10% of subtotal rounded to 2 decimal places
+    const subtotal = calculateSubtotal();
+    return Math.round(subtotal * 0.10 * 100) / 100;
+  };
+
+  // Calculate discount
+  const calculateDiscount = () => {
+    // TODO: Implement actual discount logic
+    return 8.00;
+  };
+
+  // Calculate total
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    const deliveryFee = calculateDeliveryFee();
+    const discount = calculateDiscount();
+    return subtotal + deliveryFee - discount;
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -111,7 +197,7 @@ const PaymentScreen = ({ route, navigation }) => {
     }
 
     try {
-      const totalInCents = parseInt(orderTotal * 100);
+      const totalInCents = parseInt(calculateTotal() * 100);
 
       // Step 1: Create PaymentIntent using GraphQL service
       const paymentIntentData = await createPaymentIntent(totalInCents);
@@ -164,7 +250,7 @@ const PaymentScreen = ({ route, navigation }) => {
       }
 
       // Create payment intent using GraphQL service
-      const totalInCents = parseInt(orderTotal * 100);
+      const totalInCents = parseInt(calculateTotal() * 100);
       const paymentIntentData = await createPaymentIntent(totalInCents);
 
       if (!paymentIntentData || !paymentIntentData.clientSecret) {
@@ -214,7 +300,7 @@ const PaymentScreen = ({ route, navigation }) => {
 
   const handleGooglePay = async () => {
     try {
-      const totalInCents = parseInt(orderTotal * 100);
+      const totalInCents = parseInt(calculateTotal() * 100);
       // Create payment intent using GraphQL service
       const paymentIntentData = await createPaymentIntent(totalInCents);
 
@@ -258,6 +344,7 @@ const PaymentScreen = ({ route, navigation }) => {
       const orderData = constructOrderData(paymentIntent);
       console.log('Order Data: ', orderData);
 
+      const cartIds = getCartIds();
       console.log('Cart IDs: ', cartIds);
 
       const createdOrdersData = await createOrders(orderData, cartIds);
@@ -314,28 +401,30 @@ const PaymentScreen = ({ route, navigation }) => {
       deliveryInstructions: deliveryAddress.deliveryInstructions,
     };
 
+    const groupedItems = groupCartItemsByFoodTruck();
+
     const userOrderData = {
       promotionId: null,
       deliveryMethodId: selectedDeliveryMethod.id,
-      subtotalCents: parseInt(orderSubtotal * 100),
-      deliveryFeeCents: parseInt(orderDeliveryFee * 100),
+      subtotalCents: parseInt(calculateSubtotal() * 100),
+      deliveryFeeCents: parseInt(calculateDeliveryFee() * 100),
       tipCents: 0,
       userId: userData.id,
       orderItems: Object.entries(groupedItems)
         .map(([truckName, items], index) => {
           return {
             vendorName: truckName,
-            menuItemName: items[0].cartItem.menuItem.name,
-            quantity: items[0].cartItem.quantity,
+            menuItemName: items[0].menuItem.name,
+            quantity: items[0].quantity,
             totalPriceCents: parseInt(
-              items[0].cartItem.menuItem.price * items[0].cartItem.quantity * 100,
+              items[0].menuItem.price * items[0].quantity * 100,
             ),
           };
         })
         .flat(),
       orderPayments: [
         {
-          amountChargedCents: parseInt(orderTotal * 100),
+          amountChargedCents: parseInt(calculateTotal() * 100),
           stripePaymentIntentId: paymentIntent.id || paymentIntent.paymentIntentId,
         },
       ],
@@ -350,7 +439,7 @@ const PaymentScreen = ({ route, navigation }) => {
     const singleDeliveryFeeInCents = 299;
     const foodTruckOrderData = Object.entries(groupedItems).map(([truckName, items], index) => {
       const truckTotal = items.reduce(
-        (sum, item) => sum + (item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity,
+        (sum, item) => sum + (item.menuItem?.price || 0) * item.quantity,
         0,
       );
       const foodTruckId = items[0].foodTruckData.id;
@@ -359,9 +448,9 @@ const PaymentScreen = ({ route, navigation }) => {
       const orderItems = items.map((item) => {
         return {
           vendorName: truckName,
-          menuItemName: item.cartItem.menuItem.name,
-          quantity: item.cartItem.quantity,
-          totalPriceCents: parseInt(item.cartItem.menuItem.price * item.cartItem.quantity * 100),
+          menuItemName: item.menuItem.name,
+          quantity: item.quantity,
+          totalPriceCents: parseInt(item.menuItem.price * item.quantity * 100),
         };
       });
 
@@ -377,8 +466,8 @@ const PaymentScreen = ({ route, navigation }) => {
         foodTruckId: foodTruckId,
         promotionId: null,
         deliveryMethodId: selectedDeliveryMethod.id,
-        subtotalCents: parseInt(orderSubtotal * 100),
-        deliveryFeeCents: parseInt(orderDeliveryFee * 100),
+        subtotalCents: parseInt(calculateSubtotal() * 100),
+        deliveryFeeCents: parseInt(calculateDeliveryFee() * 100),
         tipCents: 0,
         orderItems: orderItems,
         orderPayments: orderPayments,
@@ -392,6 +481,30 @@ const PaymentScreen = ({ route, navigation }) => {
   // ============================================================================
   // 8. COMPONENT RENDER
   // ============================================================================
+
+  // Show loading state while data is being fetched
+  if (pageLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#2D1E2F" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Payment</Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#F9B319" />
+          <Text style={styles.loadingText}>Loading payment information...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -432,28 +545,46 @@ const PaymentScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
           <View style={styles.addressCard}>
-            {deliveryAddress?.label && (
-              <Text style={styles.addressLabel}>{deliveryAddress.label}</Text>
-            )}
-            <Text style={styles.addressStreet}>{deliveryAddress?.streetLineOne}</Text>
-            <Text style={styles.addressCity}>
-              {deliveryAddress?.city}, {deliveryAddress?.state}
-            </Text>
-
-            <View style={styles.addressDeliveryInstructions}>
-              <TextInput
-                style={styles.addressDeliveryInstructionsText}
-                value={deliveryAddress?.deliveryInstructions || ''}
-                onChangeText={(value) =>
-                  handleAddressUpdate({ ...deliveryAddress, deliveryInstructions: value })
+            {!deliveryAddress ? (
+              <TouchableOpacity
+                style={styles.noAddressContainer}
+                onPress={() =>
+                  navigation.navigate('UserAddressList', {
+                    userAddresses: userData?.userAddresses || [],
+                    onAddressSelect: handleAddressUpdate,
+                  })
                 }
-                placeholder="Any special drop off instructions?"
-                placeholderTextColor="#999"
-                multiline
-                numberOfLines={ Platform.OS === 'web' ? 3 : 9}
-                maxLength={300}
-              />
-            </View>
+              >
+                <MaterialIcons name="location-on" size={40} color="#999" />
+                <Text style={styles.noAddressText}>Select Delivery Address</Text>
+                <Text style={styles.noAddressSubtext}>Tap to add or select an address</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                {deliveryAddress.label && (
+                  <Text style={styles.addressLabel}>{deliveryAddress.label}</Text>
+                )}
+                <Text style={styles.addressStreet}>{deliveryAddress.streetLineOne}</Text>
+                <Text style={styles.addressCity}>
+                  {deliveryAddress.city}, {deliveryAddress.state}
+                </Text>
+
+                <View style={styles.addressDeliveryInstructions}>
+                  <TextInput
+                    style={styles.addressDeliveryInstructionsText}
+                    value={deliveryAddress.deliveryInstructions || ''}
+                    onChangeText={(value) =>
+                      handleAddressUpdate({ ...deliveryAddress, deliveryInstructions: value })
+                    }
+                    placeholder="Any special drop off instructions?"
+                    placeholderTextColor="#999"
+                    multiline
+                    numberOfLines={ Platform.OS === 'web' ? 3 : 9}
+                    maxLength={300}
+                  />
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -478,16 +609,16 @@ const PaymentScreen = ({ route, navigation }) => {
             <Text style={styles.sectionTitle}>Order Breakdown</Text>
           </View>
           <View style={styles.orderMenuPanel}>
-            {groupedItems &&
-              Object.entries(groupedItems).map(([truckName, items], index) => {
-                const totalItems = items.reduce((sum, item) => sum + item.cartItem?.quantity, 0);
+            {groupCartItemsByFoodTruck() &&
+              Object.entries(groupCartItemsByFoodTruck()).map(([truckName, items], index) => {
+                const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
                 const truckTotal = items.reduce(
                   (sum, item) =>
-                    sum + (item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity,
+                    sum + (item.menuItem?.price || 0) * item.quantity,
                   0,
                 );
                 const isFirst = index === 0;
-                const isLast = index === Object.entries(groupedItems).length - 1;
+                const isLast = index === Object.entries(groupCartItemsByFoodTruck()).length - 1;
 
                 return (
                   <View
@@ -524,20 +655,20 @@ const PaymentScreen = ({ route, navigation }) => {
                       {items.map((item, index) => (
                         <View key={index} style={styles.orderItem}>
                           <View style={styles.itemImageContainer}>
-                            {item.cartItem.menuItem?.imageUrl && (
+                            {item.menuItem?.imageUrl && (
                               <Image
-                                source={{ uri: item.cartItem.menuItem.imageUrl }}
+                                source={{ uri: item.menuItem.imageUrl }}
                                 style={styles.cartItemImage}
                               />
                             )}
                           </View>
                           <View style={styles.itemDetails}>
-                            <Text style={styles.itemName}>{item.cartItem?.menuItem?.name}</Text>
-                            <Text style={styles.itemQuantity}>x{item.cartItem?.quantity}</Text>
+                            <Text style={styles.itemName}>{item.menuItem?.name}</Text>
+                            <Text style={styles.itemQuantity}>x{item?.quantity}</Text>
                           </View>
                           <Text style={styles.itemPrice}>
                             {formatCurrency(
-                              (item.cartItem?.menuItem?.price || 0) * item.cartItem?.quantity,
+                              (item.menuItem?.price || 0) * item.quantity,
                             )}
                           </Text>
                         </View>
@@ -557,23 +688,23 @@ const PaymentScreen = ({ route, navigation }) => {
           <View style={styles.pricingCard}>
             <View style={styles.pricingRow}>
               <Text style={styles.pricingLabel}>Subtotal</Text>
-              <Text style={styles.pricingValue}>{formatCurrency(orderSubtotal)}</Text>
+              <Text style={styles.pricingValue}>{formatCurrency(calculateSubtotal())}</Text>
             </View>
             <View style={styles.pricingRow}>
               <Text style={styles.pricingLabel}>Delivery Fee</Text>
-              <Text style={styles.pricingValue}>{formatCurrency(orderDeliveryFee)}</Text>
+              <Text style={styles.pricingValue}>{formatCurrency(calculateDeliveryFee())}</Text>
             </View>
-            {orderDiscountTotal > 0 && (
+            {calculateDiscount() > 0 && (
               <View style={styles.pricingRow}>
                 <Text style={styles.pricingLabel}>Discount</Text>
                 <Text style={[styles.pricingValue, styles.discountValue]}>
-                  -{formatCurrency(orderDiscountTotal)}
+                  -{formatCurrency(calculateDiscount())}
                 </Text>
               </View>
             )}
             <View style={[styles.pricingRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{formatCurrency(orderTotal)}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(calculateTotal())}</Text>
             </View>
           </View>
         </View>
@@ -671,6 +802,18 @@ const styles = StyleSheet.create({
         width: '100%',
       },
     }),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Cairo',
   },
   // Modern Professional Header Styles (Consistent with CheckoutForm)
   header: {
@@ -867,6 +1010,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  noAddressContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  noAddressText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#132a13',
+    marginTop: 12,
+    fontFamily: 'Cairo',
+  },
+  noAddressSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 4,
+    fontFamily: 'Cairo',
   },
   addressLabel: {
     fontSize: 14,

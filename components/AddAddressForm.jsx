@@ -14,6 +14,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import Map from './Map';
 import { addUserAddress } from '../lib/user-service';
+import KeyboardNavigableDropdown from './ui/KeyboardNavigableDropdown';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -99,168 +100,9 @@ const AddAddressForm = ({ navigation }) => {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [showBuildingTypeDropdown, setShowBuildingTypeDropdown] = useState(false);
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
   const [submittedAddressMarker, setSubmittedAddressMarker] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [keyboardBuffer, setKeyboardBuffer] = useState('');
-  const [highlightedStateIndex, setHighlightedStateIndex] = useState(-1);
   const mapRef = useRef(null);
-  const stateScrollViewRef = useRef(null);
-  const keyboardTimerRef = useRef(null);
-
-  // Inject CSS for web to ensure dropdowns render on top
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const styleId = 'add-address-dropdown-styles';
-      if (!document.getElementById(styleId)) {
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-          /* Ensure dropdown lists render on top of everything */
-          [data-dropdown-list] {
-            position: absolute !important;
-            z-index: 9999 !important;
-            isolation: isolate !important;
-          }
-          
-          /* Ensure dropdown containers create proper stacking context */
-          [data-dropdown-container] {
-            position: relative !important;
-            isolation: isolate !important;
-          }
-          
-          /* Ensure dropdown items are interactive */
-          [data-dropdown-item] {
-            cursor: pointer !important;
-          }
-          
-          [data-dropdown-item]:hover {
-            background-color: #f5f5f5 !important;
-          }
-        `;
-        document.head.appendChild(style);
-      }
-      
-      return () => {
-        const existingStyle = document.getElementById(styleId);
-        if (existingStyle) {
-          existingStyle.remove();
-        }
-      };
-    }
-  }, []);
-
-  // Inject CSS for web to ensure dropdowns render on top
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const styleId = 'add-address-dropdown-styles';
-      if (!document.getElementById(styleId)) {
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-          /* Ensure dropdown lists render on top of everything */
-          [data-dropdown-list] {
-            position: absolute !important;
-            z-index: 9999 !important;
-            isolation: isolate !important;
-          }
-          
-          /* Ensure dropdown containers create proper stacking context */
-          [data-dropdown-container] {
-            position: relative !important;
-            isolation: isolate !important;
-          }
-          
-          /* Ensure dropdown items are interactive */
-          [data-dropdown-item] {
-            cursor: pointer !important;
-          }
-          
-          [data-dropdown-item]:hover {
-            background-color: #f5f5f5 !important;
-          }
-        `;
-        document.head.appendChild(style);
-      }
-      
-      return () => {
-        const existingStyle = document.getElementById(styleId);
-        if (existingStyle) {
-          existingStyle.remove();
-        }
-      };
-    }
-  }, []);
-
-  // Keyboard navigation for State dropdown
-  useEffect(() => {
-    if (Platform.OS === 'web' && showStateDropdown && typeof document !== 'undefined') {
-      const handleKeyDown = (e) => {
-        // Only handle letter keys and Enter
-        if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-          e.preventDefault();
-          
-          // Clear previous timer
-          if (keyboardTimerRef.current) {
-            clearTimeout(keyboardTimerRef.current);
-          }
-          
-          // Add to keyboard buffer
-          const newBuffer = keyboardBuffer + e.key.toLowerCase();
-          setKeyboardBuffer(newBuffer);
-          
-          // Find first state that starts with the buffer
-          const matchIndex = US_STATES.findIndex(state => 
-            state.code.toLowerCase().startsWith(newBuffer)
-          );
-          
-          if (matchIndex !== -1) {
-            setHighlightedStateIndex(matchIndex);
-          }
-          
-          // Clear buffer after 1 second of no typing
-          keyboardTimerRef.current = setTimeout(() => {
-            setKeyboardBuffer('');
-          }, 1000);
-        } else if (e.key === 'Enter' && highlightedStateIndex !== -1) {
-          e.preventDefault();
-          const selectedState = US_STATES[highlightedStateIndex];
-          handleInputChange('state', selectedState.code);
-          setShowStateDropdown(false);
-          setHighlightedStateIndex(-1);
-          setKeyboardBuffer('');
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          setShowStateDropdown(false);
-          setHighlightedStateIndex(-1);
-          setKeyboardBuffer('');
-        }
-      };
-      
-      document.addEventListener('keydown', handleKeyDown);
-      
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-        if (keyboardTimerRef.current) {
-          clearTimeout(keyboardTimerRef.current);
-        }
-      };
-    }
-  }, [showStateDropdown, keyboardBuffer, highlightedStateIndex]);
-
-  // Auto-scroll to highlighted state
-  useEffect(() => {
-    if (highlightedStateIndex !== -1 && stateScrollViewRef.current && Platform.OS === 'web') {
-      // Scroll to the highlighted item
-      const itemHeight = 48; // Approximate height of each dropdown item
-      const scrollPosition = highlightedStateIndex * itemHeight;
-      
-      if (stateScrollViewRef.current.scrollTo) {
-        stateScrollViewRef.current.scrollTo({ y: scrollPosition, animated: true });
-      }
-    }
-  }, [highlightedStateIndex]);
 
   // Function to parse latlong string from response
   const parseLatLong = (latlongString) => {
@@ -392,87 +234,6 @@ const AddAddressForm = ({ navigation }) => {
     }
   };
 
-  const renderDropdown = (items, selectedValue, onSelect, placeholder) => {
-    const isOpen = (placeholder === 'Building Type' && showBuildingTypeDropdown) || 
-                   (placeholder === 'State' && showStateDropdown);
-    const isStateDropdown = placeholder === 'State';
-    
-    return (
-      <View 
-        style={[
-          styles.dropdownContainer,
-          isOpen && Platform.OS === 'web' && { zIndex: 10000 }
-        ]}
-        {...(Platform.OS === 'web' && { 'data-dropdown-container': true })}
-      >
-        <TouchableOpacity
-          style={[styles.dropdownButton, errors[placeholder.toLowerCase()] && styles.errorInput]}
-          onPress={() => {
-            if (placeholder === 'Building Type') {
-              setShowBuildingTypeDropdown(!showBuildingTypeDropdown);
-              setShowStateDropdown(false);
-              setHighlightedStateIndex(-1);
-              setKeyboardBuffer('');
-            } else if (placeholder === 'State') {
-              setShowStateDropdown(!showStateDropdown);
-              setShowBuildingTypeDropdown(false);
-              if (!showStateDropdown) {
-                // Opening dropdown, reset keyboard state
-                setHighlightedStateIndex(-1);
-                setKeyboardBuffer('');
-              }
-            }
-          }}
-        >
-        <Text style={[styles.dropdownText, !selectedValue && styles.placeholderText]}>
-          {selectedValue ? items.find(item => item.code === selectedValue || item.value === selectedValue)?.name || selectedValue : placeholder}
-        </Text>
-        <MaterialIcons name="keyboard-arrow-down" size={24} color="#999" />
-      </TouchableOpacity>
-
-      {(showBuildingTypeDropdown && placeholder === 'Building Type') ||
-       (showStateDropdown && placeholder === 'State') ? (
-        <View 
-          style={styles.dropdownList}
-          {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
-        >
-          <ScrollView 
-            style={styles.dropdownScrollView}
-            ref={isStateDropdown ? stateScrollViewRef : null}
-          >
-            {items.map((item, index) => {
-              const isHighlighted = isStateDropdown && highlightedStateIndex === index;
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.dropdownItem,
-                    isHighlighted && styles.dropdownItemHighlighted
-                  ]}
-                  onPress={() => {
-                    onSelect(item.code || item.value);
-                    setShowBuildingTypeDropdown(false);
-                    setShowStateDropdown(false);
-                    setHighlightedStateIndex(-1);
-                    setKeyboardBuffer('');
-                  }}
-                  {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
-                >
-                  <Text style={[
-                    styles.dropdownItemText,
-                    isHighlighted && styles.dropdownItemTextHighlighted
-                  ]}>
-                    {placeholder === 'State' ? item.code : item.name || item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      ) : null}
-      </View>
-    );
-  };
 
   return (
     <View style={styles.container}>
@@ -531,14 +292,17 @@ const AddAddressForm = ({ navigation }) => {
         nestedScrollEnabled
       >
         {/* Building Type */}
-        <View style={[styles.fieldContainer, showBuildingTypeDropdown && styles.fieldContainerActive]}>
+        <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Building Type *</Text>
-          {renderDropdown(
-            buildingTypes,
-            formData.buildingType,
-            (value) => updateFormData('buildingType', value),
-            'Building Type'
-          )}
+          <KeyboardNavigableDropdown
+            items={buildingTypes}
+            selectedValue={formData.buildingType}
+            onSelect={(value) => updateFormData('buildingType', value)}
+            placeholder="Building Type"
+            searchByCode={false}
+            displayCode={false}
+            error={!!errors.buildingType}
+          />
           {errors.buildingType && <Text style={styles.errorText}>{errors.buildingType}</Text>}
         </View>
 
@@ -594,14 +358,17 @@ const AddAddressForm = ({ navigation }) => {
 
         {/* State and ZIP Row */}
         <View style={styles.rowContainer}>
-          <View style={[styles.fieldContainer, styles.halfWidth, showStateDropdown && styles.fieldContainerActive]}>
+          <View style={[styles.fieldContainer, styles.halfWidth]}>
             <Text style={styles.fieldLabel}>State *</Text>
-            {renderDropdown(
-              US_STATES,
-              formData.state,
-              (value) => updateFormData('state', value),
-              'State'
-            )}
+            <KeyboardNavigableDropdown
+              items={US_STATES}
+              selectedValue={formData.state}
+              onSelect={(value) => updateFormData('state', value)}
+              placeholder="State"
+              searchByCode={true}
+              displayCode={false}
+              error={!!errors.state}
+            />
             {errors.state && <Text style={styles.errorText}>{errors.state}</Text>}
           </View>
 
@@ -797,11 +564,7 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: 16,
     overflow: 'visible',
-  },
-  fieldContainerActive: {
-    position: 'relative',
-    zIndex: 100,
-    overflow: 'visible',
+    zIndex: 'inherit !important',
   },
   rowContainer: {
     flexDirection: 'row',
@@ -834,139 +597,6 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-  },
-  dropdownContainer: {
-    position: 'relative',
-  },
-  dropdownContainerActive: {
-    zIndex: 1000,
-    ...Platform.select({
-      web: {
-        zIndex: 1000,
-      },
-    }),
-    zIndex: 1000,
-    ...Platform.select({
-      web: {
-        zIndex: 1000,
-      },
-    }),
-  },
-  dropdownButton: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-        userSelect: 'none',
-      },
-    }),
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-        userSelect: 'none',
-      },
-    }),
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: '#132a13',
-    fontFamily: 'Cairo',
-  },
-  placeholderText: {
-    color: '#999',
-  },
-  dropdownOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    zIndex: 9998,
-  },
-  dropdownListWeb: {
-    position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    maxHeight: 400,
-    width: '80%',
-    maxWidth: 500,
-    zIndex: 9999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  dropdownList: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    width: '100%',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    maxHeight: 200,
-    zIndex: 1001,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        zIndex: 9999,
-        position: 'absolute',
-      },
-    }),
-  },
-  dropdownScrollView: {
-    maxHeight: 200,
-    ...(Platform.OS === 'web' && {
-      maxHeight: 400,
-    }),
-  },
-  dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-        transition: 'background-color 0.2s ease',
-      },
-    }),
-  },
-  dropdownItemHighlighted: {
-    backgroundColor: '#F9B319',
-    ...Platform.select({
-      web: {
-        backgroundColor: '#F9B319',
-      },
-    }),
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    color: '#132a13',
-    fontFamily: 'Cairo',
-  },
-  dropdownItemTextHighlighted: {
-    color: '#000',
-    fontWeight: '600',
   },
   disabledInput: {
     backgroundColor: '#f5f5f5',
