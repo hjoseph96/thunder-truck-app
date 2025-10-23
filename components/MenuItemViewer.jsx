@@ -29,6 +29,7 @@ export default function MenuItemViewer({ navigation, route }) {
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [cartData, setCartData] = useState(null);
   const [cartLoading, setCartLoading] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     const loadMenuItem = async () => {
@@ -81,12 +82,12 @@ export default function MenuItemViewer({ navigation, route }) {
   const loadCartData = async () => {
     try {
       setCartLoading(true);
-      
+
       if (!foodTruckId) {
         console.error('No foodTruckId available in route params');
         return;
       }
-      
+
       const cart = await getCart(foodTruckId);
       setCartData(cart);
     } catch (error) {
@@ -109,7 +110,7 @@ export default function MenuItemViewer({ navigation, route }) {
 
       // Calculate new quantity
       const newQuantity = Math.max(0, currentCartItem.quantity + change);
-      
+
       if (newQuantity === 0) {
         // If quantity becomes 0, we could implement remove functionality here
         // For now, just return without updating
@@ -131,7 +132,7 @@ export default function MenuItemViewer({ navigation, route }) {
   const handleAddToCart = async () => {
     try {
       setCartLoading(true);
-      
+
       // Convert selected options to the format expected by the API
       const cartItemOptions = Object.entries(selectedOptions).flatMap(([optionGroupId, optionIds]) => {
         return optionIds.map(optionId => ({
@@ -141,7 +142,7 @@ export default function MenuItemViewer({ navigation, route }) {
 
       const updatedCart = await addMenuItemToCart(menuItem.id, cartItemOptions);
       setCartData(updatedCart);
-      
+
       // Show cart popup after adding item
       setShowCartPopup(true);
     } catch (error) {
@@ -154,7 +155,7 @@ export default function MenuItemViewer({ navigation, route }) {
   const handleOptionSelect = (optionGroupId, optionId, isSingleSelect = false, limit = null) => {
     setSelectedOptions(prev => {
       const newSelection = { ...prev };
-      
+
       if (isSingleSelect) {
         // For single select, replace the entire group selection
         newSelection[optionGroupId] = [optionId];
@@ -163,10 +164,10 @@ export default function MenuItemViewer({ navigation, route }) {
         if (!newSelection[optionGroupId]) {
           newSelection[optionGroupId] = [];
         }
-        
+
         const currentSelection = newSelection[optionGroupId];
         const optionIndex = currentSelection.indexOf(optionId);
-        
+
         if (optionIndex > -1) {
           // Remove option if already selected
           currentSelection.splice(optionIndex, 1);
@@ -179,7 +180,7 @@ export default function MenuItemViewer({ navigation, route }) {
           currentSelection.push(optionId);
         }
       }
-      
+
       return newSelection;
     });
   };
@@ -216,7 +217,7 @@ export default function MenuItemViewer({ navigation, route }) {
             </View>
           )}
         </View>
-        
+
         {optionGroup.limit && (
           <Text style={styles.optionGroupLimit}>
             Select up to {optionGroup.limit} {optionGroup.limit === 1 ? 'option' : 'options'}
@@ -230,11 +231,11 @@ export default function MenuItemViewer({ navigation, route }) {
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionName}>{option.name}</Text>
                   {
-                    option.price > 0 && 
+                    option.price > 0 &&
                         <Text style={styles.optionPrice}>+${option.price}</Text>
                   }
                 </View>
-                
+
                 {option.imageUrl && (
                   <Image
                     source={{ uri: option.imageUrl }}
@@ -248,14 +249,14 @@ export default function MenuItemViewer({ navigation, route }) {
                 style={[
                   styles.optionSelector,
                   isOptionSelected(optionGroup.id, option.id) && styles.optionSelectorSelected,
-                  !isOptionSelected(optionGroup.id, option.id) && 
-                  optionGroup.limit && 
-                  (selectedOptions[optionGroup.id]?.length || 0) >= optionGroup.limit && 
+                  !isOptionSelected(optionGroup.id, option.id) &&
+                  optionGroup.limit &&
+                  (selectedOptions[optionGroup.id]?.length || 0) >= optionGroup.limit &&
                   styles.optionSelectorDisabled
                 ]}
                 onPress={() => handleOptionSelect(optionGroup.id, option.id, isSingleSelect, optionGroup.limit)}
-                disabled={!isOptionSelected(optionGroup.id, option.id) && 
-                         optionGroup.limit && 
+                disabled={!isOptionSelected(optionGroup.id, option.id) &&
+                         optionGroup.limit &&
                          (selectedOptions[optionGroup.id]?.length || 0) >= optionGroup.limit}
               >
                 {isOptionSelected(optionGroup.id, option.id) && (
@@ -317,13 +318,13 @@ export default function MenuItemViewer({ navigation, route }) {
             <TouchableOpacity
               key={relatedItem.id}
               style={styles.relatedMenuItem}
-              onPress={() => navigation.navigate('MenuItemViewer', { 
+              onPress={() => navigation.navigate('MenuItemViewer', {
                 menuItemId: relatedItem.id,
-                foodTruckId: foodTruckId 
+                foodTruckId: foodTruckId
               })}
             >
               <Image
-                source={relatedItem.imageUrl 
+                source={relatedItem.imageUrl
                   ? { uri: relatedItem.imageUrl }
                   : require('../assets/images/blank-menu-item.png')
                 }
@@ -347,29 +348,134 @@ export default function MenuItemViewer({ navigation, route }) {
     );
   };
 
+  // Prepare images array
+  const images = menuItem.imageUrl
+    ? [menuItem.imageUrl]
+    : [require('../assets/images/blank-menu-item.png')];
+
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
+
+  const handleThumbnailPress = (index) => {
+    setCurrentImageIndex(index);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header with Menu Item Image */}
-      <View style={styles.header}>
-        <Image
-          source={menuItem.imageUrl 
-            ? { uri: menuItem.imageUrl }
-            : require('../assets/images/blank-menu-item.png')
-          }
-          style={styles.headerImage}
-          resizeMode="cover"
-        />
-        
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleBackPress}
-        >
-          <Text style={styles.backButtonText}>✕</Text>
-        </TouchableOpacity>
-      </View>
+      {Platform.OS === 'web' ? (
+        <View style={styles.header}>
+          {/* Blurred background */}
+          <Image
+            source={typeof images[currentImageIndex] === 'string'
+              ? { uri: images[currentImageIndex] }
+              : images[currentImageIndex]
+            }
+            style={styles.headerBlurredBackground}
+            resizeMode="cover"
+            blurRadius={20}
+          />
+
+          {/* Dark overlay */}
+          <View style={styles.headerDarkOverlay} />
+
+          {/* Full image container */}
+          <View style={[
+            styles.fullImageContainer,
+            images.length === 1 && styles.fullImageContainerSingle
+          ]}>
+            <Image
+              source={typeof images[currentImageIndex] === 'string'
+                ? { uri: images[currentImageIndex] }
+                : images[currentImageIndex]
+              }
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+
+            {/* Navigation arrows */}
+            {images.length > 1 && (
+              <>
+                <TouchableOpacity
+                  style={[styles.imageNavButton, styles.imageNavButtonLeft]}
+                  onPress={handlePrevImage}
+                >
+                  <MaterialIcons name="chevron-left" size={32} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.imageNavButton, styles.imageNavButtonRight]}
+                  onPress={handleNextImage}
+                >
+                  <MaterialIcons name="chevron-right" size={32} color="#fff" />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+
+          {/* Thumbnails */}
+          {images.length > 1 && (
+            <View style={styles.thumbnailsContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbnailsScrollContent}
+              >
+                {images.map((image, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => handleThumbnailPress(index)}
+                    style={[
+                      styles.thumbnail,
+                      currentImageIndex === index && styles.thumbnailActive
+                    ]}
+                  >
+                    <Image
+                      source={typeof image === 'string' ? { uri: image } : image}
+                      style={styles.thumbnailImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBackPress}
+          >
+            <Text style={styles.backButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.header}>
+          <Image
+            source={menuItem.imageUrl
+              ? { uri: menuItem.imageUrl }
+              : require('../assets/images/blank-menu-item.png')
+            }
+            style={styles.headerImage}
+            resizeMode="cover"
+          />
+
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBackPress}
+          >
+            <Text style={styles.backButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {Platform.OS === 'web' ? (
         <View style={styles.content}>
@@ -385,18 +491,18 @@ export default function MenuItemViewer({ navigation, route }) {
             </Text>
           )}
           </View>
-          
+
           <View>
               {/* Option Groups */}
               {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
                 menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
               )}
-              
+
               {/* Related Menu Items */}
               {renderRelatedMenuItems()}
-              
+
           {/* Add to Cart Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.addToCartButton}
             onPress={handleAddToCart}
             disabled={cartLoading}
@@ -421,18 +527,18 @@ export default function MenuItemViewer({ navigation, route }) {
               </Text>
             )}
           </View>
-          
+
           <View>
               {/* Option Groups */}
               {menuItem.optionGroups && menuItem.optionGroups.length > 0 && (
                 menuItem.optionGroups.map((optionGroup) => renderOptionGroup(optionGroup))
               )}
-              
+
               {/* Related Menu Items */}
               {renderRelatedMenuItems()}
-              
+
           {/* Add to Cart Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.addToCartButton}
             onPress={handleAddToCart}
             disabled={cartLoading}
@@ -444,10 +550,10 @@ export default function MenuItemViewer({ navigation, route }) {
         </View>
         </ScrollView>
       )}
-    
+
     {/* Fixed Cart Icon */}
-    <TouchableOpacity 
-      style={styles.cartIcon} 
+    <TouchableOpacity
+      style={styles.cartIcon}
       onPress={handleCartPress}
       activeOpacity={0.7}
     >
@@ -500,7 +606,162 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         flexShrink: 0,
-        height: '40vh',
+        height: '50vh',
+        margin: 0,
+        borderBottomWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+    }),
+  },
+  headerBlurredBackground: {
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        top: 0,
+        left: 0,
+        zIndex: 0,
+        opacity: 0.9,
+      },
+    }),
+  },
+  headerDarkOverlay: {
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        top: 0,
+        left: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1,
+      },
+    }),
+  },
+  fullImageContainer: {
+    ...Platform.select({
+      web: {
+        position: 'relative',
+        width: '100%',
+        height: '80%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2,
+      },
+    }),
+  },
+  fullImageContainerSingle: {
+    ...Platform.select({
+      web: {
+        height: '100%',
+      },
+    }),
+  },
+  fullImage: {
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: '100%',
+        maxWidth: '800px',
+        maxHeight: '100%',
+        objectFit: 'contain',
+      },
+    }),
+  },
+  imageNavButton: {
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        cursor: 'pointer',
+        transition: 'background-color 0.3s',
+        zIndex: 10,
+      },
+    }),
+  },
+  imageNavButtonLeft: {
+    ...Platform.select({
+      web: {
+        left: 20,
+        top: '50%',
+        transform: 'translateY(-50%)',
+      },
+    }),
+  },
+  imageNavButtonRight: {
+    ...Platform.select({
+      web: {
+        right: 20,
+        top: '50%',
+        transform: 'translateY(-50%)',
+      },
+    }),
+  },
+  thumbnailsContainer: {
+    ...Platform.select({
+      web: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        zIndex: 3,
+        display: 'flex',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+      },
+    }),
+  },
+  thumbnailsScrollContent: {
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        flexDirection: 'row',
+        gap: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+    }),
+  },
+  thumbnail: {
+    ...Platform.select({
+      web: {
+        width: 80,
+        height: 80,
+        borderRadius: 8,
+        overflow: 'hidden',
+        border: '3px solid transparent',
+        cursor: 'pointer',
+        transition: 'all 0.3s',
+        opacity: 0.6,
+      },
+    }),
+  },
+  thumbnailActive: {
+    ...Platform.select({
+      web: {
+        border: '3px solid #fecd15',
+        opacity: 1,
+        transform: 'scale(1.1)',
+      },
+    }),
+  },
+  thumbnailImage: {
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
       },
     }),
   },
@@ -529,7 +790,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    zIndex: 10,
+    zIndex: 100,
+    ...Platform.select({
+      web: {
+        top: 20,
+        right: 20,
+        cursor: 'pointer',
+      },
+    }),
   },
   backButtonText: {
     color: '#000',
@@ -542,8 +810,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
     ...Platform.select({
       web: {
-        paddingBottom: 120,
-        minHeight: '100%',
+        paddingBottom: 80,
       },
     }),
   },
@@ -559,7 +826,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     ...Platform.select({
       web: {
-        paddingBottom: 100,
         marginBottom: 20,
       },
     }),
