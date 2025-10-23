@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
     width: '100%',
     ...Platform.select({
       web: {
-        height: '55vh',
+        height: screenWidth < 768 ? '30vh' : '55vh',
       },
     }),
   },
