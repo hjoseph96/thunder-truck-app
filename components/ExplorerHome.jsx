@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
       web: {
         marginTop: 100,
         marginBottom: 100,
-        minHeight: '50vh',
+        minHeight: screenWidth < 768 ? '30vh' : '50vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
       web: {
         maxWidth: '100%',
         height: 'auto',
-        minHeight: '50vh',
+        minHeight: screenWidth < 768 ? '30vh' : '50vh',
       },
     }),
   },
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
       web: {
         width: '100%',
         height: 'auto',
-        minHeight: '50vh',
+        minHeight: screenWidth < 768 ? '30vh' : '50vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -667,8 +667,8 @@ const styles = StyleSheet.create({
       web: {
         width: '100%',
         height: 'auto',
-        minHeight: '50vh',
-        maxHeight: '50vh',
+        minHeight: screenWidth < 768 ? '30vh' : '50vh',
+        maxHeight: screenWidth < 768 ? '30vh' : '50vh',
         objectFit: 'cover',
         borderRadius: 12,
       },
