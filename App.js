@@ -156,6 +156,195 @@ export default function App() {
     }
   }, []);
 
+  // Inject SEO meta tags for web platform
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      // Add Open Graph meta tags
+      const createMetaTag = (property, content, isProperty = true) => {
+        const meta = document.createElement('meta');
+        if (isProperty) {
+          meta.setAttribute('property', property);
+        } else {
+          meta.setAttribute('name', property);
+        }
+        meta.content = content;
+        return meta;
+      };
+
+      const metaTags = [
+        // Open Graph
+        createMetaTag('og:type', 'website'),
+        createMetaTag('og:url', 'https://web.thundertruck.app'),
+        createMetaTag('og:title', 'ThunderTruck: Order Street Food Ahead and Track Real-Time Delivery'),
+        createMetaTag('og:description', 'Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.'),
+        createMetaTag('og:image', 'https://web.thundertruck.app/images/thundertruck_icon.png'),
+        createMetaTag('og:image:width', '1200'),
+        createMetaTag('og:image:height', '630'),
+        createMetaTag('og:image:alt', 'ThunderTruck - Order street food with real-time delivery tracking'),
+        createMetaTag('og:site_name', 'ThunderTruck'),
+        createMetaTag('og:locale', 'en_US'),
+        
+        // Twitter Card
+        createMetaTag('twitter:card', 'summary_large_image', false),
+        createMetaTag('twitter:url', 'https://web.thundertruck.app', false),
+        createMetaTag('twitter:title', 'ThunderTruck: Order Street Food Ahead and Track Real-Time Delivery', false),
+        createMetaTag('twitter:description', 'Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.', false),
+        createMetaTag('twitter:image', 'https://web.thundertruck.app/images/thundertruck_icon.png', false),
+        createMetaTag('twitter:image:alt', 'ThunderTruck - Order street food with real-time delivery tracking', false),
+        createMetaTag('twitter:creator', '@thundertruck', false),
+        createMetaTag('twitter:site', '@thundertruck', false),
+        
+        // Additional SEO
+        createMetaTag('description', 'Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.', false),
+        createMetaTag('keywords', 'food truck, street food, food delivery, order ahead, real-time tracking, food truck locator, mobile food ordering, delivery tracking, local food, food truck app', false),
+        createMetaTag('author', 'ThunderTruck', false),
+        createMetaTag('robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1', false),
+        createMetaTag('googlebot', 'index, follow', false),
+        createMetaTag('bingbot', 'index, follow', false),
+        
+        // Geographic
+        createMetaTag('geo.region', 'US-NY', false),
+        createMetaTag('geo.placename', 'New York', false),
+        createMetaTag('geo.position', '40.7081;-73.9571', false),
+        createMetaTag('ICBM', '40.7081, -73.9571', false),
+      ];
+
+      // Add all meta tags to head
+      metaTags.forEach(tag => {
+        document.head.appendChild(tag);
+      });
+
+      // Add canonical link
+      const canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      canonical.href = 'https://web.thundertruck.app';
+      document.head.appendChild(canonical);
+
+      // Add apple touch icon
+      const appleIcon = document.createElement('link');
+      appleIcon.rel = 'apple-touch-icon';
+      appleIcon.href = '/images/thundertruck_icon.png';
+      document.head.appendChild(appleIcon);
+
+      // Add Schema.org structured data - Organization
+      const organizationSchema = document.createElement('script');
+      organizationSchema.type = 'application/ld+json';
+      organizationSchema.textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "ThunderTruck",
+        "alternateName": "ThunderTruck App",
+        "url": "https://web.thundertruck.app",
+        "logo": "https://web.thundertruck.app/images/thundertruck_icon.png",
+        "description": "Street food, minus the lines: locate trucks, order ahead, and watch your delivery in real time. ThunderTruck brings your favorites to you.",
+        "slogan": "Street food, minus the lines",
+        "foundingDate": "2024",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer service",
+          "email": "support@thundertruck.app",
+          "availableLanguage": ["en", "es"]
+        },
+        "sameAs": [
+          "https://www.facebook.com/thundertruck",
+          "https://twitter.com/thundertruck",
+          "https://www.instagram.com/thundertruck"
+        ],
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "New York",
+          "addressRegion": "NY",
+          "addressCountry": "US"
+        }
+      });
+      document.head.appendChild(organizationSchema);
+
+      // Add WebApplication Schema
+      const webAppSchema = document.createElement('script');
+      webAppSchema.type = 'application/ld+json';
+      webAppSchema.textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "ThunderTruck",
+        "url": "https://web.thundertruck.app",
+        "applicationCategory": "FoodApplication",
+        "operatingSystem": "Web, iOS, Android",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "1250"
+        },
+        "description": "Order street food ahead and track your delivery in real time. Find food trucks near you, browse menus, and enjoy your favorites delivered to your location.",
+        "screenshot": "https://web.thundertruck.app/images/thunder-truck-hero-image.png",
+        "featureList": [
+          "Real-time food truck location tracking",
+          "Order ahead and skip the lines",
+          "Live delivery tracking",
+          "Browse menus from multiple food trucks",
+          "Secure payment processing",
+          "Order history and favorites"
+        ]
+      });
+      document.head.appendChild(webAppSchema);
+
+      // Add LocalBusiness Schema
+      const localBusinessSchema = document.createElement('script');
+      localBusinessSchema.type = 'application/ld+json';
+      localBusinessSchema.textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "ThunderTruck",
+        "image": "https://web.thundertruck.app/images/thundertruck_icon.png",
+        "@id": "https://web.thundertruck.app",
+        "url": "https://web.thundertruck.app",
+        "telephone": "+1-800-THUNDER",
+        "priceRange": "$",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Williamsburg",
+          "addressLocality": "Brooklyn",
+          "addressRegion": "NY",
+          "postalCode": "11249",
+          "addressCountry": "US"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": 40.7081,
+          "longitude": -73.9571
+        },
+        "openingHoursSpecification": {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "opens": "00:00",
+          "closes": "23:59"
+        },
+        "servesCuisine": ["Street Food", "American", "International"],
+        "paymentAccepted": ["Credit Card", "Debit Card", "Mobile Payment"],
+        "currenciesAccepted": "USD"
+      });
+      document.head.appendChild(localBusinessSchema);
+
+      return () => {
+        // Cleanup on unmount
+        metaTags.forEach(tag => {
+          if (tag.parentNode) {
+            document.head.removeChild(tag);
+          }
+        });
+        if (canonical.parentNode) document.head.removeChild(canonical);
+        if (appleIcon.parentNode) document.head.removeChild(appleIcon);
+        if (organizationSchema.parentNode) document.head.removeChild(organizationSchema);
+        if (webAppSchema.parentNode) document.head.removeChild(webAppSchema);
+        if (localBusinessSchema.parentNode) document.head.removeChild(localBusinessSchema);
+      };
+    }
+  }, []);
+
   // Inject Google Fonts and Global CSS for web platform
   useEffect(() => {
     if (Platform.OS === 'web') {
