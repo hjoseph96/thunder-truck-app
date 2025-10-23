@@ -17,13 +17,13 @@ import { fetchFoodTypeById } from '../lib/food-types-service';
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Determine grid columns based on screen width
-const getNumColumns = () => {
+const getNumColumns = (width = screenWidth) => {
   if (Platform.OS === 'web') {
-    if (screenWidth >= 1400) return 5; // Extra large desktop
-    if (screenWidth >= 1200) return 4; // Large desktop
-    if (screenWidth >= 900) return 3; // Desktop/Tablet landscape
-    if (screenWidth >= 600) return 2; // Tablet portrait
-    return 2; // Mobile
+    if (width >= 1400) return 4; // Extra large desktop
+    if (width >= 1024) return 3; // Large desktop/tablet landscape
+    if (width >= 768) return 2; // Tablet portrait
+    if (width >= 480) return 2; // Large mobile
+    return 1; // Small mobile (under 480px)
   }
   return 2; // Native always 2 columns
 };
@@ -88,7 +88,8 @@ export default function FoodTypeViewer({ navigation, route }) {
   useEffect(() => {
     if (Platform.OS === 'web') {
       const handleResize = () => {
-        const newNumColumns = getNumColumns();
+        const currentWidth = window.innerWidth;
+        const newNumColumns = getNumColumns(currentWidth);
         if (newNumColumns !== numColumns) {
           setNumColumns(newNumColumns);
         }
@@ -318,13 +319,20 @@ export default function FoodTypeViewer({ navigation, route }) {
       console.warn(`⚠️ Food truck "${truck.name}" (${truck.id}) has no coverImageUrl or empty URL`);
     }
     
+    // Calculate card width based on columns and gap
+    // For web: (100% - (gap * (numColumns - 1))) / numColumns
+    const gap = numColumns === 1 ? 0 : 16; // 16px gap, 0 for single column
+    const cardWidth = numColumns === 1 
+      ? '100%' 
+      : `calc((100% - ${gap * (numColumns - 1)}px) / ${numColumns})`;
+    
     return (
       <TouchableOpacity
         key={truck.id}
         style={[
           styles.foodTruckCard,
           isWeb && styles.foodTruckCardWeb,
-          isWeb && { width: `${100 / numColumns - 2}%` }
+          isWeb && { width: cardWidth }
         ]}
         onPress={() => handleFoodTruckPress(truck)}
         activeOpacity={0.7}
@@ -608,7 +616,8 @@ const styles = StyleSheet.create({
         maxWidth: 1600,
         marginHorizontal: 'auto',
         width: '100%',
-        paddingHorizontal: 40,
+        paddingLeft: screenWidth < 768 ? 20 : 40,
+        paddingRight: screenWidth < 768 ? 20 : 40,
       },
     }),
   },
@@ -679,7 +688,7 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 20,
+    gap: 16,
     justifyContent: 'flex-start',
     alignItems: 'stretch',
     padding: '20px 0 100px 0',
