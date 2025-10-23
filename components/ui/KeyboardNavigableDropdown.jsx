@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   View,
   Text,
@@ -12,6 +13,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 /**
  * KeyboardNavigableDropdown - A dropdown with keyboard navigation support
  * 
+ * Self-manages zIndex: automatically elevates to z-index 1000 when open, 
+ * returns to 1 when closed. No parent container zIndex management needed.
+ * 
  * @param {Array} items - Array of items to display [{ code: 'CA', name: 'California' }]
  * @param {String} selectedValue - Currently selected value (code)
  * @param {Function} onSelect - Callback when item is selected
@@ -20,6 +24,7 @@ import { MaterialIcons } from '@expo/vector-icons';
  * @param {Boolean} displayCode - If true, display code; if false, display name
  * @param {Object} style - Container style
  * @param {Object} error - Error state
+ * @param {Number} zIndex - Optional base zIndex when closed (defaults to 1)
  */
 const KeyboardNavigableDropdown = ({
   items = [],
@@ -30,15 +35,18 @@ const KeyboardNavigableDropdown = ({
   displayCode = false,
   style,
   error = false,
+  zIndex,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [keyboardBuffer, setKeyboardBuffer] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   
   const scrollViewRef = useRef(null);
   const keyboardTimerRef = useRef(null);
   const keyboardBufferRef = useRef('');
   const highlightedIndexRef = useRef(-1);
+  const buttonRef = useRef(null);
 
   // Inject CSS for web to ensure dropdowns render on top
   useEffect(() => {
@@ -48,15 +56,15 @@ const KeyboardNavigableDropdown = ({
         const style = document.createElement('style');
         style.id = styleId;
         style.textContent = `
-          /* Remove z-index from React Native Web generated class */
-          /* Ensure dropdown lists render on top of everything */
-          [data-dropdown-list] {
-            position: absolute !important;
-            z-index: 99999 !important;
-          }
-          
+          /* Ensure dropdown containers can establish stacking context */
           [data-dropdown-container] {
             position: relative !important;
+          }
+          
+          /* Override any React Native Web z-index on dropdown list */
+          [data-dropdown-list] {
+            position: absolute !important;
+            z-index: 999999 !important;
           }
           
           [data-dropdown-item] {
@@ -189,6 +197,48 @@ const KeyboardNavigableDropdown = ({
     }
   }, [highlightedIndex]);
 
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    if (Platform.OS === 'web' && isOpen && typeof document !== 'undefined') {
+      const handleClickOutside = (event) => {
+        if (buttonRef.current && !buttonRef.current.contains(event.target)) {
+          // Check if click is not on dropdown list
+          const dropdownList = document.querySelector('[data-dropdown-list]');
+          if (!dropdownList || !dropdownList.contains(event.target)) {
+            handleClose();
+          }
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isOpen]);
+
+  // Update dropdown position on scroll
+  useEffect(() => {
+    if (Platform.OS === 'web' && isOpen && buttonRef.current) {
+      const updatePosition = () => {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        });
+      };
+
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen]);
+
   const handleSelect = (item) => {
     onSelect(item.code || item.value);
     handleClose();
@@ -203,13 +253,25 @@ const KeyboardNavigableDropdown = ({
   };
 
   const handleToggle = () => {
-    if (!isOpen) {
+    const newOpenState = !isOpen;
+    
+    if (!newOpenState) {
+      // Closing - reset state
       setHighlightedIndex(-1);
       setKeyboardBuffer('');
       highlightedIndexRef.current = -1;
       keyboardBufferRef.current = '';
+    } else if (Platform.OS === 'web' && buttonRef.current) {
+      // Opening - calculate position for portal
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
     }
-    setIsOpen(!isOpen);
+    
+    setIsOpen(newOpenState);
   };
 
   const getDisplayValue = () => {
@@ -219,16 +281,81 @@ const KeyboardNavigableDropdown = ({
     return displayCode ? item.code : (item.name || item.label);
   };
 
+  // Self-managed zIndex with higher boost when open
+  // Default base zIndex is 100 (high enough to work in forms)
+  // When open, boost by 10000 to ensure dropdown list appears on top
+  const baseZIndex = zIndex !== undefined ? zIndex : 100;
+  const activeZIndex = isOpen ? baseZIndex + 10000 : baseZIndex;
+
+  // Render dropdown list content
+  const renderDropdownList = () => {
+    if (!isOpen) return null;
+
+    const listContent = (
+      <View 
+        style={[
+          styles.list,
+          Platform.OS === 'web' && {
+            position: 'fixed',
+            top: dropdownPosition.top,
+            left: dropdownPosition.left,
+            width: dropdownPosition.width,
+            zIndex: 999999,
+          }
+        ]}
+        {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          ref={scrollViewRef}
+        >
+          {items.map((item, index) => {
+            const isHighlighted = highlightedIndex === index;
+            const displayValue = displayCode ? item.code : (item.name || item.label);
+            
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.item,
+                  isHighlighted && styles.itemHighlighted
+                ]}
+                onPress={() => handleSelect(item)}
+                {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
+              >
+                <Text style={[
+                  styles.itemText,
+                  isHighlighted && styles.itemTextHighlighted
+                ]}>
+                  {displayValue}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+
+    // Use Portal on web to render outside the component tree
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      return ReactDOM.createPortal(listContent, document.body);
+    }
+
+    return listContent;
+  };
+
   return (
     <View 
       style={[
         styles.container,
-        isOpen && Platform.OS === 'web' && { zIndex: 10000 },
+        { zIndex: activeZIndex },
+        Platform.OS === 'web' && isOpen && { position: 'relative' },
         style
       ]}
       {...(Platform.OS === 'web' && { 'data-dropdown-container': true })}
     >
       <TouchableOpacity
+        ref={buttonRef}
         style={[styles.button, error && styles.errorButton]}
         onPress={handleToggle}
       >
@@ -238,41 +365,7 @@ const KeyboardNavigableDropdown = ({
         <MaterialIcons name="keyboard-arrow-down" size={24} color="#999" />
       </TouchableOpacity>
 
-      {isOpen && (
-        <View 
-          style={styles.list}
-          {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
-        >
-          <ScrollView 
-            style={styles.scrollView}
-            ref={scrollViewRef}
-          >
-            {items.map((item, index) => {
-              const isHighlighted = highlightedIndex === index;
-              const displayValue = displayCode ? item.code : (item.name || item.label);
-              
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.item,
-                    isHighlighted && styles.itemHighlighted
-                  ]}
-                  onPress={() => handleSelect(item)}
-                  {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
-                >
-                  <Text style={[
-                    styles.itemText,
-                    isHighlighted && styles.itemTextHighlighted
-                  ]}>
-                    {displayValue}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
+      {renderDropdownList()}
     </View>
   );
 };
@@ -326,11 +419,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
-    zIndex: 99999,
     ...Platform.select({
       web: {
         maxHeight: 400,
-        zIndex: 99999,
       },
     }),
   },
@@ -339,7 +430,6 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         maxHeight: 400,
-        zIndex: "999999999999 !important"
       },
     }),
   },
