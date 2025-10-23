@@ -563,14 +563,21 @@ const styles = StyleSheet.create({
   },
   fieldContainer: {
     marginBottom: 16,
-    overflow: 'visible',
-    zIndex: 'inherit !important',
+    ...Platform.select({
+      web: {
+        overflow: 'visible',
+        position: 'relative',
+      },
+      default: {
+        overflow: 'visible',
+      },
+    }),
   },
   rowContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     position: 'relative',
-    zIndex: 1,
+    overflow: 'visible',
   },
   halfWidth: {
     width: '48%',
