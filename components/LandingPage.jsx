@@ -138,10 +138,10 @@ const styles = StyleSheet.create({
       web: {
         maxWidth: 1200,
         width: '100%',
-        paddingHorizontal: 40,
-        flexDirection: 'row',
-        gap: 80,
-        justifyContent: 'space-between',
+        paddingHorizontal: screenWidth < 768 ? 20 : 40,
+        flexDirection: screenWidth < 768 ? 'column' : 'row',
+        gap: screenWidth < 768 ? 20 : 80,
+        justifyContent: screenWidth < 768 ? 'center' : 'space-between',
       },
     }),
   },
@@ -149,8 +149,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Platform.select({
       web: {
-        flex: 1,
-        maxWidth: 500,
+        flex: screenWidth < 768 ? 'none' : 1,
+        maxWidth: screenWidth < 768 ? '100%' : 500,
+        width: screenWidth < 768 ? '100%' : 'auto',
       },
     }),
   },
@@ -159,8 +160,8 @@ const styles = StyleSheet.create({
     height: 250,
     ...Platform.select({
       web: {
-        width: 350,
-        height: 350,
+        width: screenWidth < 768 ? 200 : 350,
+        height: screenWidth < 768 ? 200 : 350,
       },
     }),
   },
@@ -170,9 +171,9 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     ...Platform.select({
       web: {
-        width: 400,
-        height: 400,
-        marginBottom: 0,
+        width: screenWidth < 768 ? 200 : 400,
+        height: screenWidth < 768 ? 200 : 400,
+        marginBottom: screenWidth < 768 ? 20 : 0,
       },
     }),
   },
@@ -181,22 +182,24 @@ const styles = StyleSheet.create({
     width: '100%',
     ...Platform.select({
       web: {
-        flex: 1,
-        maxWidth: 500,
+        flex: screenWidth < 768 ? 'none' : 1,
+        maxWidth: screenWidth < 768 ? '100%' : 500,
+        width: screenWidth < 768 ? '100%' : 'auto',
         justifyContent: 'center',
-        alignItems: 'flex-start',
-        paddingLeft: 40,
+        alignItems: screenWidth < 768 ? 'center' : 'flex-start',
+        paddingLeft: screenWidth < 768 ? 0 : 40,
       },
     }),
   },
   tagline: {
-    fontSize: 24,
+    fontSize: screenWidth < 768 ? 18 : 24,
     fontWeight: '600',
     color: '#2D1E2F',
-    textAlign: 'left',
-    marginBottom: 40,
-    lineHeight: 36,
+    textAlign: screenWidth < 768 ? 'center' : 'left',
+    marginBottom: screenWidth < 768 ? 20 : 40,
+    lineHeight: screenWidth < 768 ? 28 : 36,
     fontFamily: 'Poppins',
+    paddingHorizontal: screenWidth < 768 ? 20 : 0,
   },
   navButton: {
     backgroundColor: '#2D1E2F',

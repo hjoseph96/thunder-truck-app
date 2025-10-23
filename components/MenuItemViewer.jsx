@@ -9,6 +9,7 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -30,6 +31,7 @@ export default function MenuItemViewer({ navigation, route }) {
   const [cartData, setCartData] = useState(null);
   const [cartLoading, setCartLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   useEffect(() => {
     const loadMenuItem = async () => {
@@ -365,6 +367,14 @@ export default function MenuItemViewer({ navigation, route }) {
     setCurrentImageIndex(index);
   };
 
+  const handleImagePress = () => {
+    setShowImageModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowImageModal(false);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -391,14 +401,20 @@ export default function MenuItemViewer({ navigation, route }) {
             styles.fullImageContainer,
             images.length === 1 && styles.fullImageContainerSingle
           ]}>
-            <Image
-              source={typeof images[currentImageIndex] === 'string'
-                ? { uri: images[currentImageIndex] }
-                : images[currentImageIndex]
-              }
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            <TouchableOpacity
+              onPress={handleImagePress}
+              activeOpacity={0.9}
+              style={styles.fullImageTouchable}
+            >
+              <Image
+                source={typeof images[currentImageIndex] === 'string'
+                  ? { uri: images[currentImageIndex] }
+                  : images[currentImageIndex]
+                }
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
 
             {/* Navigation arrows */}
             {images.length > 1 && (
@@ -570,6 +586,74 @@ export default function MenuItemViewer({ navigation, route }) {
       onCheckout={(foodTruckId) => navigation.navigate('CheckoutForm', { foodTruckId })}
       foodTruckId={foodTruckId}
     />
+
+    {/* Image Modal */}
+    <Modal
+      visible={showImageModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={handleCloseModal}
+    >
+      <View style={styles.modalContainer}>
+        {/* Close button */}
+        <TouchableOpacity
+          style={styles.modalCloseButton}
+          onPress={handleCloseModal}
+        >
+          <MaterialIcons name="close" size={32} color="#fff" />
+        </TouchableOpacity>
+
+        {/* Image with zoom capability */}
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.modalImageContainer}
+          onPress={handleCloseModal}
+        >
+          <Image
+            source={typeof images[currentImageIndex] === 'string'
+              ? { uri: images[currentImageIndex] }
+              : images[currentImageIndex]
+            }
+            style={styles.modalImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+
+        {/* Navigation arrows for modal */}
+        {images.length > 1 && (
+          <>
+            <TouchableOpacity
+              style={[styles.modalNavButton, styles.modalNavButtonLeft]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handlePrevImage();
+              }}
+            >
+              <MaterialIcons name="chevron-left" size={40} color="#fff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalNavButton, styles.modalNavButtonRight]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleNextImage();
+              }}
+            >
+              <MaterialIcons name="chevron-right" size={40} color="#fff" />
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* Image counter */}
+        {images.length > 1 && (
+          <View style={styles.modalImageCounter}>
+            <Text style={styles.modalImageCounterText}>
+              {currentImageIndex + 1} / {images.length}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Modal>
   </View>
 );
 }
@@ -670,6 +754,17 @@ const styles = StyleSheet.create({
         maxWidth: '800px',
         maxHeight: '100%',
         objectFit: 'contain',
+      },
+    }),
+  },
+  fullImageTouchable: {
+    ...Platform.select({
+      web: {
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
       },
     }),
   },
@@ -1346,5 +1441,112 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontFamily: 'Cairo',
     letterSpacing: 0.5,
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+      },
+    }),
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: Platform.OS === 'web' ? 30 : 60,
+    right: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  modalImageContainer: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalImage: {
+    width: '100%',
+    height: '100%',
+    maxWidth: Platform.OS === 'web' ? '90vw' : screenWidth - 40,
+    maxHeight: Platform.OS === 'web' ? '90vh' : screenHeight - 100,
+    ...Platform.select({
+      web: {
+        objectFit: 'contain',
+      },
+    }),
+  },
+  modalNavButton: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        transition: 'background-color 0.3s',
+      },
+    }),
+  },
+  modalNavButtonLeft: {
+    left: 30,
+    top: '50%',
+    ...Platform.select({
+      web: {
+        transform: 'translateY(-50%)',
+      },
+      default: {
+        marginTop: -30,
+      },
+    }),
+  },
+  modalNavButtonRight: {
+    right: 30,
+    top: '50%',
+    ...Platform.select({
+      web: {
+        transform: 'translateY(-50%)',
+      },
+      default: {
+        marginTop: -30,
+      },
+    }),
+  },
+  modalImageCounter: {
+    position: 'absolute',
+    bottom: 40,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+  },
+  modalImageCounterText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Cairo',
   },
 });
