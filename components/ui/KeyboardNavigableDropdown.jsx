@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -47,6 +48,7 @@ const KeyboardNavigableDropdown = ({
   const keyboardBufferRef = useRef('');
   const highlightedIndexRef = useRef(-1);
   const buttonRef = useRef(null);
+  const hiddenInputRef = useRef(null);
 
   // Inject CSS for web to ensure dropdowns render on top
   useEffect(() => {
@@ -94,6 +96,27 @@ const KeyboardNavigableDropdown = ({
   useEffect(() => {
     if (Platform.OS === 'web' && isOpen && typeof document !== 'undefined') {
       const handleKeyDown = (e) => {
+        // Handle Enter key FIRST with aggressive preventDefault
+        if (e.key === 'Enter' || e.keyCode === 13 || e.code === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          
+          const currentHighlightedIndex = highlightedIndexRef.current;
+          
+          if (currentHighlightedIndex !== -1 && currentHighlightedIndex < items.length) {
+            const selectedItem = items[currentHighlightedIndex];
+            const selectedValue = selectedItem.code || selectedItem.value;
+            onSelect(selectedValue);
+            setIsOpen(false);
+            setHighlightedIndex(-1);
+            setKeyboardBuffer('');
+            highlightedIndexRef.current = -1;
+            keyboardBufferRef.current = '';
+          }
+          return false;
+        }
+        
         // Handle arrow keys
         if (e.key === 'ArrowDown') {
           e.preventDefault();
@@ -162,28 +185,37 @@ const KeyboardNavigableDropdown = ({
             keyboardBufferRef.current = '';
             setKeyboardBuffer('');
           }, 1000);
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          if (highlightedIndexRef.current !== -1) {
-            const selectedItem = items[highlightedIndexRef.current];
-            handleSelect(selectedItem);
-          }
         } else if (e.key === 'Escape') {
           e.preventDefault();
-          handleClose();
+          setIsOpen(false);
+          setHighlightedIndex(-1);
+          setKeyboardBuffer('');
+          highlightedIndexRef.current = -1;
+          keyboardBufferRef.current = '';
         }
       };
       
-      document.addEventListener('keydown', handleKeyDown);
+      // Use capture phase to catch the event BEFORE it bubbles
+      document.addEventListener('keydown', handleKeyDown, true);
+      
+      // Also add a keyup listener as a fallback
+      const handleKeyUp = (e) => {
+        if (e.key === 'Enter' || e.keyCode === 13 || e.code === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      };
+      document.addEventListener('keyup', handleKeyUp, true);
       
       return () => {
-        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('keydown', handleKeyDown, true);
+        document.removeEventListener('keyup', handleKeyUp, true);
         if (keyboardTimerRef.current) {
           clearTimeout(keyboardTimerRef.current);
         }
       };
     }
-  }, [isOpen, items, searchByCode]);
+  }, [isOpen, items, searchByCode, onSelect]);
 
   // Auto-scroll to highlighted item
   useEffect(() => {
@@ -272,14 +304,23 @@ const KeyboardNavigableDropdown = ({
       setKeyboardBuffer('');
       highlightedIndexRef.current = -1;
       keyboardBufferRef.current = '';
-    } else if (Platform.OS === 'web' && buttonRef.current) {
-      // Opening - calculate position for portal
-      const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
-      });
+    } else {
+      if (Platform.OS === 'web' && buttonRef.current) {
+        // Opening - calculate position for portal
+        const rect = buttonRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        });
+      }
+      
+      // On mobile, focus the hidden input to enable keyboard submission
+      if (Platform.OS !== 'web' && hiddenInputRef.current) {
+        setTimeout(() => {
+          hiddenInputRef.current?.focus();
+        }, 100);
+      }
     }
     
     setIsOpen(newOpenState);
@@ -290,6 +331,77 @@ const KeyboardNavigableDropdown = ({
     const item = items.find(i => i.code === selectedValue || i.value === selectedValue);
     if (!item) return selectedValue;
     return displayCode ? item.code : (item.name || item.label);
+  };
+
+  // Handle mobile keyboard text input for navigation
+  const handleMobileKeyInput = (text) => {
+    if (!text || text.length === 0) return;
+    
+    const typedKey = text.toLowerCase();
+    const searchField = searchByCode ? 'code' : 'name';
+    
+    // Clear previous timer
+    if (keyboardTimerRef.current) {
+      clearTimeout(keyboardTimerRef.current);
+    }
+    
+    // Check if typing the same letter repeatedly (cycling)
+    const isSameKeyCycle = keyboardBuffer === typedKey && typedKey.length === 1;
+    
+    if (isSameKeyCycle) {
+      // Cycle through items starting with this key
+      const currentIndex = highlightedIndexRef.current;
+      const matchingItems = items.map((item, index) => ({ item, index }))
+        .filter(({ item }) => item[searchField]?.toLowerCase().startsWith(typedKey));
+      
+      if (matchingItems.length > 0) {
+        const currentMatchIndex = matchingItems.findIndex(({ index }) => index === currentIndex);
+        const nextMatchIndex = (currentMatchIndex + 1) % matchingItems.length;
+        const nextIndex = matchingItems[nextMatchIndex].index;
+        
+        highlightedIndexRef.current = nextIndex;
+        setHighlightedIndex(nextIndex);
+      }
+      
+      keyboardBufferRef.current = typedKey;
+      setKeyboardBuffer(typedKey);
+    } else {
+      // Multi-character search
+      const newBuffer = keyboardBuffer + typedKey;
+      keyboardBufferRef.current = newBuffer;
+      setKeyboardBuffer(newBuffer);
+      
+      const matchIndex = items.findIndex(item => 
+        item[searchField]?.toLowerCase().startsWith(newBuffer)
+      );
+      
+      if (matchIndex !== -1) {
+        highlightedIndexRef.current = matchIndex;
+        setHighlightedIndex(matchIndex);
+      }
+    }
+    
+    // Clear the input
+    if (hiddenInputRef.current) {
+      hiddenInputRef.current.clear();
+    }
+    
+    // Clear buffer after 1 second
+    keyboardTimerRef.current = setTimeout(() => {
+      keyboardBufferRef.current = '';
+      setKeyboardBuffer('');
+    }, 1000);
+  };
+
+  // Handle mobile keyboard submission (Done button)
+  const handleMobileSubmit = () => {
+    if (highlightedIndexRef.current !== -1) {
+      const selectedItem = items[highlightedIndexRef.current];
+      handleSelect(selectedItem);
+    } else if (items.length > 0) {
+      // If nothing is highlighted, select the first item
+      handleSelect(items[0]);
+    }
   };
 
   // Self-managed zIndex with higher boost when open
@@ -387,6 +499,19 @@ const KeyboardNavigableDropdown = ({
         <MaterialIcons name="keyboard-arrow-down" size={24} color="#999" />
       </TouchableOpacity>
 
+      {/* Hidden TextInput for mobile keyboard navigation */}
+      {Platform.OS !== 'web' && isOpen && (
+        <TextInput
+          ref={hiddenInputRef}
+          style={styles.hiddenInput}
+          onChangeText={handleMobileKeyInput}
+          onSubmitEditing={handleMobileSubmit}
+          returnKeyType="done"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+      )}
+
       {renderDropdownList()}
     </View>
   );
@@ -400,6 +525,12 @@ const styles = StyleSheet.create({
         position: 'relative',
       },
     }),
+  },
+  hiddenInput: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    opacity: 0,
   },
   button: {
     flexDirection: 'row',
