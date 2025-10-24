@@ -56,13 +56,10 @@ const CheckoutForm = ({ route, navigation }) => {
         // First, try to find the default address
         let addressToSelect = user.userAddresses.find(address => address.isDefault);
         
-        // If no default, use the first address
-        if (!addressToSelect && user.userAddresses.length > 0) {
+        // If no default found, use the first address
+        if (!addressToSelect) {
           addressToSelect = user.userAddresses[0];
           console.log('No default address found, using first address');
-        } else {
-          addressToSelect = null;
-          console.log('No default address found, using null');
         }
         
         setSelectedAddress(addressToSelect);
