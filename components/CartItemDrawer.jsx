@@ -45,7 +45,7 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuan
             </View>
 
             <View style={styles.foodTruckNameContainer}>
-              <Text style={styles.foodTruckName}>{foodTruckName}</Text>
+              <Text style={styles.foodTruckName} numberOfLines={1} ellipsizeMode="tail">{foodTruckName}</Text>
               
               <Text style={styles.itemCount}>{totalItems} items</Text>
             </View>
@@ -67,15 +67,15 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuan
 
                 <View style={styles.itemImageContainer}>
                   {item.cartItem.menuItem?.imageUrl && (
-                    <Image source={{ uri: item.cartItem.menuItem.imageUrl }} style={styles.cartItemImage} />
+                    <Image source={{ uri: item.cartItem.menuItem.imageUrl }} style={styles.itemImage} />
                   )}
                 </View>
                 
                 <View style={styles.itemNameContainer}>
-                  <Text style={styles.itemName}>{item.cartItem.menuItem?.name}</Text>
+                  <Text style={styles.itemName} numberOfLines={2} ellipsizeMode="tail">{item.cartItem.menuItem?.name}</Text>
 
                   {item.cartItem.menuItem?.description && (
-                    <Text style={styles.itemDescription}>
+                    <Text style={styles.itemDescription} numberOfLines={2} ellipsizeMode="tail">
                       {item.cartItem.menuItem.description}
                     </Text>
                   )}
@@ -145,14 +145,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  foodTruckName: {
-    fontSize: 16,
-    width: 25,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-    marginLeft: 12
-  },
   itemCount: {
     fontSize: 14,
     color: '#666',
@@ -218,7 +210,7 @@ const styles = StyleSheet.create({
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: 12,
   },
   quantityButton: {
     width: 28,
@@ -242,12 +234,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo',
   },
   itemPrice: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#5F5C5C',
-    marginRight: 8,
-    bottom: 2,
-    position: 'relative',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
     letterSpacing: 0.5,
   },
   cartItemImage: {
@@ -259,14 +248,12 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 6,
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
+    overflow: 'hidden',
   },
   foodTruckNameContainer: {
-    display: 'flex',
+    flex: 1,
     flexDirection: 'column',
-    alignItems: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     marginLeft: 12,
   },
   foodTruckName: {
@@ -274,10 +261,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 2,
-    textOverflow: 'ellipsis',
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    maxWidth: '90%',
+    flexShrink: 1,
   },
   itemCount: {
     fontSize: 14,
@@ -285,15 +269,21 @@ const styles = StyleSheet.create({
   },
   itemImageContainer: {
     width: 48,
-    height: 40,
+    height: 48,
     borderRadius: 6,
+    overflow: 'hidden',
+  },
+  itemImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    resizeMode: 'cover',
   },
   itemNameContainer: {
     flex: 1,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
-    marginLeft: 35,
-    marginTop: 28,
+    marginLeft: 12,
   },
 });
 
