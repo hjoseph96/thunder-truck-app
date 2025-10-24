@@ -201,6 +201,12 @@ const KeyboardNavigableDropdown = ({
   useEffect(() => {
     if (Platform.OS === 'web' && isOpen && typeof document !== 'undefined') {
       const handleClickOutside = (event) => {
+        // Check if click is on a dropdown item
+        const isDropdownItem = event.target.closest('[data-dropdown-item]');
+        if (isDropdownItem) {
+          return; // Don't close if clicking on an item
+        }
+        
         if (buttonRef.current && !buttonRef.current.contains(event.target)) {
           // Check if click is not on dropdown list
           const dropdownList = document.querySelector('[data-dropdown-list]');
@@ -210,7 +216,11 @@ const KeyboardNavigableDropdown = ({
         }
       };
 
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use setTimeout to ensure this runs after any click handlers
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
+      
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
@@ -240,7 +250,8 @@ const KeyboardNavigableDropdown = ({
   }, [isOpen]);
 
   const handleSelect = (item) => {
-    onSelect(item.code || item.value);
+    const selectedValue = item.code || item.value;
+    onSelect(selectedValue);
     handleClose();
   };
 
@@ -301,13 +312,16 @@ const KeyboardNavigableDropdown = ({
             left: dropdownPosition.left,
             width: dropdownPosition.width,
             zIndex: 999999,
+            pointerEvents: 'auto',
           }
         ]}
         {...(Platform.OS === 'web' && { 'data-dropdown-list': true })}
+        pointerEvents="auto"
       >
         <ScrollView 
           style={styles.scrollView}
           ref={scrollViewRef}
+          nestedScrollEnabled={true}
         >
           {items.map((item, index) => {
             const isHighlighted = highlightedIndex === index;
@@ -321,7 +335,15 @@ const KeyboardNavigableDropdown = ({
                   isHighlighted && styles.itemHighlighted
                 ]}
                 onPress={() => handleSelect(item)}
-                {...(Platform.OS === 'web' && { 'data-dropdown-item': true })}
+                activeOpacity={0.7}
+                {...(Platform.OS === 'web' && { 
+                  'data-dropdown-item': true,
+                  onMouseDown: (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelect(item);
+                  }
+                })}
               >
                 <Text style={[
                   styles.itemText,
