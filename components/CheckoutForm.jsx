@@ -407,11 +407,6 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
-        position: 'absolute',
-        top: 82,
-        left: 0,
-        right: 0,
-        bottom: 80,
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
@@ -425,7 +420,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     ...Platform.select({
       web: {
-        paddingBottom: 40,
+        paddingTop: 82,
+        paddingBottom: 80,
       },
     }),
   },

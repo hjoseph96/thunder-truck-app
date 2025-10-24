@@ -94,22 +94,22 @@ const PaymentScreen = ({ route, navigation }) => {
   const loadPaymentData = async () => {
     try {
       setPageLoading(true);
-      
+
       // Load user data
       const user = await fetchUser();
       setUserData(user);
       setDefaultPaymentMethod(user.defaultUserPaymentMethod);
-      
+
       // Set default address
       if (user?.userAddresses?.length > 0) {
         const defaultAddr = user.userAddresses.find(addr => addr.isDefault) || user.userAddresses[0];
         setDeliveryAddress(defaultAddr);
       }
-      
+
       // Load carts data
       const carts = await fetchCarts();
       setCartsData(carts);
-      
+
     } catch (error) {
       console.error('Error loading payment data:', error);
       showAlert('Error', 'Failed to load payment information', 'danger');
@@ -126,7 +126,7 @@ const PaymentScreen = ({ route, navigation }) => {
   // Group cart items by food truck
   const groupCartItemsByFoodTruck = () => {
     const grouped = {};
-    
+
     cartsData.forEach(cart => {
       if (cart.cartItems && cart.cartItems.length > 0) {
         const foodTruckName = cart.foodTruck.name;
@@ -141,7 +141,7 @@ const PaymentScreen = ({ route, navigation }) => {
         grouped[foodTruckName].push(...itemsWithTruckData);
       }
     });
-    
+
     return grouped;
   };
 
@@ -356,12 +356,12 @@ const PaymentScreen = ({ route, navigation }) => {
 
         setTimeout(() => {
           const orders = createdOrdersData.orders || [];
-          
+
           // Backend returns array where:
           // - First item (index 0) = Parent order (no foodTruck)
           // - Remaining items (index 1+) = Individual vendor orders (have foodTruck)
           const vendorOrders = orders.slice(1); // Skip parent order at index 0
-          
+
           // Check if there are multiple vendor orders (multi-vendor purchase)
           if (vendorOrders.length > 1) {
             // Navigate to OrderBreakdownView with vendor order IDs only
@@ -487,7 +487,7 @@ const PaymentScreen = ({ route, navigation }) => {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -510,7 +510,7 @@ const PaymentScreen = ({ route, navigation }) => {
     <View style={styles.container}>
       {/* Modern Professional Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -523,7 +523,6 @@ const PaymentScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.headerSpacer} />
 
         {/* Delivery Address Section */}
         <View style={styles.section}>
@@ -869,11 +868,6 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Platform.select({
       web: {
-        position: 'absolute',
-        top: 82,
-        left: 0,
-        right: 0,
-        bottom: 0,
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
@@ -887,6 +881,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     ...Platform.select({
       web: {
+        paddingTop: 82,
         paddingBottom: 60,
       },
     }),
