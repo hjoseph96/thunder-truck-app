@@ -101,37 +101,69 @@ const FoodTruckIcon = ({ size = 30 }) => {
   );
 };
 
+// SVG Icon Components for Web
+const BikeIconSvg = ({ size = 30 }) => (
+  <svg width={size} height={size} viewBox="0 -15.5 1055 1055" xmlns="http://www.w3.org/2000/svg">
+    <path d="M354.614054 430.364318l67.91349 138.460135 33.964581-23.510324-47.020648-112.332328zM636.737943 404.252185l78.367746 222.0315 39.183874-10.438584-67.91349-235.10324z" fill="#C0EAFF" />
+    <path d="M335.022117 767.345629c-70.577993 0-128.005878-57.427885-128.005877-128.005877s57.427885-128.005878 128.005877-128.005878c3.745978 0 7.460609 0.172409 11.112547 0.470207 8.620452 0.736657 15.01526 8.338328 14.294277 16.95878-0.736657 8.620452-8.369675 14.999587-16.95878 14.294277a96.784167 96.784167 0 0 0-105.106822 96.298287c0 53.290068 43.353038 96.658779 96.658778 96.658779a96.75282 96.75282 0 0 0 95.326528-112.755514 15.673549 15.673549 0 1 1 30.908239-5.172271c1.175516 6.974729 1.755438 14.121868 1.755437 21.269006 0 70.577993-57.412211 127.990204-127.990204 127.990204zM709.870724 767.345629c-76.345859 0-138.444461-62.114276-138.444462-138.444461a137.660784 137.660784 0 0 1 53.384109-109.244639 15.657876 15.657876 0 1 1 19.262793 24.717187 106.501768 106.501768 0 0 0-41.299803 84.527452 107.207078 107.207078 0 0 0 107.097363 107.097363 107.207078 107.207078 0 0 0 107.097363-107.097363 107.066016 107.066016 0 0 0-47.240078-88.822004 15.673549 15.673549 0 0 1 17.554375-25.986745 138.397441 138.397441 0 0 1 61.032801 114.793075c0.015674 76.361532-62.098603 138.460135-138.444461 138.460135z" fill="#1F87DD" />
+    <path d="M418.609156 591.347344a15.689223 15.689223 0 0 1-14.498033-9.733275l-56.017265-136.877106h-27.444385a15.673549 15.673549 0 0 1 0-31.347099h128.005877a15.673549 15.673549 0 0 1 0 31.347099h-10.987158l36.942556 94.276399a15.673549 15.673549 0 0 1-5.219292 18.275359l-41.409517 30.95526a15.642202 15.642202 0 0 1-9.372783 3.103363z m-36.644758-146.610381l43.478426 106.266665 15.626528-11.676795-37.067944-94.58987H381.964398z" fill="#1F87DD" />
+    <path d="M335.037791 655.028975a15.657876 15.657876 0 0 1-9.1847-28.384798l309.5526-223.348079a15.689223 15.689223 0 0 1 18.338053 25.422498l-309.5526 223.348078a15.657876 15.657876 0 0 1-9.153353 2.962301zM613.227619 345.476375h-78.367747a15.673549 15.673549 0 0 1 0-31.347099h78.367747a15.673549 15.673549 0 0 1 0 31.347099z" fill="#1F87DD" />
+    <path d="M715.105689 651.110587a15.610855 15.610855 0 0 1-14.968239-11.049852l-108.946842-352.059266h-103.382731a15.673549 15.673549 0 0 1 0-31.347098h114.934137a15.673549 15.673549 0 0 1 14.96824 11.049852l34.168337 110.404482 30.829872-10.281849a15.736244 15.736244 0 0 1 19.905407 10.140787l74.44936 235.10324a15.673549 15.673549 0 0 1-9.435477 19.403854l-47.020648 17.632743a15.45412 15.45412 0 0 1-5.501416 1.003107z m-53.948357-243.04973l63.995102 206.859505 17.538702-6.567217-65.154944-205.746683-16.37886 5.454395z" fill="#1F87DD" />
+  </svg>
+);
+
+const DestinationPinSvg = ({ size = 30 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+      fill="#dc3545"
+    />
+    <circle cx="12" cy="9" r="1.5" fill="#fff"/>
+  </svg>
+);
+
 // Reusable SVG Marker Component with fallback
 const SvgMarker = ({ type, size = 30, fallbackColor = '#007cff' }) => {
   const [hasError] = useState(false);
 
-  // For web platform, render as HTML/CSS instead of React Native SVG
+  // For web platform, render as HTML/CSS with actual SVG icons
   if (Platform.OS === 'web') {
-    const markerStyles = {
+    const containerStyle = {
       width: `${size}px`,
       height: `${size}px`,
-      backgroundColor: fallbackColor,
-      borderRadius: '50%',
-      border: '3px solid white',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: `${size * 0.5}px`,
-      boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
     };
 
-    // Different emoji icons for different marker types
-    const markerIcons = {
-      foodTruck: '🚚',
-      courier: '🚴',
-      destination: '📍',
-    };
-
-    return (
-      <div style={markerStyles}>
-        <span>{markerIcons[type] || markerIcons.destination}</span>
-      </div>
-    );
+    // Render different SVG icons based on type
+    switch (type) {
+      case 'foodTruck':
+        return (
+          <div style={containerStyle}>
+            <FoodTruckIcon size={size} />
+          </div>
+        );
+      case 'courier':
+        return (
+          <div style={containerStyle}>
+            <BikeIconSvg size={size} />
+          </div>
+        );
+      case 'destination':
+        return (
+          <div style={containerStyle}>
+            <DestinationPinSvg size={size} />
+          </div>
+        );
+      default:
+        return (
+          <div style={containerStyle}>
+            <DestinationPinSvg size={size} />
+          </div>
+        );
+    }
   }
 
   // Native platform rendering (iOS/Android)
@@ -299,7 +331,7 @@ const CourierMarker = ({ courier, position }) => {
         transition: 'all 0.3s ease',
       }}
     >
-      <span style={{ fontSize: '14px' }}>🚴</span>
+      <span style={{ fontSize: '12px' }}>🚴</span>
     </div>
   ) : (
     <View
@@ -740,7 +772,11 @@ const MapWebview = forwardRef(
             </Marker>
           )}
 
-          {destinationLocation && <Marker coordinate={destinationLocation} title="Destination" />}
+          {destinationLocation && (
+            <Marker coordinate={destinationLocation} title="Destination">
+              <SvgMarker type="destination" size={35} />
+            </Marker>
+          )}
         </MapView>
 
         {/* GPS Button */}
