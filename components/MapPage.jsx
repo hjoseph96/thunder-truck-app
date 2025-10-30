@@ -13,7 +13,7 @@ import { SearchBar } from './ui/SearchBar';
 import { LocationBar } from './ui/LocationBar';
 import { BottomNavigation } from './ui/BottomNavigation';
 import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
-export default function MapPage({ route }) {
+export default function MapPage({ route, navigation }) {
   const [searchText, setSearchText] = useState('');
   const [webViewReady, setWebViewReady] = useState(false);
   const [foodTrucks, setFoodTrucks] = useState([]);
@@ -25,9 +25,10 @@ export default function MapPage({ route }) {
   const [demoCourierId, setDemoCourierId] = useState(null);
   const [courierAdded, setCourierAdded] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [navigation, setNavigation] = useState(null);
+  const [currentMapPosition, setCurrentMapPosition] = useState(null);
 
   const mapRef = useRef(null);
+  const fetchDebounceTimeout = useRef(null);
 
   // Use refs to store current state values for interval access
   const demoStateRef = useRef({
@@ -47,25 +48,85 @@ export default function MapPage({ route }) {
     updateUserLocation,
   } = useLocationManager();
 
+  // Debounced function to fetch food trucks based on map region
+  const fetchFoodTrucksForRegion = React.useCallback((region) => {
+    // Update current position for debug display
+    setCurrentMapPosition(region);
+    
+    // Clear any existing timeout
+    if (fetchDebounceTimeout.current) {
+      clearTimeout(fetchDebounceTimeout.current);
+    }
+
+    // Set a new timeout to fetch food trucks after 500ms of inactivity
+    fetchDebounceTimeout.current = setTimeout(async () => {
+      try {
+        setLoadingFoodTrucks(true);
+
+        const result = await fetchNearbyFoodTrucks({
+          latitude: region.latitude,
+          longitude: region.longitude,
+          radius: 5,
+          unit: 'miles',
+          page: 1,
+        });
+        
+        // Update food trucks state and send to map
+        const trucks = result?.foodTrucks || [];
+        setFoodTrucks(trucks);
+        
+        // Send updated food trucks to the map
+        if (mapRef.current && trucks.length > 0) {
+          mapRef.current.postMessage({
+            type: 'addFoodTrucks',
+            foodTrucks: trucks,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching food trucks for region:', error);
+      } finally {
+        setLoadingFoodTrucks(false);
+      }
+    }, 500); // 500ms debounce delay
+  }, []);
+
+  // Cleanup debounce timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (fetchDebounceTimeout.current) {
+        clearTimeout(fetchDebounceTimeout.current);
+      }
+    };
+  }, []);
+
   // Load nearby food trucks when user location is available
   React.useEffect(() => {
     const loadFoodTrucks = async () => {
       if (userLocation) {
         try {
           setLoadingFoodTrucks(true);
-          console.log('MapPage: Loading food trucks for location:', userLocation);
 
           const result = await fetchNearbyFoodTrucks({
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
-            radius: 10,
+            radius: 5,
+            unit: 'miles',
             page: 1,
           });
-
-          console.log('MapPage: Loaded food trucks:', result?.foodTrucks?.length || 0);
-          setFoodTrucks(result?.foodTrucks || []);
+          
+          // Update food trucks state
+          const trucks = result?.foodTrucks || [];
+          setFoodTrucks(trucks);
+          
+          // Send food trucks to the map if ready
+          if (mapRef.current && trucks.length > 0) {
+            mapRef.current.postMessage({
+              type: 'addFoodTrucks',
+              foodTrucks: trucks,
+            });
+          }
         } catch (error) {
-          console.error('MapPage: Error loading food trucks:', error);
+          console.error('Error loading food trucks:', error);
           setFoodTrucks([]);
         } finally {
           setLoadingFoodTrucks(false);
@@ -78,27 +139,18 @@ export default function MapPage({ route }) {
     if (route.params.userData) {
       setUserData(route.params.userData);
     }
-
-    if (route.params.navigation) {
-      setNavigation(route.params.navigation);
-    }
   }, [userLocation]);
 
   // Move user marker to actual location once WebView is ready
   React.useEffect(() => {
     if (webViewReady && userLocation && locationPermissionGranted && !markerMovedToUserLocation) {
-      console.log('MapPage: WebView ready, moving user marker to actual location:', userLocation);
-
       // Check if this is the user's actual location (not default)
       const isDefaultLocation =
         userLocation.latitude === 40.7081 && userLocation.longitude === -73.9571;
 
       if (!isDefaultLocation) {
-        console.log("MapPage: Moving marker to user's actual location");
         moveUserMarkerToCoordinates(userLocation.latitude, userLocation.longitude, false);
         setMarkerMovedToUserLocation(true);
-      } else {
-        console.log('MapPage: User location is default, not moving marker');
       }
     }
   }, [webViewReady, userLocation, locationPermissionGranted, markerMovedToUserLocation]);
@@ -106,7 +158,6 @@ export default function MapPage({ route }) {
   // Send food trucks to map when both webview and food trucks are ready
   React.useEffect(() => {
     if (webViewReady && foodTrucks.length > 0) {
-      console.log('MapPage: Sending food trucks to map:', foodTrucks.length);
 
       const message = {
         type: 'addFoodTrucks',
@@ -129,19 +180,13 @@ export default function MapPage({ route }) {
 
   const handleGPSButtonPress = async () => {
     const location = await moveToCurrentLocation();
-    if (location) {
-      console.log('GPS button pressed - location updated:', location);
-    }
   };
 
   // Function to move user marker to specific coordinates
   const moveUserMarkerToCoordinates = (latitude, longitude, updateState = true) => {
     if (!locationPermissionGranted) {
-      console.log('Cannot move marker: location permission not granted');
       return;
     }
-
-    console.log('Moving user marker to coordinates:', { latitude, longitude });
 
     // Only update state if explicitly requested (prevents infinite loops during initialization)
     if (updateState) {
@@ -173,7 +218,6 @@ export default function MapPage({ route }) {
       return; // Don't update if no permission
     }
 
-    console.log('Updating marker position to:', newCoordinates);
     updateUserLocation({
       ...userLocation,
       latitude: newCoordinates.latitude,
@@ -184,7 +228,6 @@ export default function MapPage({ route }) {
   const handleSearchSubmit = () => {
     if (searchText.trim()) {
       // Could implement address search here using the hook's moveToAddress function
-      console.log('Search submitted:', searchText);
     }
   };
 
@@ -199,29 +242,23 @@ export default function MapPage({ route }) {
 
   const startDemo = async () => {
     try {
-      console.log('🚴 Starting courier demo...');
-
       // Check if we have an authentication token
       const token = await getStoredToken();
       if (!token) {
         throw new Error('No authentication token found. Please sign in first.');
       }
-      console.log('🔑 Authentication token found');
 
       // Connect to WebSocket if not connected
       if (!webSocketService.isConnected()) {
-        console.log('📡 Connecting to WebSocket...');
         await webSocketService.connect();
 
         // Wait for connection to be established and subscribed
-        console.log('⏳ Waiting for WebSocket connection to stabilize...');
         let attempts = 0;
         const maxAttempts = 10;
 
         while (!webSocketService.isConnected() && attempts < maxAttempts) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           attempts++;
-          console.log(`⏳ Connection attempt ${attempts}/${maxAttempts}...`);
         }
 
         if (!webSocketService.isConnected()) {
@@ -230,12 +267,9 @@ export default function MapPage({ route }) {
 
         // Additional wait for subscription to be confirmed
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        console.log('✅ WebSocket connected and ready');
       }
 
       // Get courier ID and location directly from WebSocket response
-      console.log('📡 Requesting courier position to get ID and location...');
-
       let actualCourierId = null;
       let initialLocation = null;
 
@@ -257,7 +291,6 @@ export default function MapPage({ route }) {
               longitude: data.longitude || data.courierLongitude,
               timestamp: Date.now(),
             };
-            console.log('✅ Got courier ID and location:', actualCourierId, initialLocation);
             clearTimeout(timeout);
             unsubscribe();
             resolve();
@@ -273,8 +306,6 @@ export default function MapPage({ route }) {
       // Wait for courier response
       await courierResponsePromise;
 
-      console.log('✅ Using real courier ID from WebSocket:', actualCourierId);
-
       // Create a realistic demo destination (nearby restaurant or landmark)
       const demoDestination = {
         latitude: initialLocation.latitude + 0.01, // ~1km north
@@ -282,10 +313,6 @@ export default function MapPage({ route }) {
       };
 
       // Get real route from Google Maps API
-      console.log('🗺️ Fetching real route from Google Maps...');
-      console.log('📍 From:', initialLocation);
-      console.log('📍 To:', demoDestination);
-
       const routeData = await googleMapsRoutingService.fetchRoute(
         initialLocation,
         demoDestination,
@@ -297,9 +324,6 @@ export default function MapPage({ route }) {
       }
 
       const route = routeData.coordinates;
-      console.log(
-        `✅ Got real route with ${route.length} waypoints (${(routeData.distance / 1000).toFixed(2)}km)`,
-      );
 
       setDemoRoute(route);
       setDemoProgress(0);
@@ -313,18 +337,10 @@ export default function MapPage({ route }) {
         courierId: actualCourierId,
       };
 
-      console.log('📍 Demo route set in state:', route.length, 'waypoints');
-      console.log('📍 Demo active:', true);
-      console.log('📍 Demo state ref updated:', demoStateRef.current);
-
       // Add route to courier and map for visualization
-      console.log('📍 Adding demo route to map with destination:', demoDestination);
-      console.log('📍 Using real courier ID:', actualCourierId);
-
       if (mapRef.current) {
         // Update the existing courier with route and destination
         if (mapRef.current.updateCourierRoute) {
-          console.log('📍 Updating courier route for:', actualCourierId);
           mapRef.current.updateCourierRoute(actualCourierId, route);
         }
       }
@@ -339,8 +355,6 @@ export default function MapPage({ route }) {
       }, 3000);
 
       setDemoInterval(interval);
-      console.log('✅ Demo started successfully');
-      console.log('🕐 Demo interval started - will update position every 3 seconds');
     } catch (error) {
       console.error('❌ Failed to start demo:', error);
 
@@ -368,17 +382,7 @@ export default function MapPage({ route }) {
   const updateDemoPosition = async () => {
     const currentState = demoStateRef.current;
 
-    console.log('🔍 updateDemoPosition called - checking route state:');
-    console.log(
-      '🔍 ref route:',
-      currentState.route ? `${currentState.route.length} waypoints` : 'null/undefined',
-    );
-    console.log('🔍 ref active:', currentState.active);
-    console.log('🔍 ref courierId:', currentState.courierId);
-    console.log('🔍 ref progress:', currentState.progress);
-
     if (!currentState.route || currentState.route.length === 0 || !currentState.active) {
-      console.log('⚠️ No demo route available for position update');
       return;
     }
 
@@ -406,30 +410,20 @@ export default function MapPage({ route }) {
         startPoint.longitude + (endPoint.longitude - startPoint.longitude) * segmentProgress,
     };
 
-    console.log(
-      `📍 Following real route - Progress: ${(newProgress * 100).toFixed(1)}% (waypoint ${segmentIndex + 1}/${route.length})`,
-    );
-    console.log(`📍 Position:`, currentPosition);
-
     // Call real GraphQL mutation
     const result = await updateCourierPosition(currentPosition.latitude, currentPosition.longitude);
 
-    if (result.success) {
-      console.log('✅ Position updated successfully');
-    } else {
+    if (!result.success) {
       console.error('❌ Failed to update position:', result.errors);
     }
 
     // Stop demo when route is complete
     if (newProgress >= 1) {
-      console.log('🏁 Demo route completed');
       stopDemo();
     }
   };
 
   const stopDemo = () => {
-    console.log('🛑 Stopping courier demo...');
-
     if (demoInterval) {
       clearInterval(demoInterval);
       setDemoInterval(null);
@@ -448,8 +442,6 @@ export default function MapPage({ route }) {
       active: false,
       courierId: null,
     };
-
-    console.log('✅ Demo stopped');
   };
 
   // Subscribe to WebSocket courier updates
@@ -457,25 +449,13 @@ export default function MapPage({ route }) {
     const unsubscribe = webSocketService.subscribe(
       WEBSOCKET_EVENTS.COURIER_LOCATION_UPDATE,
       (data) => {
-        console.log('📡 Received courier update:', data);
-
         // Set demo courier ID from the first response (this will be our chosen courier)
         if (!demoCourierId) {
-          console.log('📍 Setting demo courier ID to first responder:', data.courier_id);
           setDemoCourierId(data.courier_id);
         }
 
         // Only process updates for our chosen demo courier - reject all others
-        if (data.courier_id === demoCourierId) {
-          console.log('✅ Processing update for chosen courier:', data.courier_id);
-        } else {
-          console.log(
-            '❌ Rejecting update from unwanted courier:',
-            data.courier_id,
-            '(only accepting:',
-            demoCourierId,
-            ')',
-          );
+        if (data.courier_id !== demoCourierId) {
           return;
         }
 
@@ -489,7 +469,6 @@ export default function MapPage({ route }) {
 
           // Add courier to tracking system first if not already added
           if (!courierAdded && mapRef.current.addCourier) {
-            console.log('📍 Adding courier to map and tracking system:', data.courier_id);
             mapRef.current.addCourier(data.courier_id, 'Demo Courier', location);
             setCourierAdded(true);
           }
@@ -547,12 +526,12 @@ export default function MapPage({ route }) {
         userLocation={userLocation}
         locationPermissionGranted={locationPermissionGranted}
         onGPSButtonPress={handleGPSButtonPress}
+        onRegionChange={fetchFoodTrucksForRegion}
         onCourierUpdate={(event, data) => {
-          console.log('🚴 Courier tracking event:', event, data);
+          // Courier tracking event handler
         }}
         onMessage={(message) => {
           if (message.type === 'foodTruckPressed') {
-            console.log('Navigating to food truck:', message.foodTruck.name);
             navigation.navigate('FoodTruckViewer', {
               foodTruckId: message.foodTruck.id,
               foodTruck: message.foodTruck,
@@ -562,6 +541,25 @@ export default function MapPage({ route }) {
       />
 
       <DemoFloatingButton />
+
+      {/* Debug position display */}
+      {currentMapPosition && (
+        <View style={styles.debugPosition}>
+          <Text style={styles.debugPositionTitle}>Map Center (Debug)</Text>
+          <Text style={styles.debugPositionText}>
+            Lat: {currentMapPosition.latitude.toFixed(6)}
+          </Text>
+          <Text style={styles.debugPositionText}>
+            Lng: {currentMapPosition.longitude.toFixed(6)}
+          </Text>
+          <Text style={styles.debugPositionText}>
+            Radius: 5 miles
+          </Text>
+          <Text style={styles.debugPositionText}>
+            Trucks: {foodTrucks.length}
+          </Text>
+        </View>
+      )}
 
       <BottomNavigation activeTab="map" userData={userData} />
     </SafeAreaView>
@@ -1012,5 +1010,33 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 2,
     lineHeight: 14,
+  },
+  debugPosition: {
+    position: 'absolute',
+    top: 120,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  debugPositionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fecd15',
+    marginBottom: 6,
+    fontFamily: 'Cairo_700Bold',
+  },
+  debugPositionText: {
+    fontSize: 10,
+    color: '#fff',
+    marginBottom: 2,
+    fontFamily: 'Cairo_400Regular',
   },
 });

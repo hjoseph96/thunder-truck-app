@@ -520,6 +520,8 @@ const MapWebview = forwardRef(
       destinationLocation,
       courierLocation,
       fitToElements,
+      // New prop for region changes
+      onRegionChange,
     },
     ref,
   ) => {
@@ -693,7 +695,6 @@ const MapWebview = forwardRef(
 
     // Handle map load
     const handleMapLoad = () => {
-
       setMapReady(true);
       if (setWebViewReady) {
         setWebViewReady(true);
@@ -707,10 +708,25 @@ const MapWebview = forwardRef(
       }
     };
 
+    // Handle region changes (map movement, zoom, etc.)
+    const handleRegionChangeComplete = useCallback((region) => {
+      handleMapInteraction();
+      
+      // Call the parent's onRegionChange callback if provided
+      // Check if region is valid before accessing properties
+      if (onRegionChange && region && region.latitude !== undefined && region.longitude !== undefined) {
+        onRegionChange({
+          latitude: region.latitude,
+          longitude: region.longitude,
+          latitudeDelta: region.latitudeDelta || 0.01,
+          longitudeDelta: region.longitudeDelta || 0.01,
+        });
+      }
+    }, [onRegionChange]);
+
     // Handle GPS button press
     const handleGPSButtonPress = () => {
       if (userLocation && mapRef.current) {
-
         // Mark as user interaction since they're manually centering
         setHasUserInteracted(true);
 
@@ -745,7 +761,7 @@ const MapWebview = forwardRef(
           }}
           onMapReady={handleMapLoad}
           onPanDrag={handleMapInteraction}
-          onRegionChangeComplete={handleMapInteraction}
+          onRegionChangeComplete={handleRegionChangeComplete}
           showsUserLocation={userLocation && locationPermissionGranted}
           showsMyLocationButton={false}
           showsCompass={true}
@@ -781,28 +797,33 @@ const MapWebview = forwardRef(
           })}
 
           {/* Render food truck markers */}
-          {foodTrucks.map((truck) => (
-            <Marker
-              key={`foodtruck-${truck.id}`}
-              coordinate={{
-                latitude: truck.latitude,
-                longitude: truck.longitude,
-              }}
-              title={truck.name}
-              description={`Delivery: $${truck.deliveryFee}${truck.isSubscriber ? ' • Premium' : ''}`}
-              onPress={() => {
-                // Navigate to FoodTruckViewer with the truck ID
-                if (onMessage) {
-                  onMessage({
-                    type: 'foodTruckPressed',
-                    foodTruck: truck,
-                  });
-                }
-              }}
-            >
-              <SvgMarker type="foodTruck" size={35} fallbackColor="#ff6b35" />
-            </Marker>
-          ))}
+          {foodTrucks.map((truck) => {
+            if (!truck.latitude || !truck.longitude) {
+              return null;
+            }
+            return (
+              <Marker
+                key={`foodtruck-${truck.id}`}
+                coordinate={{
+                  latitude: truck.latitude,
+                  longitude: truck.longitude,
+                }}
+                title={truck.name}
+                description={`Delivery: $${truck.deliveryFee}${truck.isSubscriber ? ' • Premium' : ''}`}
+                onPress={() => {
+                  // Navigate to FoodTruckViewer with the truck ID
+                  if (onMessage) {
+                    onMessage({
+                      type: 'foodTruckPressed',
+                      foodTruck: truck,
+                    });
+                  }
+                }}
+              >
+                <SvgMarker type="foodTruck" size={35} fallbackColor="#ff6b35" />
+              </Marker>
+            );
+          })}
 
           {truckLocation && (
             <Marker coordinate={truckLocation} title="Food Truck">

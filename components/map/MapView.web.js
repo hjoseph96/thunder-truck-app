@@ -45,9 +45,32 @@ export const MapView = forwardRef((props, ref) => {
   const handleDragEnd = () => {
     if (map) {
       const center = map.getCenter();
-      setMapCenter({ lat: center.lat(), lng: center.lng() });
+      const newCenter = { lat: center.lat(), lng: center.lng() };
+      setMapCenter(newCenter);
       onPanDrag?.();
-      onRegionChangeComplete?.();
+      
+      // Get zoom level to calculate deltas
+      const zoom = map.getZoom();
+      const bounds = map.getBounds();
+      
+      // Calculate latitude and longitude deltas
+      let latitudeDelta = 0.01;
+      let longitudeDelta = 0.01;
+      
+      if (bounds) {
+        const ne = bounds.getNorthEast();
+        const sw = bounds.getSouthWest();
+        latitudeDelta = Math.abs(ne.lat() - sw.lat());
+        longitudeDelta = Math.abs(ne.lng() - sw.lng());
+      }
+      
+      // Call onRegionChangeComplete with region data
+      onRegionChangeComplete?.({
+        latitude: newCenter.lat,
+        longitude: newCenter.lng,
+        latitudeDelta,
+        longitudeDelta,
+      });
     }
   };
 

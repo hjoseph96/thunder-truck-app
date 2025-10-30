@@ -3,11 +3,19 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 export const MapHeader = ({ navigation, title = 'Map' }) => {
+  const handleBackPress = () => {
+    if (navigation?.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('ExplorerHome');
+    }
+  };
+
   return (
     <View style={styles.header}>
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => navigation.goBack()}
+        onPress={handleBackPress}
         activeOpacity={0.7}
       >
         <Svg width="24" height="24" viewBox="0 0 24 24">
