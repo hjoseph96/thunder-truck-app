@@ -542,25 +542,6 @@ export default function MapPage({ route, navigation }) {
 
       <DemoFloatingButton />
 
-      {/* Debug position display */}
-      {currentMapPosition && (
-        <View style={styles.debugPosition}>
-          <Text style={styles.debugPositionTitle}>Map Center (Debug)</Text>
-          <Text style={styles.debugPositionText}>
-            Lat: {currentMapPosition.latitude.toFixed(6)}
-          </Text>
-          <Text style={styles.debugPositionText}>
-            Lng: {currentMapPosition.longitude.toFixed(6)}
-          </Text>
-          <Text style={styles.debugPositionText}>
-            Radius: 5 miles
-          </Text>
-          <Text style={styles.debugPositionText}>
-            Trucks: {foodTrucks.length}
-          </Text>
-        </View>
-      )}
-
       <BottomNavigation activeTab="map" userData={userData} />
     </SafeAreaView>
   );
@@ -1010,33 +991,5 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 2,
     lineHeight: 14,
-  },
-  debugPosition: {
-    position: 'absolute',
-    top: 120,
-    left: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: 12,
-    borderRadius: 8,
-    minWidth: 180,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 1000,
-  },
-  debugPositionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fecd15',
-    marginBottom: 6,
-    fontFamily: 'Cairo_700Bold',
-  },
-  debugPositionText: {
-    fontSize: 10,
-    color: '#fff',
-    marginBottom: 2,
-    fontFamily: 'Cairo_400Regular',
   },
 });
