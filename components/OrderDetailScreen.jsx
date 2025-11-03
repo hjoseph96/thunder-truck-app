@@ -23,6 +23,7 @@ import MenuItemReviewModal from './MenuItemReviewModal';
 import FoodTruckReviewModal from './FoodTruckReviewModal';
 import { useLocationManager } from '../lib/hooks/useLocationManager';
 import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
+import { calculateDistance } from '../lib/animation-utils';
 
 // Import DevelopmentControls for all environments
 import DevelopmentControls from './DevelopmentControls';
@@ -106,7 +107,7 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [courierID, setCourierID] = useState(null);
   const [courierLocation, setCourierLocation] = useState(null);
   const [menuItemImages, setMenuItemImages] = useState({});
-  
+
   // Review system state
   const [showMenuItemReviewModal, setShowMenuItemReviewModal] = useState(false);
   const [showFoodTruckReviewModal, setShowFoodTruckReviewModal] = useState(false);
@@ -117,6 +118,7 @@ export default function OrderDetailScreen({ route, navigation }) {
   const { userLocation, locationPermissionGranted, moveToCurrentLocation } = useLocationManager();
 
   const mapRef = useRef(null);
+  const completionTimerRef = useRef(null);
 
   // Animation values
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
@@ -137,11 +139,11 @@ export default function OrderDetailScreen({ route, navigation }) {
 
     const imagePromises = orderItems.map(async (item) => {
       if (!item.menuItemId) return null;
-      
+
       try {
         const menuItemData = await fetchMenuItem(item.menuItemId);
         const imageUrl = menuItemData?.menuItem?.imageUrl;
-        
+
         if (imageUrl) {
           return {
             menuItemId: item.menuItemId,
@@ -151,20 +153,20 @@ export default function OrderDetailScreen({ route, navigation }) {
       } catch (error) {
         console.warn(`Failed to fetch image for menu item ${item.menuItemId}:`, error);
       }
-      
+
       return null;
     });
 
     try {
       const imageResults = await Promise.all(imagePromises);
       const imageMap = {};
-      
+
       imageResults.forEach((result) => {
         if (result) {
           imageMap[result.menuItemId] = result.imageUrl;
         }
       });
-      
+
       setMenuItemImages(imageMap);
     } catch (error) {
       console.error('Error fetching menu item images:', error);
@@ -221,17 +223,17 @@ export default function OrderDetailScreen({ route, navigation }) {
     try {
       // TODO: Enable API call after backend implementation
       // const result = await submitMenuItemReviews(orderId, reviews);
-      
+
       // Simulate API call for now
       console.log('Menu item reviews to be submitted:', {
         orderId,
         reviews
       });
-      
+
       // Simulate successful submission
       await new Promise(resolve => setTimeout(resolve, 500));
       console.log('Menu item reviews submitted successfully (simulated)');
-      
+
       setShowMenuItemReviewModal(false);
       setShowFoodTruckReviewModal(true);
     } catch (error) {
@@ -244,17 +246,17 @@ export default function OrderDetailScreen({ route, navigation }) {
     try {
       // TODO: Enable API call after backend implementation
       // const result = await submitFoodTruckReview(orderId, review);
-      
+
       // Simulate API call for now
       console.log('Food truck review to be submitted:', {
         orderId,
         review
       });
-      
+
       // Simulate successful submission
       await new Promise(resolve => setTimeout(resolve, 500));
       console.log('Food truck review submitted successfully (simulated)');
-      
+
       setShowFoodTruckReviewModal(false);
     } catch (error) {
       console.error('Error submitting food truck review:', error);
@@ -292,10 +294,31 @@ export default function OrderDetailScreen({ route, navigation }) {
             latitude: orderData.foodTruck.latitude,
             longitude: orderData.foodTruck.longitude,
           };
-          
+
           // Use the truck coordinates immediately (optimistic)
           setTruckLocation(truckCoords);
-          
+
+          // Generate random courier location 1-2km away from truck
+          // 1 degree latitude ≈ 111km, so 1km ≈ 0.009 degrees
+          // 1 degree longitude varies by latitude, but ≈ 111km * cos(lat)
+          const generateRandomCourierLocation = (truckCoords) => {
+            const minDistanceKm = 1;
+            const maxDistanceKm = 2;
+            const randomDistance = minDistanceKm + Math.random() * (maxDistanceKm - minDistanceKm);
+            const randomAngle = Math.random() * 2 * Math.PI; // Random direction
+
+            // Convert km to degrees (approximate)
+            const latOffset = (randomDistance / 111) * Math.cos(randomAngle);
+            const lngOffset = (randomDistance / (111 * Math.cos(truckCoords.latitude * Math.PI / 180))) * Math.sin(randomAngle);
+
+            return {
+              latitude: truckCoords.latitude + latOffset,
+              longitude: truckCoords.longitude + lngOffset
+            };
+          };
+
+          setCourierLocation(generateRandomCourierLocation(truckCoords));
+
           // Validate in background - if invalid, update to fallback
           // This prevents UI blocking while still ensuring valid locations
           (async () => {
@@ -303,7 +326,7 @@ export default function OrderDetailScreen({ route, navigation }) {
               // Get destination to test routing
               const latLongString = orderData.orderAddresses?.[0]?.latlong;
               let destinationCoords = null;
-              
+
               if (latLongString) {
                 const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
                 if (matches && matches.length === 3) {
@@ -313,7 +336,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                   };
                 }
               }
-              
+
               // If we have a destination, validate truck location can be routed to
               if (destinationCoords) {
                 const routeData = await googleMapsRoutingService.fetchRoute(
@@ -321,7 +344,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                   destinationCoords,
                   { profile: 'driving' }
                 );
-                
+
                 // If routing fails or returns invalid route, use fallback
                 if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
                   console.warn('[VALIDATION] Food truck location cannot be routed to - using fallback');
@@ -397,7 +420,7 @@ export default function OrderDetailScreen({ route, navigation }) {
       courierTrackingManager.addCourier(
         courierID,
         `Courier for ${orderId}`,
-        null,
+        courierLocation,
         null,
         courierDestination,
       );
@@ -424,6 +447,48 @@ export default function OrderDetailScreen({ route, navigation }) {
       };
     }
   }, [currentStatus, courierID, truckLocation, destinationLocation, orderId]);
+
+  // Effect to monitor courier arrival at destination and auto-complete delivery
+  useEffect(() => {
+    if (currentStatus !== 'delivering' || !courierLocation || !destinationLocation) {
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+      return;
+    }
+
+    const distance = calculateDistance(courierLocation, destinationLocation);
+
+    const ARRIVAL_THRESHOLD_METERS = 50;
+
+    if (distance <= ARRIVAL_THRESHOLD_METERS) {
+      console.log('[ARRIVAL] 🎯 Courier arrived at destination! Starting completion timer...');
+
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+      }
+
+      completionTimerRef.current = setTimeout(() => {
+        setCurrentStatus('completed');
+        completionTimerRef.current = null;
+      }, 5500);
+    } else {
+      // Courier moved away or hasn't arrived yet - clear timer
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+    };
+  }, [currentStatus, courierLocation, destinationLocation]);
 
   // Effect to handle review timer when order is completed
   useEffect(() => {
