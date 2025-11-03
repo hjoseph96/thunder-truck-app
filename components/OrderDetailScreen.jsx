@@ -23,6 +23,7 @@ import MenuItemReviewModal from './MenuItemReviewModal';
 import FoodTruckReviewModal from './FoodTruckReviewModal';
 import { useLocationManager } from '../lib/hooks/useLocationManager';
 import { googleMapsRoutingService } from '../lib/google-maps-routing-service';
+import { calculateDistance } from '../lib/animation-utils';
 
 // Import DevelopmentControls for all environments
 import DevelopmentControls from './DevelopmentControls';
@@ -106,7 +107,7 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [courierID, setCourierID] = useState(null);
   const [courierLocation, setCourierLocation] = useState(null);
   const [menuItemImages, setMenuItemImages] = useState({});
-  
+
   // Review system state
   const [showMenuItemReviewModal, setShowMenuItemReviewModal] = useState(false);
   const [showFoodTruckReviewModal, setShowFoodTruckReviewModal] = useState(false);
@@ -117,6 +118,13 @@ export default function OrderDetailScreen({ route, navigation }) {
   const { userLocation, locationPermissionGranted, moveToCurrentLocation } = useLocationManager();
 
   const mapRef = useRef(null);
+  const completionTimerRef = useRef(null);
+  const arrivalStartLocationRef = useRef(null); // Track location when courier first arrived within threshold
+  const timerStartTimeRef = useRef(null); // Track when timer started to prevent cleanup from clearing it
+  const markerArrivalTimeRef = useRef(null); // Track when marker animation completes (arrives at destination)
+  const animationCompletionSubscriptionRef = useRef(null); // Track subscription for animation completion
+  const lastLocationCheckRef = useRef(null); // Track last location to detect if courier is stationary
+  const stationaryStartTimeRef = useRef(null); // Track when courier became stationary
 
   // Animation values
   const bottomSheetHeight = useRef(new Animated.Value(120)).current;
@@ -137,11 +145,11 @@ export default function OrderDetailScreen({ route, navigation }) {
 
     const imagePromises = orderItems.map(async (item) => {
       if (!item.menuItemId) return null;
-      
+
       try {
         const menuItemData = await fetchMenuItem(item.menuItemId);
         const imageUrl = menuItemData?.menuItem?.imageUrl;
-        
+
         if (imageUrl) {
           return {
             menuItemId: item.menuItemId,
@@ -151,20 +159,20 @@ export default function OrderDetailScreen({ route, navigation }) {
       } catch (error) {
         console.warn(`Failed to fetch image for menu item ${item.menuItemId}:`, error);
       }
-      
+
       return null;
     });
 
     try {
       const imageResults = await Promise.all(imagePromises);
       const imageMap = {};
-      
+
       imageResults.forEach((result) => {
         if (result) {
           imageMap[result.menuItemId] = result.imageUrl;
         }
       });
-      
+
       setMenuItemImages(imageMap);
     } catch (error) {
       console.error('Error fetching menu item images:', error);
@@ -221,17 +229,17 @@ export default function OrderDetailScreen({ route, navigation }) {
     try {
       // TODO: Enable API call after backend implementation
       // const result = await submitMenuItemReviews(orderId, reviews);
-      
+
       // Simulate API call for now
       console.log('Menu item reviews to be submitted:', {
         orderId,
         reviews
       });
-      
+
       // Simulate successful submission
       await new Promise(resolve => setTimeout(resolve, 500));
       console.log('Menu item reviews submitted successfully (simulated)');
-      
+
       setShowMenuItemReviewModal(false);
       setShowFoodTruckReviewModal(true);
     } catch (error) {
@@ -244,17 +252,17 @@ export default function OrderDetailScreen({ route, navigation }) {
     try {
       // TODO: Enable API call after backend implementation
       // const result = await submitFoodTruckReview(orderId, review);
-      
+
       // Simulate API call for now
       console.log('Food truck review to be submitted:', {
         orderId,
         review
       });
-      
+
       // Simulate successful submission
       await new Promise(resolve => setTimeout(resolve, 500));
       console.log('Food truck review submitted successfully (simulated)');
-      
+
       setShowFoodTruckReviewModal(false);
     } catch (error) {
       console.error('Error submitting food truck review:', error);
@@ -292,10 +300,31 @@ export default function OrderDetailScreen({ route, navigation }) {
             latitude: orderData.foodTruck.latitude,
             longitude: orderData.foodTruck.longitude,
           };
-          
+
           // Use the truck coordinates immediately (optimistic)
           setTruckLocation(truckCoords);
-          
+
+          // Generate random courier location 1-2km away from truck
+          // 1 degree latitude ≈ 111km, so 1km ≈ 0.009 degrees
+          // 1 degree longitude varies by latitude, but ≈ 111km * cos(lat)
+          const generateRandomCourierLocation = (truckCoords) => {
+            const minDistanceKm = 1;
+            const maxDistanceKm = 2;
+            const randomDistance = minDistanceKm + Math.random() * (maxDistanceKm - minDistanceKm);
+            const randomAngle = Math.random() * 2 * Math.PI; // Random direction
+
+            // Convert km to degrees (approximate)
+            const latOffset = (randomDistance / 111) * Math.cos(randomAngle);
+            const lngOffset = (randomDistance / (111 * Math.cos(truckCoords.latitude * Math.PI / 180))) * Math.sin(randomAngle);
+
+            return {
+              latitude: truckCoords.latitude + latOffset,
+              longitude: truckCoords.longitude + lngOffset
+            };
+          };
+
+          setCourierLocation(generateRandomCourierLocation(truckCoords));
+
           // Validate in background - if invalid, update to fallback
           // This prevents UI blocking while still ensuring valid locations
           (async () => {
@@ -303,7 +332,7 @@ export default function OrderDetailScreen({ route, navigation }) {
               // Get destination to test routing
               const latLongString = orderData.orderAddresses?.[0]?.latlong;
               let destinationCoords = null;
-              
+
               if (latLongString) {
                 const matches = latLongString.match(/POINT \(([-\d.]+) ([-\d.]+)\)/);
                 if (matches && matches.length === 3) {
@@ -313,7 +342,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                   };
                 }
               }
-              
+
               // If we have a destination, validate truck location can be routed to
               if (destinationCoords) {
                 const routeData = await googleMapsRoutingService.fetchRoute(
@@ -321,7 +350,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                   destinationCoords,
                   { profile: 'driving' }
                 );
-                
+
                 // If routing fails or returns invalid route, use fallback
                 if (!routeData || !routeData.coordinates || routeData.coordinates.length < 2) {
                   console.warn('[VALIDATION] Food truck location cannot be routed to - using fallback');
@@ -397,7 +426,7 @@ export default function OrderDetailScreen({ route, navigation }) {
       courierTrackingManager.addCourier(
         courierID,
         `Courier for ${orderId}`,
-        null,
+        courierLocation,
         null,
         courierDestination,
       );
@@ -412,7 +441,55 @@ export default function OrderDetailScreen({ route, navigation }) {
             longitude: data.location.longitude,
           });
         }
+        
+        // Listen for animation frame updates to detect when animation completes
+        if (event === 'animationFrame' && data.couriers) {
+          const courier = data.couriers.find(c => c.id === courierID);
+          if (courier && courier.status === 'idle' && currentStatus === 'delivering') {
+            // Animation just completed - marker has arrived at destination
+            // Only trigger if we're waiting for arrival (within 50m) and haven't already started post-arrival timer
+            if (arrivalStartLocationRef.current && !markerArrivalTimeRef.current && destinationLocation) {
+              // Use courier's current location from the tracking system for distance check
+              const courierCurrentLocation = courier.currentLocation || courierLocation;
+              if (courierCurrentLocation) {
+                const distance = calculateDistance(courierCurrentLocation, destinationLocation);
+                if (distance <= 50) {
+                  markerArrivalTimeRef.current = Date.now();
+                  
+                  // Clear any existing completion timer
+                  if (completionTimerRef.current) {
+                    clearTimeout(completionTimerRef.current);
+                    completionTimerRef.current = null;
+                  }
+                  
+                  // Start 2.5 second timer after marker arrives
+                  completionTimerRef.current = setTimeout(() => {
+                    alert('Courier arrived at destination!');
+                    setCurrentStatus('completed');
+                    completionTimerRef.current = null;
+                    arrivalStartLocationRef.current = null;
+                    timerStartTimeRef.current = null;
+                    markerArrivalTimeRef.current = null;
+                  }, 2500); // 2.5 seconds after marker arrives
+                }
+              }
+            }
+          } else if (courier && courier.status === 'moving') {
+            // Animation is still running - reset marker arrival time if it was set
+            if (markerArrivalTimeRef.current) {
+              markerArrivalTimeRef.current = null;
+              // Clear timer if animation restarted
+              if (completionTimerRef.current) {
+                clearTimeout(completionTimerRef.current);
+                completionTimerRef.current = null;
+              }
+            }
+          }
+        }
       });
+      
+      // Store subscription reference for cleanup
+      animationCompletionSubscriptionRef.current = unsubscribe;
 
       // Cleanup subscription when effect unmounts or status changes
       return () => {
@@ -424,6 +501,175 @@ export default function OrderDetailScreen({ route, navigation }) {
       };
     }
   }, [currentStatus, courierID, truckLocation, destinationLocation, orderId]);
+
+  // Effect to monitor courier arrival at destination and auto-complete delivery
+  useEffect(() => {
+    // Early return if not in delivering status or missing required data
+    if (currentStatus !== 'delivering' || !courierLocation || !destinationLocation) {
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+      arrivalStartLocationRef.current = null;
+      timerStartTimeRef.current = null;
+      markerArrivalTimeRef.current = null;
+      lastLocationCheckRef.current = null;
+      stationaryStartTimeRef.current = null;
+      return;
+    }
+
+    const distance = calculateDistance(courierLocation, destinationLocation);
+    const ARRIVAL_THRESHOLD_METERS = 50;
+    const MOVEMENT_THRESHOLD_METERS = 5; // Courier must not move more than 5m from arrival location
+    const STATIONARY_THRESHOLD_METERS = 2; // Consider courier stationary if moved less than 2m
+    const STATIONARY_DURATION_MS = 3000; // If stationary for 3 seconds, assume animation completed
+
+    if (distance <= ARRIVAL_THRESHOLD_METERS) {
+      // Courier is within arrival threshold
+      if (!arrivalStartLocationRef.current) {
+        // First time arriving within threshold - mark the location
+        // We'll wait for animation completion (detected via subscription) then start 2.5s timer
+        arrivalStartLocationRef.current = courierLocation;
+        timerStartTimeRef.current = Date.now();
+        markerArrivalTimeRef.current = null; // Reset marker arrival time
+        lastLocationCheckRef.current = courierLocation;
+        stationaryStartTimeRef.current = null;
+        console.log('[ARRIVAL] 🎯 Courier location within 50m! Waiting for marker animation to complete...');
+        // Note: The 2.5s timer will be started when animation completes (detected via subscription)
+      } else {
+        // Already tracking arrival - check if courier has moved significantly
+        const movementDistance = calculateDistance(
+          arrivalStartLocationRef.current,
+          courierLocation
+        );
+        
+        // Check if courier is stationary (for fallback detection)
+        const lastLocationDistance = lastLocationCheckRef.current 
+          ? calculateDistance(lastLocationCheckRef.current, courierLocation)
+          : 0;
+        
+        const now = Date.now();
+
+        if (movementDistance > MOVEMENT_THRESHOLD_METERS) {
+          // Courier moved significantly - reset everything
+          console.log(
+            `[ARRIVAL] 🔄 Courier moved ${movementDistance.toFixed(1)}m from arrival location, resetting.`
+          );
+          if (completionTimerRef.current) {
+            clearTimeout(completionTimerRef.current);
+            completionTimerRef.current = null;
+          }
+          // Reset arrival tracking
+          arrivalStartLocationRef.current = courierLocation;
+          timerStartTimeRef.current = now;
+          markerArrivalTimeRef.current = null;
+          lastLocationCheckRef.current = courierLocation;
+          stationaryStartTimeRef.current = null;
+        } else {
+          // Courier hasn't moved significantly from arrival location
+          
+          // Check if courier is stationary (small movement since last check)
+          if (lastLocationDistance <= STATIONARY_THRESHOLD_METERS) {
+            // Courier is stationary
+            if (!stationaryStartTimeRef.current) {
+              // Just became stationary - mark the time
+              stationaryStartTimeRef.current = now;
+            } else {
+              // Check if we've been stationary long enough to assume animation completed
+              const stationaryDuration = now - stationaryStartTimeRef.current;
+              if (stationaryDuration >= STATIONARY_DURATION_MS && !markerArrivalTimeRef.current) {
+                // Courier has been stationary for 3+ seconds - assume animation completed
+                console.log(`[ARRIVAL] ⚠️ Courier stationary for ${(stationaryDuration / 1000).toFixed(1)}s - assuming marker animation completed`);
+                markerArrivalTimeRef.current = now;
+                console.log('[ARRIVAL] ⏱️ Starting 2.5s timer after assumed marker arrival...');
+                
+                // Clear any existing completion timer
+                if (completionTimerRef.current) {
+                  clearTimeout(completionTimerRef.current);
+                  completionTimerRef.current = null;
+                }
+                
+                // Start 2.5 second timer after marker arrives
+                completionTimerRef.current = setTimeout(() => {
+                  alert('Courier arrived at destination!');
+                  setCurrentStatus('completed');
+                  completionTimerRef.current = null;
+                  arrivalStartLocationRef.current = null;
+                  timerStartTimeRef.current = null;
+                  markerArrivalTimeRef.current = null;
+                  lastLocationCheckRef.current = null;
+                  stationaryStartTimeRef.current = null;
+                }, 2500); // 2.5 seconds after marker arrives
+              }
+            }
+          } else {
+            // Courier moved (but not beyond threshold) - reset stationary timer
+            stationaryStartTimeRef.current = null;
+          }
+          
+          // Update last location check
+          lastLocationCheckRef.current = courierLocation;
+          
+          // Log occasionally to show we're waiting
+          if (timerStartTimeRef.current) {
+            const elapsed = (now - timerStartTimeRef.current) / 1000;
+            if (markerArrivalTimeRef.current) {
+              // Marker has arrived, waiting for 2.5s buffer
+              const postArrivalElapsed = (now - markerArrivalTimeRef.current) / 1000;
+              const remaining = 2.5 - postArrivalElapsed;
+              if (remaining > 0 && Math.floor(postArrivalElapsed * 2) !== Math.floor((postArrivalElapsed - 0.1) * 2)) {
+                console.log(
+                  `[ARRIVAL] ⏱️ Marker arrived! Waiting 2.5s buffer... (${postArrivalElapsed.toFixed(1)}s elapsed, ${remaining.toFixed(1)}s remaining)`
+                );
+              }
+            } else {
+              // Still waiting for marker animation to complete
+              const stationaryDuration = stationaryStartTimeRef.current 
+                ? (now - stationaryStartTimeRef.current) / 1000 
+                : 0;
+              if (elapsed > 0.5 && Math.floor(elapsed / 3) !== Math.floor((elapsed - 0.1) / 3)) {
+                console.log(
+                  `[ARRIVAL] ⏳ Waiting for marker animation to complete... (${elapsed.toFixed(1)}s elapsed${stationaryDuration > 0 ? `, stationary for ${stationaryDuration.toFixed(1)}s` : ''})`
+                );
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Courier moved away or hasn't arrived yet - clear everything
+      if (completionTimerRef.current) {
+        console.log('[ARRIVAL] ❌ Courier moved away from destination, clearing timer.');
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+      arrivalStartLocationRef.current = null;
+      timerStartTimeRef.current = null;
+      markerArrivalTimeRef.current = null;
+      lastLocationCheckRef.current = null;
+      stationaryStartTimeRef.current = null;
+    }
+
+    // No cleanup needed here - timer management is handled in effect body
+    // React will automatically clean up on unmount, but we don't want to clear
+    // the timer when dependencies update (which would reset it every 3s)
+  }, [currentStatus, courierLocation, destinationLocation]);
+
+  // Separate effect for cleanup on unmount only
+  useEffect(() => {
+    return () => {
+      // Cleanup on component unmount
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+        completionTimerRef.current = null;
+      }
+      arrivalStartLocationRef.current = null;
+      timerStartTimeRef.current = null;
+      markerArrivalTimeRef.current = null;
+      lastLocationCheckRef.current = null;
+      stationaryStartTimeRef.current = null;
+    };
+  }, []); // Empty deps = only run cleanup on unmount
 
   // Effect to handle review timer when order is completed
   useEffect(() => {
