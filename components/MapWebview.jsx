@@ -438,7 +438,7 @@ const mapStyles = StyleSheet.create({
   },
   gpsButton: {
     position: 'absolute',
-    top: 20,
+    bottom: 120,
     right: 20,
     backgroundColor: '#fecd15',
     borderRadius: 25,
