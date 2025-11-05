@@ -464,7 +464,6 @@ export default function OrderDetailScreen({ route, navigation }) {
                   
                   // Start 2.5 second timer after marker arrives
                   completionTimerRef.current = setTimeout(() => {
-                    alert('Courier arrived at destination!');
                     setCurrentStatus('completed');
                     completionTimerRef.current = null;
                     arrivalStartLocationRef.current = null;
@@ -591,7 +590,6 @@ export default function OrderDetailScreen({ route, navigation }) {
                 
                 // Start 2.5 second timer after marker arrives
                 completionTimerRef.current = setTimeout(() => {
-                  alert('Courier arrived at destination!');
                   setCurrentStatus('completed');
                   completionTimerRef.current = null;
                   arrivalStartLocationRef.current = null;

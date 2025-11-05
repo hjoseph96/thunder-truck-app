@@ -41,7 +41,11 @@ export const LocationBar = ({ navigation, onGPSPress, userData }) => {
         />
       </Svg>
 
-      <TouchableOpacity onPress={() => navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, onAddressSelect: updateSelectedAddress })} activeOpacity={0.7}>
+      <TouchableOpacity 
+        style={styles.locationText}
+        onPress={() => navigation.navigate('UserAddressList', { userAddresses: userData?.userAddresses, onAddressSelect: updateSelectedAddress })} 
+        activeOpacity={0.7}
+      >
         <Text style={styles.locationTitle}>{selectedAddress?.label || 'Delivery Address'}</Text>
         <Text style={styles.locationSubtitle}>{formatAddress(selectedAddress) || 'No address set'}</Text>
       </TouchableOpacity>
@@ -73,6 +77,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    gap: 12,
     backgroundColor: '#F8F9FA',
     borderRadius: 8,
   },
@@ -81,18 +86,21 @@ const styles = StyleSheet.create({
   },
   locationText: {
     flex: 1,
+    alignItems: 'flex-start',
   },
   locationTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
     fontFamily: 'Inter',
+    textAlign: 'left',
   },
   locationSubtitle: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Inter',
     marginTop: 2,
+    textAlign: 'left',
   },
   currentLocationIcon: {
     marginLeft: 8,

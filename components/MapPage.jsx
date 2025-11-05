@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
   // Demo styles
   demoFloatingButton: {
     position: 'absolute',
-    top: 120,
+    bottom: 220,
     right: 20,
     width: 56,
     height: 56,

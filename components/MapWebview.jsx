@@ -273,6 +273,8 @@ const DynamicPolyline = ({ courier, coordinates }) => {
       strokeWidth: courier.animationState.isPolylineAnimating ? 5 : 4,
       lineCap: 'round',
       lineJoin: 'round',
+      strokeColor: '#00ff88',
+      strokePattern: undefined,
     };
 
     // Color based on courier type
@@ -293,29 +295,7 @@ const DynamicPolyline = ({ courier, coordinates }) => {
       };
     }
 
-    // Status-based modifications
-    const statusModifications = {
-      deviating: {
-        strokeColor: '#ff4757',
-        strokePattern: [10, 5],
-      },
-      moving: {
-        strokeColor: typeColors[courier.courierType] || '#00ff88',
-        strokePattern: undefined,
-      },
-      idle: {
-        strokeColor: typeColors[courier.courierType] || '#00ff88',
-        strokeWidth: 3,
-        strokePattern: [5, 5],
-      },
-    };
-
-    const statusStyle = statusModifications[courier.status] || statusModifications.moving;
-
-    return {
-      ...baseStyle,
-      ...statusStyle,
-    };
+    return baseStyle;
   };
 
   const style = getPolylineStyle();
@@ -438,7 +418,7 @@ const mapStyles = StyleSheet.create({
   },
   gpsButton: {
     position: 'absolute',
-    top: 20,
+    bottom: 120,
     right: 20,
     backgroundColor: '#fecd15',
     borderRadius: 25,

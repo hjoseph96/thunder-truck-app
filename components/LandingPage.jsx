@@ -70,12 +70,14 @@ export default function LandingPage({ navigation }) {
             source={require('../assets/images/thunder-truck-text-logo.png')}
             style={styles.textLogoImage}
             resizeMode="contain"
+            accessibilityLabel="Thunder Truck Logo"
           />
 
           <Image
             source={require('../assets/images/thundertruck_emblem.png')}
             style={styles.logoImage}
-            resizeMode="cover"
+            resizeMode="contain"
+            accessibilityLabel="Thunder Truck Emblem"
           />
         </View>
 
@@ -129,6 +131,11 @@ const styles = StyleSheet.create({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        overflowX: 'hidden',
+        width: '100%',
+      },
+      default: {
+        width: '100%',
       },
     }),
   },
@@ -139,6 +146,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        width: '100%',
+        maxWidth: '100vw',
+      },
+    }),
   },
   stripe: {
     position: 'absolute',
@@ -151,26 +164,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 86,
     zIndex: 1,
     ...Platform.select({
       web: {
         maxWidth: 1200,
         width: '100%',
-        paddingHorizontal: screenWidth < 768 ? 20 : 40,
+        paddingHorizontal: screenWidth < 480 ? 16 : screenWidth < 768 ? 24 : screenWidth < 1024 ? 40 : 60,
         flexDirection: screenWidth < 768 ? 'column' : 'row',
-        gap: screenWidth < 768 ? 20 : 80,
+        gap: screenWidth < 480 ? 16 : screenWidth < 768 ? 20 : 80,
         justifyContent: screenWidth < 768 ? 'center' : 'space-between',
+      },
+      default: {
+        paddingHorizontal: screenWidth < 480 ? 16 : screenWidth < 768 ? 24 : 40,
       },
     }),
   },
   logoSection: {
     alignItems: 'center',
+    width: '100%',
     ...Platform.select({
       web: {
         flex: screenWidth < 768 ? 'none' : 1,
         maxWidth: screenWidth < 768 ? '100%' : 500,
         width: screenWidth < 768 ? '100%' : 'auto',
+      },
+      default: {
+        maxWidth: '100%',
       },
     }),
   },
@@ -179,8 +198,15 @@ const styles = StyleSheet.create({
     height: 250,
     ...Platform.select({
       web: {
-        width: screenWidth < 768 ? 200 : 350,
-        height: screenWidth < 768 ? 200 : 350,
+        width: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 350,
+        height: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 350,
+        maxWidth: '100%',
+        objectFit: 'contain',
+      },
+      default: {
+        width: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 250,
+        height: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 250,
+        maxWidth: '100%',
       },
     }),
   },
@@ -190,9 +216,17 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     ...Platform.select({
       web: {
-        width: screenWidth < 768 ? 200 : 400,
-        height: screenWidth < 768 ? 200 : 400,
+        width: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 400,
+        height: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 400,
         marginBottom: screenWidth < 768 ? 20 : 0,
+        maxWidth: '100%',
+        objectFit: 'contain',
+      },
+      default: {
+        width: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 250,
+        height: screenWidth < 480 ? 150 : screenWidth < 768 ? 200 : 250,
+        marginBottom: screenWidth < 480 ? 16 : screenWidth < 768 ? 20 : 30,
+        maxWidth: '100%',
       },
     }),
   },
@@ -207,18 +241,23 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: screenWidth < 768 ? 'center' : 'flex-start',
         paddingLeft: screenWidth < 768 ? 0 : 40,
+        paddingHorizontal: screenWidth < 480 ? 16 : screenWidth < 768 ? 20 : 0,
+      },
+      default: {
+        paddingHorizontal: screenWidth < 480 ? 16 : screenWidth < 768 ? 24 : 40,
       },
     }),
   },
   tagline: {
-    fontSize: screenWidth < 768 ? 18 : 24,
+    fontSize: screenWidth < 480 ? 16 : screenWidth < 768 ? 18 : 24,
     fontWeight: '600',
     color: '#2D1E2F',
     textAlign: screenWidth < 768 ? 'center' : 'left',
-    marginBottom: screenWidth < 768 ? 20 : 40,
-    lineHeight: screenWidth < 768 ? 28 : 36,
+    marginBottom: screenWidth < 480 ? 16 : screenWidth < 768 ? 20 : 40,
+    lineHeight: screenWidth < 480 ? 24 : screenWidth < 768 ? 28 : 36,
     fontFamily: 'Poppins',
-    paddingHorizontal: screenWidth < 768 ? 20 : 0,
+    paddingHorizontal: screenWidth < 480 ? 16 : screenWidth < 768 ? 20 : 0,
+    width: '100%',
   },
   navButton: {
     backgroundColor: '#2D1E2F',
@@ -237,14 +276,20 @@ const styles = StyleSheet.create({
     elevation: 8,
     ...Platform.select({
       web: {
-        paddingHorizontal: 50,
-        paddingVertical: 18,
+        paddingHorizontal: screenWidth < 480 ? 30 : screenWidth < 768 ? 40 : 50,
+        paddingVertical: screenWidth < 480 ? 14 : 18,
         borderRadius: 30,
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: 'pointer',
         width: '100%',
-        maxWidth: 300,
+        maxWidth: screenWidth < 480 ? '100%' : 300,
+      },
+      default: {
+        paddingHorizontal: screenWidth < 480 ? 24 : 30,
+        paddingVertical: screenWidth < 480 ? 12 : 15,
+        width: screenWidth < 480 ? '100%' : 'auto',
+        minWidth: screenWidth < 480 ? 0 : 200,
       },
     }),
   },
@@ -252,12 +297,15 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+    textAlign: 'center',
     ...Platform.select({
       web: {
-        fontSize: 20,
+        fontSize: screenWidth < 480 ? 16 : 20,
         fontWeight: '700',
-        textAlign: 'center',
         fontFamily: 'Poppins',
+      },
+      default: {
+        fontSize: screenWidth < 480 ? 16 : 18,
       },
     }),
   },
@@ -273,6 +321,17 @@ const styles = StyleSheet.create({
     maxWidth: 300,
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     cursor: 'pointer',
+    ...Platform.select({
+      web: {
+        paddingHorizontal: screenWidth < 480 ? 30 : screenWidth < 768 ? 40 : 50,
+        paddingVertical: screenWidth < 480 ? 14 : 18,
+        maxWidth: screenWidth < 480 ? '100%' : 300,
+      },
+      default: {
+        paddingHorizontal: screenWidth < 480 ? 24 : 40,
+        paddingVertical: screenWidth < 480 ? 12 : 16,
+      },
+    }),
   },
   secondaryButtonText: {
     color: '#2D1E2F',
@@ -280,6 +339,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     fontFamily: 'Poppins',
+    ...Platform.select({
+      web: {
+        fontSize: screenWidth < 480 ? 16 : 20,
+      },
+      default: {
+        fontSize: screenWidth < 480 ? 16 : 18,
+      },
+    }),
   },
   arrowContainer: {
     position: 'absolute',
