@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
-import { getFoodTruckWithCache } from '../lib/food-truck-service';
+import { getVendorWithCache } from '../lib/food-truck-service';
 import { getCart, addMenuItemToCart, changeCartItemQuantity } from '../lib/cart-service';
 import MenuItemComponent from './MenuItemComponent';
 import CartPopup from './CartPopup';
@@ -22,7 +22,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function FoodTruckViewer({ navigation, route }) {
   const { foodTruckId } = route.params;
-  const [foodTruck, setFoodTruck] = useState(null);
+  const [vendor, setVendor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -43,11 +43,11 @@ export default function FoodTruckViewer({ navigation, route }) {
       setLoading(true);
       setError(null);
 
-      // Fetch complete food truck data using GraphQL by ID
-      const data = await getFoodTruckWithCache(foodTruckId);
-      console.log('Food truck data loaded:', data);
+      // Fetch complete vendor data using GraphQL by ID
+      const data = await getVendorWithCache(foodTruckId);
+      console.log('Vendor data loaded:', data);
 
-      setFoodTruck(data);
+      setVendor(data);
 
       // Update navigation params for page title on web
       if (Platform.OS === 'web' && data?.name) {
@@ -138,12 +138,12 @@ export default function FoodTruckViewer({ navigation, route }) {
   };
 
   const renderFeaturedSection = () => {
-    if (!foodTruck?.menu?.categories) return null;
+    if (!vendor?.menu?.categories) return null;
 
     // For now, we'll show the first few menu items as featured
     // TODO: Add isFeatured field to menu items in the schema
     let featuredItems = [];
-    foodTruck.menu.categories.forEach(category => {
+    vendor.menu.categories.forEach(category => {
       featuredItems.push(...category.menuItems.filter(item => item.imageUrl !== null));
     });
 
@@ -175,7 +175,7 @@ export default function FoodTruckViewer({ navigation, route }) {
                 onPress={() => handleMenuItemPress(item)}
                 onAddToCart={() => handleAddToCart(item)}
                 navigation={navigation}
-                menuItem={{...item, foodTruckId: foodTruck.id}}
+                menuItem={{...item, foodTruckId: vendor.id}}
                 fullHeight={Platform.OS === 'web'}
               />
             </View>
@@ -186,12 +186,12 @@ export default function FoodTruckViewer({ navigation, route }) {
   };
 
   const renderMenuSection = () => {
-    if (!foodTruck?.menu?.categories) return null;
+    if (!vendor?.menu?.categories) return null;
 
     return (
       <View style={styles.menuSection}>
         <Text style={styles.menuTitle}>Full Menu</Text>
-        {foodTruck.menu.categories.map((category) => {
+        {vendor.menu.categories.map((category) => {
           // Filter menu items to only show those with coverImageUrl
           const itemsWithImages = category.menuItems.filter(item => item.coverImageUrl !== null);
 
@@ -219,7 +219,7 @@ export default function FoodTruckViewer({ navigation, route }) {
                     onPress={() => handleMenuItemPress(item)}
                     onAddToCart={() => handleAddToCart(item)}
                     navigation={navigation}
-                    menuItem={{...item, foodTruckId: foodTruck.id}}
+                    menuItem={{...item, foodTruckId: vendor.id}}
                   />
                 ))}
               </View>
@@ -255,12 +255,12 @@ export default function FoodTruckViewer({ navigation, route }) {
     );
   }
 
-  if (!foodTruck) {
+  if (!vendor) {
     return (
       <View style={styles.container}>
         <StatusBar style="dark" />
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>No food truck data available</Text>
+          <Text style={styles.errorText}>No vendor data available</Text>
         </View>
       </View>
     );
@@ -274,7 +274,7 @@ export default function FoodTruckViewer({ navigation, route }) {
       <View style={styles.header}>
         <Image
           source={{
-            uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/400x200/cccccc/666666?text=No+Cover+Image'
+            uri: vendor.coverImageUrl || 'https://via.placeholder.com/400x200/cccccc/666666?text=No+Cover+Image'
           }}
           style={styles.coverImage}
           resizeMode="cover"
@@ -284,7 +284,7 @@ export default function FoodTruckViewer({ navigation, route }) {
         <View style={styles.logoContainer}>
           <Image
             source={{
-              uri: foodTruck.logoUrl || 'https://via.placeholder.com/80x80/cccccc/666666?text=Logo'
+              uri: vendor.logoUrl || 'https://via.placeholder.com/80x80/cccccc/666666?text=Logo'
             }}
             style={styles.logoImage}
             resizeMode="contain"
@@ -301,12 +301,12 @@ export default function FoodTruckViewer({ navigation, route }) {
           </TouchableOpacity>
 
           <View style={styles.headerInfo}>
-            <Text style={styles.foodTruckName}>{foodTruck.name}</Text>
+            <Text style={styles.foodTruckName}>{vendor.name}</Text>
             <View style={styles.foodTruckMeta}>
               <View style={styles.deliveryFeeContainer}>
                 <Text style={styles.deliveryFeeLabel}>Delivery Fee</Text>
                 <Text style={styles.deliveryFeeAmount}>
-                  ${foodTruck.deliveryFee}
+                  ${vendor.deliveryFee}
                 </Text>
               </View>
 
