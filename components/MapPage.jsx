@@ -12,12 +12,12 @@ import { MapHeader } from './ui/MapHeader';
 import { SearchBar } from './ui/SearchBar';
 import { LocationBar } from './ui/LocationBar';
 import { BottomNavigation } from './ui/BottomNavigation';
-import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
+import { fetchNearbyVendors } from '../lib/food-trucks-service';
 export default function MapPage({ route, navigation }) {
   const [searchText, setSearchText] = useState('');
   const [webViewReady, setWebViewReady] = useState(false);
-  const [foodTrucks, setFoodTrucks] = useState([]);
-  const [loadingFoodTrucks, setLoadingFoodTrucks] = useState(true);
+  const [vendors, setVendors] = useState([]);
+  const [loadingVendors, setLoadingVendors] = useState(true);
   const [demoActive, setDemoActive] = useState(false);
   const [demoInterval, setDemoInterval] = useState(null);
   const [demoRoute, setDemoRoute] = useState(null);
@@ -63,7 +63,7 @@ export default function MapPage({ route, navigation }) {
       try {
         setLoadingFoodTrucks(true);
 
-        const result = await fetchNearbyFoodTrucks({
+        const result = await fetchNearbyVendors({
           latitude: region.latitude,
           longitude: region.longitude,
           radius: 5,
@@ -71,21 +71,21 @@ export default function MapPage({ route, navigation }) {
           page: 1,
         });
         
-        // Update food trucks state and send to map
-        const trucks = result?.foodTrucks || [];
-        setFoodTrucks(trucks);
+        // Update vendors state and send to map
+        const vendorsList = result?.vendors || [];
+        setVendors(vendorsList);
         
-        // Send updated food trucks to the map
-        if (mapRef.current && trucks.length > 0) {
+        // Send updated vendors to the map
+        if (mapRef.current && vendorsList.length > 0) {
           mapRef.current.postMessage({
             type: 'addFoodTrucks',
-            foodTrucks: trucks,
+            foodTrucks: vendorsList,
           });
         }
       } catch (error) {
-        console.error('Error fetching food trucks for region:', error);
+        console.error('Error fetching vendors for region:', error);
       } finally {
-        setLoadingFoodTrucks(false);
+        setLoadingVendors(false);
       }
     }, 500); // 500ms debounce delay
   }, []);
@@ -106,7 +106,7 @@ export default function MapPage({ route, navigation }) {
         try {
           setLoadingFoodTrucks(true);
 
-          const result = await fetchNearbyFoodTrucks({
+          const result = await fetchNearbyVendors({
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
             radius: 5,
@@ -114,22 +114,22 @@ export default function MapPage({ route, navigation }) {
             page: 1,
           });
           
-          // Update food trucks state
-          const trucks = result?.foodTrucks || [];
-          setFoodTrucks(trucks);
+          // Update vendors state
+          const vendorsList = result?.vendors || [];
+          setVendors(vendorsList);
           
-          // Send food trucks to the map if ready
-          if (mapRef.current && trucks.length > 0) {
+          // Send vendors to the map if ready
+          if (mapRef.current && vendorsList.length > 0) {
             mapRef.current.postMessage({
               type: 'addFoodTrucks',
-              foodTrucks: trucks,
+              foodTrucks: vendorsList,
             });
           }
         } catch (error) {
-          console.error('Error loading food trucks:', error);
-          setFoodTrucks([]);
+          console.error('Error loading vendors:', error);
+          setVendors([]);
         } finally {
-          setLoadingFoodTrucks(false);
+          setLoadingVendors(false);
         }
       }
     };
@@ -155,20 +155,19 @@ export default function MapPage({ route, navigation }) {
     }
   }, [webViewReady, userLocation, locationPermissionGranted, markerMovedToUserLocation]);
 
-  // Send food trucks to map when both webview and food trucks are ready
+  // Send vendors to map when both webview and vendors are ready
   React.useEffect(() => {
-    if (webViewReady && foodTrucks.length > 0) {
+    if (webViewReady && vendors.length > 0) {
 
       const message = {
         type: 'addFoodTrucks',
-        foodTrucks: foodTrucks.map((truck) => ({
-          id: truck.id,
-          name: truck.name,
-          latitude: truck.latitude || 40.7081 + (Math.random() - 0.5) * 0.02, // Mock coordinates if not available
-          longitude: truck.longitude || -73.9571 + (Math.random() - 0.5) * 0.02,
-          coverImageUrl: truck.coverImageUrl,
-          deliveryFee: truck.deliveryFee,
-          isSubscriber: truck.isSubscriber,
+        foodTrucks: vendors.map((vendor) => ({
+          id: vendor.id,
+          name: vendor.name,
+          latitude: vendor.latitude || 40.7081 + (Math.random() - 0.5) * 0.02, // Mock coordinates if not available
+          longitude: vendor.longitude || -73.9571 + (Math.random() - 0.5) * 0.02,
+          coverImageUrl: vendor.coverImageUrl,
+          deliveryFee: vendor.deliveryFee,
         })),
       };
 
@@ -176,7 +175,7 @@ export default function MapPage({ route, navigation }) {
         mapRef.current.postMessage(JSON.stringify(message));
       }
     }
-  }, [webViewReady, foodTrucks]);
+  }, [webViewReady, vendors]);
 
   const handleGPSButtonPress = async () => {
     const location = await moveToCurrentLocation();
@@ -534,7 +533,7 @@ export default function MapPage({ route, navigation }) {
           if (message.type === 'foodTruckPressed') {
             navigation.navigate('FoodTruckViewer', {
               foodTruckId: message.foodTruck.id,
-              foodTruck: message.foodTruck,
+              vendor: message.foodTruck,
             });
           }
         }}

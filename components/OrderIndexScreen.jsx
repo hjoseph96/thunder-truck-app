@@ -256,7 +256,7 @@ export default function OrderIndexScreen({ navigation }) {
                 <View style={styles.orderHeader}>
                   <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.foodTruckName} numberOfLines={1} ellipsizeMode="tail">
-                      {order.foodTruck?.name || 'Unknown Restaurant'}
+                      {order.vendor?.name || 'Unknown Restaurant'}
                     </Text>
                     <Text style={styles.orderNumber} numberOfLines={1} ellipsizeMode="tail">
                       Order #{order.id}

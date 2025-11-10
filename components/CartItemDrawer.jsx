@@ -39,8 +39,8 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuan
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
             <View style={styles.foodTruckImageContainer}>
-              {cartItems[0].foodTruckData.coverImageUrl && (
-                  <Image source={{ uri: cartItems[0].foodTruckData.coverImageUrl }} style={styles.cartItemImage} />
+              {cartItems[0].vendorData?.coverImageUrl && (
+                  <Image source={{ uri: cartItems[0].vendorData.coverImageUrl }} style={styles.cartItemImage} />
                 )}
             </View>
 
