@@ -30,6 +30,7 @@ export default function MapPage({ route, navigation }) {
   const mapRef = useRef(null);
   const fetchDebounceTimeout = useRef(null);
 
+  
   // Use refs to store current state values for interval access
   const demoStateRef = useRef({
     route: null,
