@@ -4,9 +4,9 @@
 export const API_CONFIG = {
   // Development - local Rails server
   development: {
-    baseURL: 'https://api.thundertruck.app', // Change to your local Rails server URL: http://localhost:3000
+    baseURL: 'https://staging.thundertruck.app', // Change to your local Rails server URL: http://localhost:3000
     graphqlEndpoint: '/graphql',
-    websocketURL: 'wss://api.thundertruck.app/cable',
+    websocketURL: 'wss://staging.thundertruck.app/cable',
     timeout: 20000, // 20 seconds
   },
 
