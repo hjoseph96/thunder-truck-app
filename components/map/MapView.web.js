@@ -130,6 +130,7 @@ export const MapView = forwardRef((props, ref) => {
           fullscreenControl: false,
           streetViewControl: false,
           zoomControl: true,
+          rotateControl: false, // Compass control (triangle) - disabled to remove triangle
           styles: [], // Empty styles for standard rendering
         }}
         {...otherProps}
