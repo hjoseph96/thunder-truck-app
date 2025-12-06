@@ -1312,21 +1312,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Cairo',
   },
-  cartPopupTriangle: {
-    position: 'absolute',
-    bottom: -8,
-    right: 20,
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: '#fff',
-  },
   // Cart Items Styles
   cartEmptyText: {
     fontSize: 14,

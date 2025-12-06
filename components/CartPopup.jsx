@@ -120,7 +120,6 @@ const CartPopup = ({
             </ScrollView>
           )}
         </View>
-        <View style={styles.cartPopupTriangle} />
       </View>
     </>
   );
