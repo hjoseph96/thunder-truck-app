@@ -172,6 +172,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: screenWidth < 480 ? 16 : screenWidth < 768 ? 24 : screenWidth < 1024 ? 40 : 60,
         flexDirection: screenWidth < 768 ? 'column' : 'row',
         gap: screenWidth < 480 ? 16 : screenWidth < 768 ? 20 : 80,
+        paddingBottom: 100,
         justifyContent: screenWidth < 768 ? 'center' : 'space-between',
       },
       default: {
