@@ -199,21 +199,7 @@ export default function App() {
           body {
             overflow-y: scroll;
           }
-          
-          #root {
-            overflow-y: scroll !important;
-          }
-          
-          /* Make all flex containers scrollable */
-          .r-flex-13awgt0 {
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-          }
-          
-          /* Target React Native Web view containers */
-          .css-view-g5y9jx {
-          }
-          
+
           /* Nested containers */
           #root > div,
           #root > div > div {
