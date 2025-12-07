@@ -200,14 +200,6 @@ export default function App() {
             overflow-y: scroll;
           }
 
-          /* Nested containers */
-          #root > div,
-          #root > div > div {
-            height: 100%;
-            overflow-y: scroll;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-          }
           
           /* Data attribute scroll containers */
           [data-scroll-container] {
