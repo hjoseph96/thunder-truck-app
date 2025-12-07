@@ -197,11 +197,11 @@ export default function App() {
         style.textContent = `
           /* Global scrolling for React Native Web */
           body {
-            overflow-y: scroll;
+            overflow-y: auto;
           }
           
           #root {
-            overflow-y: scroll !important;
+            overflow-y: auto !important;
           }
           
           /* Make all flex containers scrollable */
@@ -218,7 +218,7 @@ export default function App() {
           #root > div,
           #root > div > div {
             height: 100%;
-            overflow-y: scroll;
+            overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
           }
