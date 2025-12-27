@@ -13,6 +13,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
 import { fetchFoodTypeById } from '../lib/food-types-service';
+import LazyImage from './LazyImage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -341,14 +342,14 @@ export default function FoodTypeViewer({ navigation, route }) {
         // Hidden HTML attribute for web compatibility and data tracking
         {...(Platform.OS === 'web' && { 'data-food-truck-id': truck.id })}
       >
-        <Image
-          {...(Platform.OS === 'web' && { preload: 'auto' })}
+        <LazyImage
           source={hasValidImage 
             ? { uri: imageUrl }
             : require('../assets/images/blank-menu-item.png')
           }
           style={styles.truckImage}
           resizeMode="cover"
+          skeletonBorderRadius={12}
           onError={(error) => {
             console.error(`❌ Failed to load image for ${truck.name}:`, imageUrl, error.nativeEvent);
           }}
@@ -430,12 +431,13 @@ export default function FoodTypeViewer({ navigation, route }) {
       <View style={styles.content}>
         {/* Cover Image */}
         <View style={styles.coverImageContainer}>
-          <Image
+          <LazyImage
             source={{ 
               uri: foodType?.coverImageUrl || 'https://via.placeholder.com/400x200/cccccc/666666?text=No+Cover+Image'
             }}
             style={styles.coverImage}
             resizeMode="cover"
+            lazy={false}
           />
           <View style={styles.coverOverlay}>
             <Text style={styles.coverTitle}>{foodType?.title || 'Food Type'}</Text>
@@ -586,13 +588,18 @@ const styles = StyleSheet.create({
     width: '100%',
     ...Platform.select({
       web: {
-        height: screenWidth < 768 ? '30vh' : '55vh',
+        height: screenWidth < 768 ? 300 : 400, // Static height instead of vh
       },
     }),
   },
   coverImage: {
     width: '100%',
-    height: '100%',
+    height: 250,
+    ...Platform.select({
+      web: {
+        height: screenWidth < 768 ? 300 : 400, // Match container height
+      },
+    }),
   },
   coverOverlay: {
     position: 'absolute',
@@ -729,6 +736,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         height: screenWidth >= 900 ? 160 : 120,
+        minHeight: screenWidth >= 900 ? 160 : 120, // Prevent layout shift
       },
     }),
   },

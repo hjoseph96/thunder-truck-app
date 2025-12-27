@@ -21,6 +21,7 @@ import OnboardingModal from './OnboardingModal';
 import BottomNavigation from './BottomNavigation';
 import { getNearbyFoodTrucksWithCache, getMockLocation } from '../lib/food-trucks-service';
 import { getStoredUserData } from '../lib/token-manager';
+import LazyImage from './LazyImage';
 
 // Import CSS for web responsive grid
 if (Platform.OS === 'web') {
@@ -394,12 +395,13 @@ export default function ExplorerHome({ navigation }) {
                   {...(isWeb && { className: 'explorer-grid-item' })}
                   onPress={() => handleFoodTruckPress(foodTruck)}
                 >
-                  <Image
+                  <LazyImage
                     source={{ 
                       uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/100x100/cccccc/666666?text=No+Image'
                     }}
                     style={styles.categoryImage}
                     resizeMode="cover"
+                    skeletonBorderRadius={8}
                   />
                   <Text style={styles.categoryText}>{foodTruck.name}</Text>
                   <Text style={styles.foodTruckSubtext}>
@@ -759,6 +761,12 @@ const styles = StyleSheet.create({
     height: 100,
     marginBottom: 10,
     borderRadius: 8,
+    ...Platform.select({
+      web: {
+        height: 150, // Static height for web to prevent layout shift
+        minHeight: 150,
+      },
+    }),
   },
   categoryText: {
     fontFamily: 'Poppins',

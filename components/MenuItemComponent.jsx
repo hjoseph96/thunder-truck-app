@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
+import ImageSkeleton from './ImageSkeleton';
 
 const MenuItemComponent = ({ 
   imageUrl, 
@@ -22,29 +23,6 @@ const MenuItemComponent = ({
   const [scaleValue] = useState(new Animated.Value(1));
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
-  const [pulseAnim] = useState(new Animated.Value(0.3));
-
-  React.useEffect(() => {
-    if (imageLoading) {
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 0.3,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulseAnimation.start();
-      
-      return () => pulseAnimation.stop();
-    }
-  }, [imageLoading, pulseAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleValue, {
@@ -92,17 +70,6 @@ const MenuItemComponent = ({
     }
   };
 
-  const renderImageSkeleton = () => (
-    <View style={styles.imageSkeleton}>
-      <Animated.View 
-        style={[
-          styles.skeletonPulse,
-          { opacity: pulseAnim }
-        ]} 
-      />
-    </View>
-  );
-
   const renderImageError = () => (
     <View style={styles.imageError}>
       <Text style={styles.imageErrorText}>🍽️</Text>
@@ -136,7 +103,7 @@ const MenuItemComponent = ({
         {imageUrl && (
           <View style={styles.imageContainer}>
             {/* Show skeleton while loading */}
-            {imageLoading && renderImageSkeleton()}
+            {imageLoading && <ImageSkeleton style={styles.itemImage} borderRadius={8} />}
             
             {/* Show error state if image fails */}
             {imageError && renderImageError()}
@@ -234,6 +201,7 @@ const styles = StyleSheet.create({
   itemImage: {
     width: 60,
     height: 60,
+    minHeight: 60, // Prevent layout shift
     borderRadius: 8,
     marginBottom: 8,
   },
@@ -268,20 +236,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2D1E2F',
   },
-  imageSkeleton: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  skeletonPulse: {
-    width: '80%',
-    height: '80%',
-    borderRadius: 4,
-    backgroundColor: '#F0F0F0',
-  },
   imageError: {
     width: 60,
     height: 60,
@@ -298,6 +252,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 60,
     height: 60,
+    minHeight: 60, // Prevent layout shift
     borderRadius: 8,
     marginBottom: 8,
   },

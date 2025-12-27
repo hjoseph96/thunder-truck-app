@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import LazyImage from './LazyImage';
 
 const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuantityChange, cartLoading = false }) => {
   const rotateValue = new Animated.Value(isExpanded ? 1 : 0);
@@ -40,7 +41,11 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuan
           <View style={styles.headerLeft}>
             <View style={styles.foodTruckImageContainer}>
               {cartItems[0].foodTruckData.coverImageUrl && (
-                  <Image source={{ uri: cartItems[0].foodTruckData.coverImageUrl }} style={styles.cartItemImage} />
+                  <LazyImage 
+                    source={{ uri: cartItems[0].foodTruckData.coverImageUrl }} 
+                    style={styles.cartItemImage}
+                    skeletonBorderRadius={6}
+                  />
                 )}
             </View>
 
@@ -67,7 +72,11 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuan
 
                 <View style={styles.itemImageContainer}>
                   {item.cartItem.menuItem?.imageUrl && (
-                    <Image source={{ uri: item.cartItem.menuItem.imageUrl }} style={styles.itemImage} />
+                    <LazyImage 
+                      source={{ uri: item.cartItem.menuItem.imageUrl }} 
+                      style={styles.itemImage}
+                      skeletonBorderRadius={6}
+                    />
                   )}
                 </View>
                 
@@ -242,11 +251,13 @@ const styles = StyleSheet.create({
   cartItemImage: {
     width: 70,
     height: 70,
+    minHeight: 70, // Prevent layout shift
     borderRadius: 6,
   },
   foodTruckImageContainer: {
     width: 70,
     height: 70,
+    minHeight: 70, // Prevent layout shift
     borderRadius: 6,
     overflow: 'hidden',
   },
@@ -270,12 +281,14 @@ const styles = StyleSheet.create({
   itemImageContainer: {
     width: 48,
     height: 48,
+    minHeight: 48, // Prevent layout shift
     borderRadius: 6,
     overflow: 'hidden',
   },
   itemImage: {
     width: 48,
     height: 48,
+    minHeight: 48, // Prevent layout shift
     borderRadius: 6,
     resizeMode: 'cover',
   },

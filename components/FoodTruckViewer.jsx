@@ -17,6 +17,7 @@ import { getFoodTruckWithCache } from '../lib/food-truck-service';
 import { getCart, addMenuItemToCart, changeCartItemQuantity } from '../lib/cart-service';
 import MenuItemComponent from './MenuItemComponent';
 import CartPopup from './CartPopup';
+import LazyImage from './LazyImage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -272,22 +273,25 @@ export default function FoodTruckViewer({ navigation, route }) {
 
       {/* Header with Cover Image */}
       <View style={styles.header}>
-        <Image
+        <LazyImage
           source={{
             uri: foodTruck.coverImageUrl || 'https://via.placeholder.com/400x200/cccccc/666666?text=No+Cover+Image'
           }}
           style={styles.coverImage}
           resizeMode="cover"
+          lazy={false}
         />
 
         {/* Logo Circle */}
         <View style={styles.logoContainer}>
-          <Image
+          <LazyImage
             source={{
               uri: foodTruck.logoUrl || 'https://via.placeholder.com/80x80/cccccc/666666?text=Logo'
             }}
             style={styles.logoImage}
             resizeMode="contain"
+            lazy={false}
+            skeletonBorderRadius={40}
           />
         </View>
 
@@ -366,7 +370,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         flexShrink: 0,
-        height: '40vh',
+        height: 320, // Fixed height instead of vh for better performance
         zIndex: 100,
         width: '100%',
       },
@@ -374,10 +378,15 @@ const styles = StyleSheet.create({
   },
   coverImage: {
     width: '100%',
-    height: '100%',
+    height: screenHeight * 0.4,
     position: 'absolute',
     top: 0,
     left: 0,
+    ...Platform.select({
+      web: {
+        height: 320, // Match header height for consistent layout
+      },
+    }),
   },
   logoContainer: {
     position: 'absolute',
@@ -515,7 +524,7 @@ const styles = StyleSheet.create({
       web: {
         marginTop: '0.75rem',
         position: 'absolute',
-        top: '40vh',
+        top: 320, // Match fixed header height
         left: 0,
         right: 0,
         bottom: 0,
