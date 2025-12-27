@@ -40,9 +40,9 @@ const CartItemDrawer = ({ foodTruckName, cartItems, isExpanded, onToggle, onQuan
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
             <View style={styles.foodTruckImageContainer}>
-              {cartItems[0].foodTruckData.coverImageUrl && (
+              {cartItems[0].vendorData?.coverImageUrl && (
                   <LazyImage 
-                    source={{ uri: cartItems[0].foodTruckData.coverImageUrl }} 
+                    source={{ uri: cartItems[0].vendorData.coverImageUrl }} 
                     style={styles.cartItemImage}
                     skeletonBorderRadius={6}
                   />

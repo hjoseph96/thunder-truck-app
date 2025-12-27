@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { fetchNearbyFoodTrucks } from '../lib/food-trucks-service';
+import { fetchNearbyVendors } from '../lib/food-trucks-service';
 import { fetchFoodTypeById } from '../lib/food-types-service';
 import LazyImage from './LazyImage';
 
@@ -42,7 +42,7 @@ export default function FoodTypeViewer({ navigation, route }) {
   const [foodType, setFoodType] = useState(
     foodTypeParam || (foodTypeId ? { id: foodTypeId, title: 'Loading...' } : null)
   );
-  const [foodTrucks, setFoodTrucks] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,7 +71,7 @@ export default function FoodTypeViewer({ navigation, route }) {
             // Continue anyway with just the ID
           });
       }
-      loadFoodTrucksForType();
+      loadVendorsForType();
     } else {
       setError('No food type specified');
       setLoading(false);
@@ -101,11 +101,11 @@ export default function FoodTypeViewer({ navigation, route }) {
     }
   }, [numColumns]);
 
-  const loadFoodTrucksForType = async (page = 1, append = false) => {
+  const loadVendorsForType = async (page = 1, append = false) => {
     const actualFoodTypeId = foodType?.id || foodTypeId;
     const itemsPerPage = Platform.OS === 'web' ? 15 : 12;
     
-    console.log('=== loadFoodTrucksForType START ===');
+    console.log('=== loadVendorsForType START ===');
     console.log('Page:', page, 'Append:', append, 'FoodTypeId:', actualFoodTypeId, 'ItemsPerPage:', itemsPerPage);
     
     try {
@@ -135,65 +135,65 @@ export default function FoodTypeViewer({ navigation, route }) {
 
       console.log('Calling fetchNearbyFoodTrucks with:', fetchParams);
 
-      // Fetch food trucks filtered by this food type
-      const result = await fetchNearbyFoodTrucks(fetchParams);
+      // Fetch vendors filtered by this food type
+      const result = await fetchNearbyVendors(fetchParams);
 
       console.log(`API Response for food type (${actualFoodTypeId}) page ${page}:`, result);
       
-      const newFoodTrucks = result?.foodTrucks || [];
+      const newVendors = result?.vendors || [];
       const newTotalCount = result?.totalCount || 0;
       
-      console.log('New food trucks count:', newFoodTrucks.length, 'Total count:', newTotalCount);
+      console.log('New vendors count:', newVendors.length, 'Total count:', newTotalCount);
       
-      // Debug first truck's data structure
-      if (newFoodTrucks.length > 0) {
-        console.log('📊 Sample food truck data:', {
-          id: newFoodTrucks[0].id,
-          name: newFoodTrucks[0].name,
-          coverImageUrl: newFoodTrucks[0].coverImageUrl,
-          hasImage: !!newFoodTrucks[0].coverImageUrl
+      // Debug first vendor's data structure
+      if (newVendors.length > 0) {
+        console.log('📊 Sample vendor data:', {
+          id: newVendors[0].id,
+          name: newVendors[0].name,
+          coverImageUrl: newVendors[0].coverImageUrl,
+          hasImage: !!newVendors[0].coverImageUrl
         });
       }
       
       // Warn if backend didn't respect perPage
-      if (newFoodTrucks.length > 0 && newFoodTrucks.length < itemsPerPage && page === 1 && newTotalCount > newFoodTrucks.length) {
-        console.warn(`⚠️ Backend returned ${newFoodTrucks.length} items but we requested ${itemsPerPage}. This may be a backend issue not respecting the perPage parameter.`);
+      if (newVendors.length > 0 && newVendors.length < itemsPerPage && page === 1 && newTotalCount > newVendors.length) {
+        console.warn(`⚠️ Backend returned ${newVendors.length} items but we requested ${itemsPerPage}. This may be a backend issue not respecting the perPage parameter.`);
       }
       
-      let updatedTrucksCount = 0;
+      let updatedVendorsCount = 0;
       
       if (append) {
-        // Append new food trucks to existing ones
-        setFoodTrucks(prevTrucks => {
-          const updated = [...prevTrucks, ...newFoodTrucks];
-          updatedTrucksCount = updated.length;
-          console.log('Appending', newFoodTrucks.length, 'trucks to existing', prevTrucks.length, '= total:', updatedTrucksCount);
+        // Append new vendors to existing ones
+        setVendors(prevVendors => {
+          const updated = [...prevVendors, ...newVendors];
+          updatedVendorsCount = updated.length;
+          console.log('Appending', newVendors.length, 'vendors to existing', prevVendors.length, '= total:', updatedVendorsCount);
           return updated;
         });
       } else {
-        // Replace food trucks for first page
-        updatedTrucksCount = newFoodTrucks.length;
-        console.log('Replacing food trucks with', newFoodTrucks.length, 'trucks');
-        setFoodTrucks(newFoodTrucks);
+        // Replace vendors for first page
+        updatedVendorsCount = newVendors.length;
+        console.log('Replacing vendors with', newVendors.length, 'vendors');
+        setVendors(newVendors);
       }
       
       setTotalCount(newTotalCount);
       
       // Check if there are more pages - use totalCount as source of truth
-      const hasMore = updatedTrucksCount < newTotalCount;
-      console.log('Has more pages:', hasMore, `(loaded: ${updatedTrucksCount}, total available: ${newTotalCount})`);
+      const hasMore = updatedVendorsCount < newTotalCount;
+      console.log('Has more pages:', hasMore, `(loaded: ${updatedVendorsCount}, total available: ${newTotalCount})`);
       setHasMorePages(hasMore);
       setCurrentPage(page);
       
-      console.log('=== loadFoodTrucksForType SUCCESS ===');
+      console.log('=== loadVendorsForType SUCCESS ===');
     } catch (err) {
-      console.error('=== loadFoodTrucksForType ERROR ===', err);
+      console.error('=== loadVendorsForType ERROR ===', err);
       console.error('Error details:', err.message, err.stack);
       if (page === 1) {
-        setError(err.message || 'Failed to load food trucks');
+        setError(err.message || 'Failed to load vendors');
       }
     } finally {
-      console.log('=== loadFoodTrucksForType FINALLY ===');
+      console.log('=== loadVendorsForType FINALLY ===');
       console.log('Setting loading to false, loadingMore to false');
       setLoading(false);
       setLoadingMore(false);
@@ -205,7 +205,7 @@ export default function FoodTypeViewer({ navigation, route }) {
     if (!loadingMore && hasMorePages) {
       const nextPage = currentPage + 1;
       console.log('loadMoreFoodTrucks called for page:', nextPage);
-      await loadFoodTrucksForType(nextPage, true);
+      await loadVendorsForType(nextPage, true);
     }
   }, [loadingMore, hasMorePages, currentPage]);
 
@@ -223,7 +223,7 @@ export default function FoodTypeViewer({ navigation, route }) {
       if (!sentinel) {
         console.warn('⚠️ Infinite scroll sentinel not found in DOM. State:', {
           hasMorePages,
-          foodTrucksCount: foodTrucks.length
+          vendorsCount: vendors.length
         });
         return;
       }
@@ -231,7 +231,7 @@ export default function FoodTypeViewer({ navigation, route }) {
       console.log('✅ Setting up IntersectionObserver for infinite scroll. Current state:', {
         loadingMore,
         hasMorePages,
-        foodTrucksCount: foodTrucks.length
+          vendorsCount: vendors.length
       });
 
       // Create intersection observer to detect when sentinel comes into view
@@ -294,17 +294,17 @@ export default function FoodTypeViewer({ navigation, route }) {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [loadingMore, hasMorePages, loadMoreFoodTrucks, foodTrucks.length]); // Added foodTrucks.length to re-run when data changes
+  }, [loadingMore, hasMorePages, loadMoreFoodTrucks, vendors.length]); // Added vendors.length to re-run when data changes
 
-  const handleFoodTruckPress = (foodTruck) => {
+  const handleVendorPress = (vendor) => {
     // Navigate to FoodTruckViewer with only ID (clean URL routing)
-    navigation.navigate('FoodTruckViewer', { 
-      foodTruckId: foodTruck.id
+    navigation.navigate('FoodTruckViewer', {
+      foodTruckId: vendor.id
     });
   };
 
   const handleRetry = () => {
-    loadFoodTrucksForType();
+    loadVendorsForType();
   };
 
   const handleBackPress = () => {
@@ -335,7 +335,7 @@ export default function FoodTypeViewer({ navigation, route }) {
           isWeb && styles.foodTruckCardWeb,
           isWeb && { width: cardWidth }
         ]}
-        onPress={() => handleFoodTruckPress(truck)}
+        onPress={() => handleVendorPress(truck)}
         activeOpacity={0.7}
         accessibilityLabel={`Food truck ${truck.name}`}
         accessibilityHint="Double tap to view food truck details"
@@ -467,13 +467,13 @@ export default function FoodTypeViewer({ navigation, route }) {
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
-          ) : foodTrucks.length === 0 ? (
+          ) : vendors.length === 0 ? (
             renderEmptyState()
           ) : isWeb ? (
             // Web: Use custom responsive grid
             <View style={styles.webGridContainer}>
               <View style={styles.webGrid}>
-                {foodTrucks.map((truck) => renderFoodTruckCard(truck))}
+                {vendors.map((vendor) => renderFoodTruckCard(vendor))}
               </View>
               {renderFooter()}
               {/* Infinite scroll sentinel for IntersectionObserver */}
@@ -492,7 +492,7 @@ export default function FoodTypeViewer({ navigation, route }) {
           ) : (
             // Native: Use FlatList with fixed columns
             <FlatList
-              data={foodTrucks}
+              data={vendors}
               renderItem={renderFoodTruckItem}
               keyExtractor={(item) => item.id}
               numColumns={2}

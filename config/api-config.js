@@ -12,9 +12,9 @@ export const API_CONFIG = {
 
   // Staging environment
   staging: {
-    baseURL: 'https://your-staging-api.com',
+    baseURL: 'https://staging.thundertruck.app',
     graphqlEndpoint: '/graphql',
-    websocketURL: 'wss://your-staging-api.com/cable',
+    websocketURL: 'wss://staging.thundertruck.app/cable',
     timeout: 15000, // 15 seconds
   },
 
@@ -30,7 +30,7 @@ export const API_CONFIG = {
 // Get current environment (default to development)
 export const getCurrentEnvironment = () => {
   // You can set this via environment variables or build configuration
-  return process.env.NODE_ENV || 'development';
+  return process.env.NODE_ENV || process.env.EXPO_PUBLIC_ENV || 'development';
 };
 
 // Get current API configuration

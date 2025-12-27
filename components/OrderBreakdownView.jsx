@@ -34,7 +34,7 @@ const OrderBreakdownView = ({ route, navigation }) => {
       
       // Filter out any orders without foodTruck (shouldn't happen since we skip parent)
       // but adding as safety check
-      const vendorOrders = fetchedOrders.filter(order => order.foodTruck);
+      const vendorOrders = fetchedOrders.filter(order => order.vendor);
       
       setOrders(vendorOrders);
       setLoading(false);
@@ -144,9 +144,9 @@ const OrderBreakdownView = ({ route, navigation }) => {
             {/* Vendor Header */}
             <View style={styles.vendorHeader}>
               <View style={styles.vendorImageContainer}>
-                {order.foodTruck?.logoUrl ? (
+                {order.vendor?.logoUrl ? (
                   <Image
-                    source={{ uri: order.foodTruck.logoUrl }}
+                    source={{ uri: order.vendor.logoUrl }}
                     style={styles.vendorImage}
                   />
                 ) : (
@@ -156,7 +156,7 @@ const OrderBreakdownView = ({ route, navigation }) => {
                 )}
               </View>
               <View style={styles.vendorInfo}>
-                <Text style={styles.vendorName}>{order.foodTruck?.name || 'Unknown Vendor'}</Text>
+                <Text style={styles.vendorName}>{order.vendor?.name || 'Unknown Vendor'}</Text>
                 <View style={styles.orderMetaRow}>
                   <Text style={styles.orderNumber}>Order #{order.id.slice(-8)}</Text>
                 </View>

@@ -295,10 +295,10 @@ export default function OrderDetailScreen({ route, navigation }) {
         // }
 
         // Set food truck coordinates with validation
-        if (orderData.foodTruck?.latitude && orderData.foodTruck?.longitude) {
+        if (orderData.vendor?.latitude && orderData.vendor?.longitude) {
           const truckCoords = {
-            latitude: orderData.foodTruck.latitude,
-            longitude: orderData.foodTruck.longitude,
+            latitude: orderData.vendor.latitude,
+            longitude: orderData.vendor.longitude,
           };
 
           // Use the truck coordinates immediately (optimistic)
@@ -1153,7 +1153,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           <View style={styles.bottomSheetSummary}>
             <View style={styles.restaurantInfo}>
               <Text style={styles.restaurantName}>
-                {order.foodTruck?.name || 'Unknown Restaurant'}
+                {order.vendor?.name || 'Unknown Restaurant'}
               </Text>
               <Text style={styles.orderSummary}>
                 {order.formattedItems?.length || 0} items • ${order.total}
@@ -1321,7 +1321,7 @@ export default function OrderDetailScreen({ route, navigation }) {
       <FoodTruckReviewModal
         visible={showFoodTruckReviewModal}
         onClose={handleCloseFoodTruckReviewModal}
-        foodTruckName={order?.foodTruck?.name || 'Food Truck'}
+        foodTruckName={order?.vendor?.name || 'Vendor'}
         onSubmitReview={handleFoodTruckReviewSubmit}
       />
     </SafeAreaView>

@@ -80,8 +80,8 @@ const CheckoutForm = ({ route, navigation }) => {
         console.log('Carts Data Length: ', carts.length);
         carts.forEach(cart => {
           if (cart.cartItems && cart.cartItems.length > 0) {
-            const foodTruckName = cart.foodTruck.name;
-            initialExpanded[foodTruckName] = false;
+            const vendorName = cart.vendor.name;
+            initialExpanded[vendorName] = false;
           }
         });
         setExpandedDrawers(initialExpanded);
@@ -93,10 +93,10 @@ const CheckoutForm = ({ route, navigation }) => {
     }
   };
 
-  const toggleDrawer = (foodTruckName) => {
+  const toggleDrawer = (vendorName) => {
     setExpandedDrawers(prev => ({
       ...prev,
-      [foodTruckName]: !prev[foodTruckName]
+      [vendorName]: !prev[vendorName]
     }));
   };
 
@@ -134,7 +134,7 @@ const CheckoutForm = ({ route, navigation }) => {
         if (!updatedCart || !updatedCart.cartItems || updatedCart.cartItems.length === 0) {
           setExpandedDrawers(prev => {
             const newExpanded = { ...prev };
-            delete newExpanded[cartToUpdate.foodTruck.name];
+            delete newExpanded[cartToUpdate.vendor.name];
             return newExpanded;
           });
         }
@@ -156,21 +156,21 @@ const CheckoutForm = ({ route, navigation }) => {
     }
   };
 
-  const groupCartItemsByFoodTruck = () => {
+  const groupCartItemsByVendor = () => {
     if (!cartsData || cartsData.length === 0) return {};
     
     const grouped = {};
     
     cartsData.forEach(cart => {
       if (cart.cartItems && cart.cartItems.length > 0) {
-        const foodTruckName = cart.foodTruck.name;
+        const vendorName = cart.vendor.name;
         
-        if (!grouped[foodTruckName]) {
-          grouped[foodTruckName] = [];
+        if (!grouped[vendorName]) {
+          grouped[vendorName] = [];
         }
         
         cart.cartItems.forEach(item => {
-          grouped[foodTruckName].push({ cartItem: item, foodTruckData: cart.foodTruck });
+          grouped[vendorName].push({ cartItem: item, vendorData: cart.vendor });
         });
       }
     });
@@ -210,7 +210,7 @@ const CheckoutForm = ({ route, navigation }) => {
     );
   }
 
-  const groupedItems = groupCartItemsByFoodTruck();
+  const groupedItems = groupCartItemsByVendor();
 
   return (
     <View style={styles.container}>
@@ -261,13 +261,13 @@ const CheckoutForm = ({ route, navigation }) => {
         {/* Cart Display Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Order</Text>
-          {Object.entries(groupedItems).map(([foodTruckName, cartItemData]) => (
+          {Object.entries(groupedItems).map(([vendorName, cartItemData]) => (
             <CartItemDrawer
-              key={foodTruckName}
-              foodTruckName={foodTruckName}
+              key={vendorName}
+              foodTruckName={vendorName}
               cartItems={cartItemData}
-              isExpanded={expandedDrawers[foodTruckName]}
-              onToggle={() => toggleDrawer(foodTruckName)}
+              isExpanded={expandedDrawers[vendorName]}
+              onToggle={() => toggleDrawer(vendorName)}
               onQuantityChange={handleQuantityChange}
               cartLoading={cartLoading}
             />
